@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ================= ENUMLAR =================
 
 enum Role {
   CLIENT
@@ -44,6 +45,7 @@ enum IssuePriority {
   HIGH
 }
 
+// ================= MODELLƏR =================
 
 model User {
   id           String   @id @default(uuid())
@@ -56,6 +58,8 @@ model User {
   headline     String?
   bio          String?
   hourlyRate   Decimal? @db.Decimal(10, 2)
+
+  deletedAt    DateTime? // Soft delete: doludursa hesab silinib (bazadan silinmir)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -78,7 +82,7 @@ model JobPost {
   status      JobStatus @default(OPEN)
 
   clientId    String
-  client      User      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      User      @relation(fields: [clientId], references: [id])
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -97,10 +101,10 @@ model Proposal {
   status      ProposalStatus @default(PENDING)
 
   jobPostId    String
-  jobPost      JobPost @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  jobPost      JobPost @relation(fields: [jobPostId], references: [id])
 
   freelancerId String
-  freelancer   User    @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  freelancer   User    @relation(fields: [freelancerId], references: [id])
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -183,7 +187,7 @@ model IssueComment {
   issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
 
   createdAt DateTime @default(now())
 
