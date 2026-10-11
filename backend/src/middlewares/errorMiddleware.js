@@ -1,32 +1,36 @@
+import { logger } from '../utils/logger.js';
+
 export const globalErrorMiddleware = (err, req, res, next) => {
     let statusCode = err.statusCode || 500;
-    let message = err.message || "Daxili Server Xətası";
+    let message = err.message || "Internal server error";
 
     // Prisma errors
     if (err.code === 'P2025') {
         statusCode = 404;
-        message = "Axtarılan məlumat tapılmadı";
+        message = "The requested information was not found.";
     }
 
     if (err.code === 'P2002') {
         statusCode = 400;
         // P2002 - Unique constraint failed (məsələn: eyni email-dən 2-ci dəfə qeydiyyat)
-        message = "Bu məlumat artıq sistemdə mövcuddur";
+        message = "This information already exists in the system.";
     }
 
     // JWT errors
     if (err.name === "JsonWebTokenError") {
         statusCode = 401;
-        message = "Səlahiyyət yoxdur, token yanlışdır";
+        message = "No authorization, invalid token";
     }
 
     if (err.name === "TokenExpiredError") {
         statusCode = 401;
-        message = "Tokenin vaxtı bitib, yenidən daxil olun";
+        message = "The token has expired; please log in again.";
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-        console.error(`[ERROR]: ${message}`, err);
+    if (statusCode === 500) {
+        logger.error(`${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`, { stack: err.stack });
+    } else {
+        logger.warn(`${message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
     }
 
     return res.status(statusCode).json({
