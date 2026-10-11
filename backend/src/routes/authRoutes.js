@@ -7,14 +7,21 @@ import {
     updatePassword,
 } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
+import { validate } from '../middlewares/validate.js';
+import {
+    registerSchema,
+    loginSchema,
+    updateMeSchema,
+    updatePasswordSchema,
+} from '../validators/authValidator.js';
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', validate(registerSchema), register);
+router.post('/login', validate(loginSchema), login);
 
 router.get('/me', protect, getMe);
-router.patch('/update-me', protect, updateMe);
-router.patch('/update-password', protect, updatePassword);
+router.patch('/update-me', protect, validate(updateMeSchema), updateMe);
+router.patch('/update-password', protect, validate(updatePasswordSchema), updatePassword);
 
 export default router;

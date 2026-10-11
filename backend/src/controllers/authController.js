@@ -8,10 +8,6 @@ import { AppError } from '../utils/AppError.js';
 export const register = asyncHandler(async (req, res) => {
     const { email, password, fullName, role } = req.body;
 
-    if (!email || !password || !fullName) {
-        throw new AppError('Fill in all required fields.', 400);
-    }
-
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
         throw new AppError('This email is already registered.', 400);
@@ -47,10 +43,6 @@ export const register = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-        throw new AppError('Enter email and password', 400);
-    }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || user.deletedAt !== null) {
@@ -88,10 +80,6 @@ export const getMe = asyncHandler(async (req, res) => {
 export const updateMe = asyncHandler(async (req, res) => {
     const { fullName } = req.body;
 
-    if (!fullName) {
-        throw new AppError('Please provide fields to update.', 400);
-    }
-
     const updatedUser = await prisma.user.update({
         where: { id: req.user.id },
         data: { fullName },
@@ -113,10 +101,6 @@ export const updateMe = asyncHandler(async (req, res) => {
 // @route   PATCH /api/auth/update-password
 export const updatePassword = asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-        throw new AppError('Please provide both current and new password.', 400);
-    }
 
     const user = await prisma.user.findUnique({
         where: { id: req.user.id },
