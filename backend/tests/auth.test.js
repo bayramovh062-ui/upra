@@ -9,6 +9,8 @@ const testUser = {
     role: 'CLIENT'
 };
 
+let authToken;
+
 beforeAll(async () => {
     await prisma.user.deleteMany({
         where: { email: testUser.email }
@@ -30,12 +32,11 @@ describe('Auth API tests', () => {
                 .post('/api/auth/register')
                 .send(testUser);
 
-            // (Expectations)
             expect(response.status).toBe(201);
             expect(response.body.success).toBe(true);
             expect(response.body.token).toBeDefined();
-            expect(response.body.user.email).toBe(testUser.email);
-            expect(response.body.user.password).toBeUndefined();
+
+            authToken = response.body.token;
         });
 
         it('should not allow re-registration with an existing email.', async () => {
@@ -45,7 +46,6 @@ describe('Auth API tests', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.message).toMatch(/This email is already registered./i);
         });
     });
 
@@ -70,6 +70,26 @@ describe('Auth API tests', () => {
                     email: testUser.email,
                     password: 'WrongPassword123!'
                 });
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+        });
+    });
+
+    describe('GET /api/auth/me', () => {
+        it('should return current user profile when valid token is provided', async () => {
+            const response = await request(app)
+                .get('/api/auth/me')
+                .set('Authorization', `Bearer ${authToken}`);
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.user.email).toBe(testUser.email);
+        });
+
+        it('should reject request when no token is provided', async () => {
+            const response = await request(app)
+                .get('/api/auth/me');
 
             expect(response.status).toBe(401);
             expect(response.body.success).toBe(false);

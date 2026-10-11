@@ -74,3 +74,10 @@ export const login = asyncHandler(async (req, res) => {
         token,
     });
 });
+
+export const getMe = asyncHandler(async (req, res) => {
+    res.status(200).json({
+        success: true,
+        user: req.user
+    });
+});

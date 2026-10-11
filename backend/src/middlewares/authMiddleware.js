@@ -22,7 +22,9 @@ export const protect = asyncHandler(async (req, res, next) => {
             id: true,
             email: true,
             role: true,
-            deletedAt: true, // For soft delete
+            fullName: true,
+            deletedAt: true,
+            createdAt: true // For soft delete
         },
     });
 
