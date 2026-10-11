@@ -2,20 +2,18 @@ import { z } from 'zod';
 
 export const registerSchema = z.object({
     email: z
-        .string({ required_error: 'Email is required' })
+        .string({ error: 'Email is required' })
         .trim()
         .toLowerCase()
         .email('Invalid email address format'),
     password: z.string().min(6, 'Password must be at least 6 characters long'),
     fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long'),
-    role: z.enum(['CLIENT', 'FREELANCER'], {
-        errorMap: () => ({ message: 'Role must be either CLIENT or FREELANCER' }),
-    }).optional(),
+    role: z.enum(['CLIENT', 'FREELANCER'], { error: 'Role must be either CLIENT or FREELANCER' }).optional(),
 });
 
 export const loginSchema = z.object({
     email: z
-        .string({ required_error: 'Email is required' })
+        .string({ error: 'Email is required' })
         .trim()
         .toLowerCase()
         .email('Invalid email address format'),
