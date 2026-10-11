@@ -96,4 +96,45 @@ describe('Auth API tests', () => {
         });
     });
 
+    describe('PATCH /api/auth/update-me', () => {
+        it('should update user profile successfully', async () => {
+            const response = await request(app)
+                .patch('/api/auth/update-me')
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({ fullName: 'Updated Test Name' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+            expect(response.body.user.fullName).toBe('Updated Test Name');
+        });
+    });
+
+    describe('PATCH /api/auth/update-password', () => {
+        it('should reject password update with incorrect current password', async () => {
+            const response = await request(app)
+                .patch('/api/auth/update-password')
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({
+                    currentPassword: 'WrongPassword123!',
+                    newPassword: 'NewPassword123!',
+                });
+
+            expect(response.status).toBe(401);
+            expect(response.body.success).toBe(false);
+        });
+
+        it('should update password successfully with correct current password', async () => {
+            const response = await request(app)
+                .patch('/api/auth/update-password')
+                .set('Authorization', `Bearer ${authToken}`)
+                .send({
+                    currentPassword: testUser.password,
+                    newPassword: 'NewPassword123!',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+        });
+    });
+
 });

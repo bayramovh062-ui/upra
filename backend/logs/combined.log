@@ -31,3 +31,16 @@
 {"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:39:37 +0000] \"GET /api/auth/me HTTP/1.1\" 200 188 \"-\" \"-\"","timestamp":"2026-10-11 13:39:37"}
 {"level":"warn","message":"Unauthorized, please log in (Token not found) - /api/auth/me - GET - 127.0.0.1","timestamp":"2026-10-11 13:39:37"}
 {"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:39:37 +0000] \"GET /api/auth/me HTTP/1.1\" 401 75 \"-\" \"-\"","timestamp":"2026-10-11 13:39:37"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"POST /api/auth/register HTTP/1.1\" 201 390 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"warn","message":"This email is already registered. - /api/auth/register - POST - 127.0.0.1","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"POST /api/auth/register HTTP/1.1\" 400 63 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"POST /api/auth/login HTTP/1.1\" 200 351 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"warn","message":"Invalid email or password - /api/auth/login - POST - 127.0.0.1","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"POST /api/auth/login HTTP/1.1\" 401 55 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"GET /api/auth/me HTTP/1.1\" 200 188 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"warn","message":"Unauthorized, please log in (Token not found) - /api/auth/me - GET - 127.0.0.1","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"GET /api/auth/me HTTP/1.1\" 401 75 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"PATCH /api/auth/update-me HTTP/1.1\" 200 179 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"warn","message":"Current password is incorrect. - /api/auth/update-password - PATCH - 127.0.0.1","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"PATCH /api/auth/update-password HTTP/1.1\" 401 60 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}
+{"level":"info","message":"127.0.0.1 - - [11/Oct/2026:09:48:09 +0000] \"PATCH /api/auth/update-password HTTP/1.1\" 200 59 \"-\" \"-\"","timestamp":"2026-10-11 13:48:09"}

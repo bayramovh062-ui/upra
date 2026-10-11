@@ -2,18 +2,19 @@ import bcrypt from 'bcryptjs';
 import prisma from '../config/db.js';
 import { generateToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { AppError } from '../utils/AppError.js';
 
 // @route   POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
     const { email, password, fullName, role } = req.body;
 
-    if (!email || !password || !fullName || !role) {
-        return res.status(400).json({ message: 'Fill in all the boxes.', success: false });
+    if (!email || !password || !fullName) {
+        throw new AppError('Fill in all required fields.', 400);
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-        return res.status(400).json({ message: 'This email is already registered.', success: false });
+        throw new AppError('This email is already registered.', 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -23,7 +24,7 @@ export const register = asyncHandler(async (req, res) => {
             email,
             passwordHash: hashedPassword,
             fullName,
-            role,
+            role: role || 'CLIENT',
         },
         select: {
             id: true,
@@ -48,17 +49,17 @@ export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ message: 'Enter email and password', success: false });
+        throw new AppError('Enter email and password', 400);
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || user.deletedAt !== null) {
-        return res.status(401).json({ message: 'Invalid email or password', success: false });
+        throw new AppError('Invalid email or password', 401);
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid email or password', success: false });
+        throw new AppError('Invalid email or password', 401);
     }
 
     const token = generateToken(user.id, user.role);
@@ -75,9 +76,70 @@ export const login = asyncHandler(async (req, res) => {
     });
 });
 
+// @route   GET /api/auth/me
 export const getMe = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
-        user: req.user
+        user: req.user,
+    });
+});
+
+// @route   PATCH /api/auth/update-me
+export const updateMe = asyncHandler(async (req, res) => {
+    const { fullName } = req.body;
+
+    if (!fullName) {
+        throw new AppError('Please provide fields to update.', 400);
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: { fullName },
+        select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true,
+            createdAt: true,
+        },
+    });
+
+    res.status(200).json({
+        success: true,
+        user: updatedUser,
+    });
+});
+
+// @route   PATCH /api/auth/update-password
+export const updatePassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        throw new AppError('Please provide both current and new password.', 400);
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+    });
+
+    const isPasswordCorrect = await bcrypt.compare(
+        currentPassword,
+        user.passwordHash
+    );
+
+    if (!isPasswordCorrect) {
+        throw new AppError('Current password is incorrect.', 401);
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+        where: { id: req.user.id },
+        data: { passwordHash: hashedNewPassword },
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'Password updated successfully.',
     });
 });
