@@ -8,12 +8,12 @@ export const register = asyncHandler(async (req, res) => {
     const { email, password, fullName, role } = req.body;
 
     if (!email || !password || !fullName || !role) {
-        return res.status(400).json({ message: 'Bütün xanaları doldurun' });
+        return res.status(400).json({ message: 'Fill in all the boxes.' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-        return res.status(400).json({ message: 'Bu email artıq qeydiyyatdan keçib' });
+        return res.status(400).json({ message: 'This email is already registered.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -48,17 +48,17 @@ export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ message: 'Email və parolu daxil edin' });
+        return res.status(400).json({ message: 'Enter email and password' });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || user.deletedAt !== null) {
-        return res.status(401).json({ message: 'Email və ya parol yanlışdır' });
+        return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-        return res.status(401).json({ message: 'Email və ya parol yanlışdır' });
+        return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const token = generateToken(user.id, user.role);
