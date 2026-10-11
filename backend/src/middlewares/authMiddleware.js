@@ -36,12 +36,10 @@ export const protect = asyncHandler(async (req, res, next) => {
     next();
 });
 
-// Yalnız müəyyən Rollara (məsələn, yalnız CLIENT) icazə verən Middleware
-// Bu funksiyanı 'protect' middleware-indən sonra istifadə etməliyik
 export const restrictTo = (...roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {
-            throw new AppError('You do not have permission to perform this operation.', 403);
+            return next(new AppError('You do not have permission to perform this operation.', 403));
         }
         next();
     };

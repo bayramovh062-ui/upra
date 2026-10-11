@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { logger } from './utils/logger.js';
 import authRoutes from './routes/authRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
 import { globalErrorMiddleware } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
 
 // Global Error Handler
 app.use(globalErrorMiddleware);
