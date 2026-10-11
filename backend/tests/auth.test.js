@@ -9,17 +9,23 @@ const testUser = {
     role: 'CLIENT',
 };
 
+const freelancerUser = {
+    email: 'freelancer@upra.com',
+    password: 'Password123!',
+    fullName: 'Test Freelancer',
+    role: 'FREELANCER',
+};
 let authToken;
 
 beforeAll(async () => {
     await prisma.user.deleteMany({
-        where: { email: testUser.email },
+        where: { email: { in: [testUser.email, freelancerUser.email] } },
     });
 });
 
 afterAll(async () => {
     await prisma.user.deleteMany({
-        where: { email: testUser.email },
+        where: { email: { in: [testUser.email, freelancerUser.email] } },
     });
     await prisma.$disconnect();
 });
@@ -74,6 +80,15 @@ describe('Authentication API & Validation Suite', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
+        });
+        it('should successfully register a valid FREELANCER user', async () => {
+            const response = await request(app)
+                .post('/api/auth/register')
+                .send(freelancerUser);
+
+            expect(response.status).toBe(201);
+            expect(response.body.success).toBe(true);
+            expect(response.body.user.role).toBe('FREELANCER');
         });
     });
 

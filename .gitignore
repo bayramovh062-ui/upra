@@ -1,12 +1,11 @@
 node_modules/
-**/node_modules/
-
 .env
-**/.env
-*.env
+.env.test
+logs/
+*.log
 
-dist/
-build/
-
-.DS_Store
-npm-debug.log*
+# AI Tooling
+.claude/
+.cursor/
+.devin/
+.agents/

@@ -12,7 +12,6 @@ export const globalErrorMiddleware = (err, req, res, next) => {
 
     if (err.code === 'P2002') {
         statusCode = 400;
-        // P2002 - Unique constraint failed (məsələn: eyni email-dən 2-ci dəfə qeydiyyat)
         message = "This information already exists in the system.";
     }
 
@@ -27,8 +26,14 @@ export const globalErrorMiddleware = (err, req, res, next) => {
         message = "The token has expired; please log in again.";
     }
 
+    // Logging
     if (statusCode === 500) {
         logger.error(`${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`, { stack: err.stack });
+
+        // Daxili sistem xətalarını production-da gizlədirik ki, kənara məlumat sızmasın
+        if (process.env.NODE_ENV === 'production') {
+            message = "Something went wrong on the server.";
+        }
     } else {
         logger.warn(`${message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
     }
