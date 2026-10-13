@@ -26,7 +26,6 @@ export const getAllJobs = asyncHandler(async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Axtarış və status süzgəci
     const where = {
         status: 'OPEN',
         ...(search && {
@@ -37,7 +36,6 @@ export const getAllJobs = asyncHandler(async (req, res) => {
         }),
     };
 
-    // Məlumatları və ümumi sayını paralelləşdirərək bazadan çəkirik
     const [jobs, total] = await Promise.all([
         prisma.jobPost.findMany({
             where,
