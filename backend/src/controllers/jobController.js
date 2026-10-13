@@ -81,7 +81,6 @@ export const deleteJob = asyncHandler(async (req, res) => {
         throw new AppError('You can only delete your own job posts', 403);
     }
 
-    // Soft delete əvəzinə statusu ləğv edilmişə dəyişirik
     await prisma.jobPost.update({
         where: { id: req.params.id },
         data: { status: 'CANCELLED' },
