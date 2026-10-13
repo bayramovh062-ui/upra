@@ -10,5 +10,4 @@ export const updateJobSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters long').trim().optional(),
     description: z.string().min(20, 'Description must be at least 20 characters long').trim().optional(),
     budget: z.number().positive('Budget must be a positive number').optional(),
-    status: z.enum(['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
 });

@@ -61,6 +61,10 @@ export const updateJob = asyncHandler(async (req, res) => {
         throw new AppError('You can only update your own job posts', 403);
     }
 
+    if (job.status !== 'OPEN') {
+        throw new AppError('You can only update with open status job', 400)
+    }
+
     const updatedJob = await prisma.jobPost.update({
         where: { id: req.params.id },
         data: req.body,
@@ -79,6 +83,10 @@ export const deleteJob = asyncHandler(async (req, res) => {
 
     if (job.clientId !== req.user.id) {
         throw new AppError('You can only delete your own job posts', 403);
+    }
+
+    if (job.status !== 'OPEN') {
+        throw new AppError('You can only delete with open status job', 400)
     }
 
     await prisma.jobPost.update({
