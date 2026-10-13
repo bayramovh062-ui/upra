@@ -5,7 +5,7 @@ import { AppError } from '../utils/AppError.js';
 // @route   POST /api/contracts
 // @access  Private (CLIENT)
 export const createContract = asyncHandler(async (req, res) => {
-    const { proposalId, totalAmount } = req.body;
+    const { proposalId } = req.body;
 
     const proposal = await prisma.proposal.findUnique({
         where: { id: proposalId },
@@ -30,8 +30,6 @@ export const createContract = asyncHandler(async (req, res) => {
         throw new AppError('Contract can only be created from a PENDING proposal', 400);
     }
 
-    const finalAmount = totalAmount || proposal.bidAmount;
-
     const contract = await prisma.$transaction(async (tx) => {
         const newContract = await tx.contract.create({
             data: {
@@ -39,7 +37,6 @@ export const createContract = asyncHandler(async (req, res) => {
                 proposalId: proposal.id,
                 clientId: req.user.id,
                 freelancerId: proposal.freelancerId,
-                totalAmount: finalAmount,
                 status: 'ACTIVE',
             },
         });
@@ -82,6 +79,9 @@ export const getMyContracts = asyncHandler(async (req, res) => {
         include: {
             jobPost: {
                 select: { id: true, title: true, status: true },
+            },
+            proposal: {
+                select: { id: true, bidAmount: true, coverLetter: true },
             },
             client: {
                 select: { id: true, fullName: true, email: true },
