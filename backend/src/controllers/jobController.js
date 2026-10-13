@@ -20,17 +20,54 @@ export const createJob = asyncHandler(async (req, res) => {
 
 // @route   GET /api/jobs
 export const getAllJobs = asyncHandler(async (req, res) => {
-    const jobs = await prisma.jobPost.findMany({
-        where: { status: 'OPEN' },
-        include: {
-            client: {
-                select: { id: true, fullName: true },
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 10));
+    const search = req.query.search?.trim() || '';
 
-    res.status(200).json({ success: true, count: jobs.length, jobs });
+    const skip = (page - 1) * limit;
+
+    // Axtarış və status süzgəci
+    const where = {
+        status: 'OPEN',
+        ...(search && {
+            OR: [
+                { title: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+            ],
+        }),
+    };
+
+    // Məlumatları və ümumi sayını paralelləşdirərək bazadan çəkirik
+    const [jobs, total] = await Promise.all([
+        prisma.jobPost.findMany({
+            where,
+            include: {
+                client: {
+                    select: { id: true, fullName: true },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.jobPost.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+        success: true,
+        count: jobs.length,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+        },
+        jobs,
+    });
 });
 
 // @route   GET /api/jobs/:id
