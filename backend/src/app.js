@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import { globalErrorMiddleware } from './middlewares/errorMiddleware.js';
 import proposalRoutes from './routes/proposalRoutes.js';
+import contractRoutes from './routes/contractRoutes.js';
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/proposals', proposalRoutes);
+app.use('/api/contracts', contractRoutes);
 
 // Global Error Handler
 app.use(globalErrorMiddleware);
