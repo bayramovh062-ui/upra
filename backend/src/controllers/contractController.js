@@ -1,6 +1,7 @@
 import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import { verifyContractAccess } from '../utils/contractAccess.js';
 
 // @route   POST /api/contracts
 // @access  Private (CLIENT)
@@ -38,6 +39,9 @@ export const createContract = asyncHandler(async (req, res) => {
                 clientId: req.user.id,
                 freelancerId: proposal.freelancerId,
                 status: 'ACTIVE',
+                board: {
+                    create: {}, // Contract yarandığı an avtomatik 1 ədəd Board yaradılır
+                },
             },
         });
 
@@ -89,6 +93,9 @@ export const getMyContracts = asyncHandler(async (req, res) => {
             freelancer: {
                 select: { id: true, fullName: true, email: true },
             },
+            board: {
+                select: { id: true },
+            },
         },
         orderBy: { createdAt: 'desc' },
     });
@@ -99,27 +106,7 @@ export const getMyContracts = asyncHandler(async (req, res) => {
 // @route   GET /api/contracts/:id
 // @access  Private (Müqavilənin iştirakçısı olan CLIENT və ya FREELANCER)
 export const getContractById = asyncHandler(async (req, res) => {
-    const contract = await prisma.contract.findUnique({
-        where: { id: req.params.id },
-        include: {
-            jobPost: true,
-            proposal: true,
-            client: { select: { id: true, fullName: true, email: true } },
-            freelancer: { select: { id: true, fullName: true, email: true } },
-        },
-    });
-
-    if (!contract) {
-        throw new AppError('Contract not found', 404);
-    }
-
-    const isClient = contract.clientId === req.user.id;
-    const isFreelancer = contract.freelancerId === req.user.id;
-
-    if (!isClient && !isFreelancer) {
-        throw new AppError('You do not have permission to view this contract', 403);
-    }
-
+    const contract = await verifyContractAccess(req.params.id, req.user.id);
     res.status(200).json({ success: true, contract });
 });
 
