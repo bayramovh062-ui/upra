@@ -5,6 +5,7 @@ import { createJobSchema, updateJobSchema } from '../validators/jobValidator.js'
 import {
     createJob,
     getAllJobs,
+    getMyJobs,
     getJob,
     updateJob,
     deleteJob,
@@ -13,9 +14,11 @@ import {
 const router = express.Router();
 
 router.get('/', getAllJobs);
-router.get('/:id', getJob);
 
 router.use(protect);
+
+router.get('/my', restrictTo('CLIENT'), getMyJobs);
+router.get('/:id', getJob);
 
 router.post('/', restrictTo('CLIENT'), validate(createJobSchema), createJob);
 router.patch('/:id', restrictTo('CLIENT'), validate(updateJobSchema), updateJob);

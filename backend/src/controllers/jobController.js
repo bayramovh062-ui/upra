@@ -96,3 +96,13 @@ export const deleteJob = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Job cancelled successfully' });
 });
+
+// @route   GET /api/jobs/my
+export const getMyJobs = asyncHandler(async (req, res) => {
+    const jobs = await prisma.jobPost.findMany({
+        where: { clientId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    res.status(200).json({ success: true, count: jobs.length, jobs });
+});
