@@ -8,6 +8,7 @@ import jobRoutes from './routes/jobRoutes.js';
 import { globalErrorMiddleware } from './middlewares/errorMiddleware.js';
 import proposalRoutes from './routes/proposalRoutes.js';
 import contractRoutes from './routes/contractRoutes.js';
+import issueRoutes from './routes/issueRoutes.js';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api', issueRoutes);
 
 // Global Error Handler
 app.use(globalErrorMiddleware);
