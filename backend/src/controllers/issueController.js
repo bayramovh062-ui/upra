@@ -2,6 +2,7 @@ import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { verifyContractAccess } from '../utils/contractAccess.js';
+import { emitToContract } from '../socket.js';
 
 // @route   GET /api/contracts/:contractId/issues
 // @access  Private (Contract Client & Freelancer)
@@ -67,6 +68,9 @@ export const createIssue = asyncHandler(async (req, res) => {
         },
     });
 
+    // REAL-TIME EVENT
+    emitToContract(contractId, 'issue:created', issue);
+
     res.status(201).json({ success: true, issue });
 });
 
@@ -82,7 +86,7 @@ export const updateIssue = asyncHandler(async (req, res) => {
         throw new AppError('Issue not found', 404);
     }
 
-    await verifyContractAccess(issue.board.contract.id, req.user.id);
+    const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
     const updatedIssue = await prisma.issue.update({
         where: { id: req.params.id },
@@ -92,6 +96,9 @@ export const updateIssue = asyncHandler(async (req, res) => {
             assignee: { select: { id: true, fullName: true } },
         },
     });
+
+    // REAL-TIME EVENT
+    emitToContract(contract.id, 'issue:updated', updatedIssue);
 
     res.status(200).json({ success: true, issue: updatedIssue });
 });
@@ -110,7 +117,7 @@ export const moveIssue = asyncHandler(async (req, res) => {
         throw new AppError('Issue not found', 404);
     }
 
-    await verifyContractAccess(issue.board.contract.id, req.user.id);
+    const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
     const movedIssue = await prisma.issue.update({
         where: { id: req.params.id },
@@ -119,6 +126,9 @@ export const moveIssue = asyncHandler(async (req, res) => {
             position,
         },
     });
+
+    // REAL-TIME EVENT
+    emitToContract(contract.id, 'issue:moved', movedIssue);
 
     res.status(200).json({ success: true, issue: movedIssue });
 });
@@ -137,7 +147,7 @@ export const addIssueComment = asyncHandler(async (req, res) => {
         throw new AppError('Issue not found', 404);
     }
 
-    await verifyContractAccess(issue.board.contract.id, req.user.id);
+    const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
     const comment = await prisma.issueComment.create({
         data: {
@@ -149,6 +159,9 @@ export const addIssueComment = asyncHandler(async (req, res) => {
             author: { select: { id: true, fullName: true } },
         },
     });
+
+    // REAL-TIME EVENT
+    emitToContract(contract.id, 'comment:created', comment);
 
     res.status(201).json({ success: true, comment });
 });

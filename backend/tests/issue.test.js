@@ -5,7 +5,7 @@ import prisma from '../src/config/db.js';
 describe('Issue & Kanban Board Integration Tests', () => {
     let clientToken, freelancerToken, outsiderToken;
     let freelancerId;
-    let jobPostId, contractId, issueId;
+    let contractId, issueId;
 
     const clientUser = {
         email: 'issue_client@upra.com',
@@ -28,14 +28,60 @@ describe('Issue & Kanban Board Integration Tests', () => {
         role: 'FREELANCER',
     };
 
-    beforeAll(async () => {
-        await prisma.user.deleteMany({
+    const testEmails = [clientUser.email, freelancerUser.email, outsiderUser.email];
+
+    // Baza təmizlik funksiyası (FK zəncirinə uyğun ardıcıllıq)
+    const cleanUp = async () => {
+        const users = await prisma.user.findMany({
+            where: { email: { in: testEmails } },
+            select: { id: true },
+        });
+
+        if (users.length === 0) return;
+
+        const userIds = users.map((u) => u.id);
+
+        await prisma.issueComment.deleteMany({
+            where: { authorId: { in: userIds } },
+        });
+
+        await prisma.issue.deleteMany({
             where: {
-                email: {
-                    in: [clientUser.email, freelancerUser.email, outsiderUser.email],
+                OR: [{ createdById: { in: userIds } }, { assigneeId: { in: userIds } }],
+            },
+        });
+
+        await prisma.board.deleteMany({
+            where: {
+                contract: {
+                    OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
                 },
             },
         });
+
+        await prisma.contract.deleteMany({
+            where: {
+                OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
+            },
+        });
+
+        await prisma.proposal.deleteMany({
+            where: {
+                OR: [{ freelancerId: { in: userIds } }, { jobPost: { clientId: { in: userIds } } }],
+            },
+        });
+
+        await prisma.jobPost.deleteMany({
+            where: { clientId: { in: userIds } },
+        });
+
+        await prisma.user.deleteMany({
+            where: { id: { in: userIds } },
+        });
+    };
+
+    beforeAll(async () => {
+        await cleanUp();
 
         const cRes = await request(app).post('/api/auth/register').send(clientUser);
         clientToken = cRes.body.token;
@@ -56,13 +102,11 @@ describe('Issue & Kanban Board Integration Tests', () => {
                 budget: 1500,
             });
 
-        jobPostId = jobRes.body.job.id;
-
         const propRes = await request(app)
             .post('/api/proposals')
             .set('Authorization', `Bearer ${freelancerToken}`)
             .send({
-                jobPostId,
+                jobPostId: jobRes.body.job.id,
                 coverLetter: 'I am an expert in building Kanban boards and issue trackers.',
                 bidAmount: 1400,
             });
@@ -78,31 +122,7 @@ describe('Issue & Kanban Board Integration Tests', () => {
     });
 
     afterAll(async () => {
-        // Düzgün təmizlik sırası (FK zəncirinə uyğun)
-        if (contractId) {
-            const board = await prisma.board.findUnique({ where: { contractId } });
-            if (board) {
-                await prisma.issueComment.deleteMany({
-                    where: { issue: { boardId: board.id } },
-                });
-                await prisma.issue.deleteMany({ where: { boardId: board.id } });
-                await prisma.board.delete({ where: { id: board.id } });
-            }
-            await prisma.contract.deleteMany({ where: { id: contractId } });
-        }
-
-        if (jobPostId) {
-            await prisma.proposal.deleteMany({ where: { jobPostId } });
-            await prisma.jobPost.deleteMany({ where: { id: jobPostId } });
-        }
-
-        await prisma.user.deleteMany({
-            where: {
-                email: {
-                    in: [clientUser.email, freelancerUser.email, outsiderUser.email],
-                },
-            },
-        });
+        await cleanUp();
         await prisma.$disconnect();
     });
 
