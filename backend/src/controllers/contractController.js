@@ -23,15 +23,26 @@ export const createContract = asyncHandler(async (req, res) => {
         throw new AppError('You are not authorized to create a contract for this job', 403);
     }
 
-    if (proposal.jobPost.status !== 'OPEN') {
-        throw new AppError('Contract can only be created for OPEN job posts', 400);
-    }
-
     if (proposal.status !== 'PENDING') {
         throw new AppError('Contract can only be created from a PENDING proposal', 400);
     }
 
     const contract = await prisma.$transaction(async (tx) => {
+        // ATOMİK YOXLAMA VƏ KİLİDLƏMƏ (Race condition qarşısını alır)
+        const lockedJob = await tx.jobPost.updateMany({
+            where: {
+                id: proposal.jobPostId,
+                status: 'OPEN',
+            },
+            data: {
+                status: 'IN_PROGRESS',
+            },
+        });
+
+        if (lockedJob.count === 0) {
+            throw new AppError('Job is no longer open for contract creation', 400);
+        }
+
         const newContract = await tx.contract.create({
             data: {
                 jobPostId: proposal.jobPostId,
@@ -40,7 +51,7 @@ export const createContract = asyncHandler(async (req, res) => {
                 freelancerId: proposal.freelancerId,
                 status: 'ACTIVE',
                 board: {
-                    create: {}, // Contract yarandığı an avtomatik 1 ədəd Board yaradılır
+                    create: {},
                 },
             },
         });
@@ -57,11 +68,6 @@ export const createContract = asyncHandler(async (req, res) => {
                 status: 'PENDING',
             },
             data: { status: 'REJECTED' },
-        });
-
-        await tx.jobPost.update({
-            where: { id: proposal.jobPostId },
-            data: { status: 'IN_PROGRESS' },
         });
 
         return newContract;
