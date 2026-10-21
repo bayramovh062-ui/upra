@@ -4,6 +4,7 @@ import { AppError } from '../utils/AppError.js';
 import {
     verifyContractAccess,
     assertAssigneeInContract,
+    assertContractActive, // Import olundu
 } from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
 
@@ -47,7 +48,10 @@ export const createIssue = asyncHandler(async (req, res) => {
         throw new AppError('Board not found for this contract', 404);
     }
 
-    // TƏHLÜKƏSİZLİK YOXLAMASI: Assignee müqavilə tərəflərindən biridirmi?
+    // Yoxlama 1: Müqavilə ACTIVE-dirmi?
+    assertContractActive(contract);
+
+    // Yoxlama 2: Assignee müqavilənin tərəfidirmi?
     assertAssigneeInContract(contract, assigneeId);
 
     const lastIssue = await prisma.issue.findFirst({
@@ -74,7 +78,6 @@ export const createIssue = asyncHandler(async (req, res) => {
         },
     });
 
-    // REAL-TIME EVENT
     emitToContract(contractId, 'issue:created', issue);
 
     res.status(201).json({ success: true, issue });
@@ -94,7 +97,10 @@ export const updateIssue = asyncHandler(async (req, res) => {
 
     const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
-    // TƏHLÜKƏSİZLİK YOXLAMASI: Əgər güncəlləmədə assigneeId göndərilibsə yoxlayırıq
+    // Yoxlama 1: Müqavilə ACTIVE-dirmi?
+    assertContractActive(contract);
+
+    // Yoxlama 2: Əgər assigneeId göndərilibsə
     if (req.body.assigneeId) {
         assertAssigneeInContract(contract, req.body.assigneeId);
     }
@@ -108,7 +114,6 @@ export const updateIssue = asyncHandler(async (req, res) => {
         },
     });
 
-    // REAL-TIME EVENT
     emitToContract(contract.id, 'issue:updated', updatedIssue);
 
     res.status(200).json({ success: true, issue: updatedIssue });
@@ -130,6 +135,9 @@ export const moveIssue = asyncHandler(async (req, res) => {
 
     const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
+    // Yoxlama: Müqavilə ACTIVE-dirmi?
+    assertContractActive(contract);
+
     const movedIssue = await prisma.issue.update({
         where: { id: req.params.id },
         data: {
@@ -138,7 +146,6 @@ export const moveIssue = asyncHandler(async (req, res) => {
         },
     });
 
-    // REAL-TIME EVENT
     emitToContract(contract.id, 'issue:moved', movedIssue);
 
     res.status(200).json({ success: true, issue: movedIssue });
@@ -160,6 +167,8 @@ export const addIssueComment = asyncHandler(async (req, res) => {
 
     const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
 
+    assertContractActive(contract);
+
     const comment = await prisma.issueComment.create({
         data: {
             issueId: issue.id,
@@ -171,7 +180,6 @@ export const addIssueComment = asyncHandler(async (req, res) => {
         },
     });
 
-    // REAL-TIME EVENT
     emitToContract(contract.id, 'comment:created', comment);
 
     res.status(201).json({ success: true, comment });

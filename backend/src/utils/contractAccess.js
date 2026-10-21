@@ -35,3 +35,9 @@ export const assertAssigneeInContract = (contract, assigneeId) => {
         throw new AppError('Assignee must be a participant of this contract', 400);
     }
 };
+
+export const assertContractActive = (contract) => {
+    if (contract.status !== 'ACTIVE') {
+        throw new AppError('Contract is not active', 400);
+    }
+};
