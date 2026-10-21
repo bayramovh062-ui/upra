@@ -198,5 +198,13 @@ describe('Authentication API & Validation Suite', () => {
             expect(response.body.success).toBe(true);
         });
     });
+    describe('404 Catch-All Route Handler', () => {
+        it('should return 404 for unknown routes without requiring auth', async () => {
+            const res = await request(app).get('/api/unknown-route-test');
+
+            expect(res.statusCode).toBe(404);
+            expect(res.body.message).toMatch(/cannot find/i);
+        });
+    });
 
 });

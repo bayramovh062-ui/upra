@@ -23,8 +23,11 @@ export const updateIssueSchema = z
 
 export const moveIssueSchema = z.object({
     status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']),
-    position: z.number().int({ message: 'Position must be an integer' }), // .int() əlavə olundu
+    position: z
+        .number({ error: 'Position must be a number' })
+        .nonnegative('Position cannot be negative'),
 });
+
 export const createCommentSchema = z.object({
     body: z
         .string({ error: 'Comment body is required' })

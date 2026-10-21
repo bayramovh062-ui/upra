@@ -262,7 +262,7 @@ describe('Issue & Kanban Board Integration Tests', () => {
             expect(moveRes.statusCode).toBe(400);
         });
 
-        it('should return 400 when moveIssue receives invalid status or non-integer position', async () => {
+        it('should return 400 when moveIssue receives invalid status or negative position', async () => {
             await prisma.contract.update({
                 where: { id: contractId },
                 data: { status: 'ACTIVE' },
@@ -275,12 +275,33 @@ describe('Issue & Kanban Board Integration Tests', () => {
 
             expect(invalidStatusRes.statusCode).toBe(400);
 
-            const floatPositionRes = await request(app)
+            const negativePositionRes = await request(app)
+                .patch(`/api/issues/${issueId}/move`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ status: 'IN_PROGRESS', position: -5 });
+
+            expect(negativePositionRes.statusCode).toBe(400);
+        });
+
+        it('should accept a fractional position (card dropped between two cards)', async () => {
+            const res = await request(app)
                 .patch(`/api/issues/${issueId}/move`)
                 .set('Authorization', `Bearer ${clientToken}`)
                 .send({ status: 'IN_PROGRESS', position: 1500.5 });
 
-            expect(floatPositionRes.statusCode).toBe(400);
+            expect(res.statusCode).toBe(200);
+            expect(res.body.issue.position).toBe(1500.5);
+        });
+
+        it('should ignore protected fields (boardId, status) sent to PATCH /api/issues/:id', async () => {
+            const res = await request(app)
+                .patch(`/api/issues/${issueId}`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ title: 'Renamed Task', status: 'DONE', boardId: 'hacked' });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.issue.title).toBe('Renamed Task');
+            expect(res.body.issue.status).toBe('IN_PROGRESS');
         });
     });
 });

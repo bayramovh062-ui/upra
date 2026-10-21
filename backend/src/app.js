@@ -9,6 +9,7 @@ import { globalErrorMiddleware } from './middlewares/errorMiddleware.js';
 import proposalRoutes from './routes/proposalRoutes.js';
 import contractRoutes from './routes/contractRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
+import { AppError } from './utils/AppError.js';
 
 const app = express();
 

@@ -1,9 +1,7 @@
+import 'dotenv/config';
 import http from 'http';
-import dotenv from 'dotenv';
 import app from './app.js';
 import { initSocket } from './socket.js';
-
-dotenv.config();
 
 if (!process.env.JWT_SECRET) {
     console.error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
