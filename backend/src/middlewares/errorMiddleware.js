@@ -5,6 +5,12 @@ export const globalErrorMiddleware = (err, req, res, next) => {
     let message = err.message || "Internal server error";
 
     // Prisma errors
+
+    if (err.code === 'P2003') {
+        statusCode = 400
+        message = 'Invalid reference ID: Related entity not found or constraint failed'
+    }
+
     if (err.code === 'P2025') {
         statusCode = 404;
         message = "The requested information was not found.";

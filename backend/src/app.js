@@ -26,6 +26,10 @@ app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api', issueRoutes);
 
+app.all('*', (req, res, next) => {
+    next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
+});
+
 // Global Error Handler
 app.use(globalErrorMiddleware);
 
