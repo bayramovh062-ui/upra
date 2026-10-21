@@ -27,14 +27,69 @@ describe('Contract Module Integration Tests', () => {
         role: 'FREELANCER',
     };
 
-    beforeAll(async () => {
-        await prisma.user.deleteMany({
+    const extraClientEmail = 'contractclient2@example.com';
+    const extraOutsiderEmail = 'outsider@example.com';
+
+    const testEmails = [
+        clientUser.email,
+        freelancer1User.email,
+        freelancer2User.email,
+        extraClientEmail,
+        extraOutsiderEmail,
+    ];
+
+    // Baza təmizlik funksiyası (FK zəncirinə uyğun sıralama)
+    const cleanUp = async () => {
+        const users = await prisma.user.findMany({
+            where: { email: { in: testEmails } },
+            select: { id: true },
+        });
+
+        if (users.length === 0) return;
+
+        const userIds = users.map((u) => u.id);
+
+        await prisma.issueComment.deleteMany({
+            where: { authorId: { in: userIds } },
+        });
+
+        await prisma.issue.deleteMany({
             where: {
-                email: {
-                    in: [clientUser.email, freelancer1User.email, freelancer2User.email],
+                OR: [{ createdById: { in: userIds } }, { assigneeId: { in: userIds } }],
+            },
+        });
+
+        await prisma.board.deleteMany({
+            where: {
+                contract: {
+                    OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
                 },
             },
         });
+
+        await prisma.contract.deleteMany({
+            where: {
+                OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
+            },
+        });
+
+        await prisma.proposal.deleteMany({
+            where: {
+                OR: [{ freelancerId: { in: userIds } }, { jobPost: { clientId: { in: userIds } } }],
+            },
+        });
+
+        await prisma.jobPost.deleteMany({
+            where: { clientId: { in: userIds } },
+        });
+
+        await prisma.user.deleteMany({
+            where: { id: { in: userIds } },
+        });
+    };
+
+    beforeAll(async () => {
+        await cleanUp();
 
         const cRes = await request(app).post('/api/auth/register').send(clientUser);
         clientToken = cRes.body.token;
@@ -77,18 +132,7 @@ describe('Contract Module Integration Tests', () => {
     });
 
     afterAll(async () => {
-        if (jobPostId) {
-            await prisma.contract.deleteMany({ where: { jobPostId } });
-            await prisma.proposal.deleteMany({ where: { jobPostId } });
-            await prisma.jobPost.deleteMany({ where: { id: jobPostId } });
-        }
-        await prisma.user.deleteMany({
-            where: {
-                email: {
-                    in: [clientUser.email, freelancer1User.email, freelancer2User.email],
-                },
-            },
-        });
+        await cleanUp();
         await prisma.$disconnect();
     });
 
@@ -164,6 +208,58 @@ describe('Contract Module Integration Tests', () => {
 
             const job = await prisma.jobPost.findUnique({ where: { id: jobPostId } });
             expect(job.status).toBe('COMPLETED');
+        });
+    });
+
+    describe('Contract Edge Cases & Security', () => {
+        it('should return 400 when creating contract from a proposal that is not PENDING', async () => {
+            // proposal2Id tranzaksiya zamanı REJECTED olub, PENDING deyil
+            const res = await request(app)
+                .post('/api/contracts')
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ proposalId: proposal2Id });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toMatch(/PENDING proposal/i);
+        });
+
+        it('should return 403 when an unauthorized client tries to create a contract for another job', async () => {
+            const otherClientRes = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    fullName: 'Other Client',
+                    email: extraClientEmail,
+                    password: 'Password123!',
+                    role: 'CLIENT',
+                });
+
+            const otherClientToken = otherClientRes.body.token;
+
+            const res = await request(app)
+                .post('/api/contracts')
+                .set('Authorization', `Bearer ${otherClientToken}`)
+                .send({ proposalId: proposal1Id });
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should return 403 when an outsider user tries to fetch contract details', async () => {
+            const outsiderRes = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    fullName: 'Outsider User',
+                    email: extraOutsiderEmail,
+                    password: 'Password123!',
+                    role: 'FREELANCER',
+                });
+
+            const outsiderToken = outsiderRes.body.token;
+
+            const res = await request(app)
+                .get(`/api/contracts/${contractId}`)
+                .set('Authorization', `Bearer ${outsiderToken}`);
+
+            expect(res.statusCode).toBe(403);
         });
     });
 });

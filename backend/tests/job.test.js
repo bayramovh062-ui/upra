@@ -22,10 +22,30 @@ describe('Jobs Module Integration Tests', () => {
         role: 'FREELANCER',
     };
 
-    beforeAll(async () => {
-        await prisma.user.deleteMany({
-            where: { email: { in: [clientUser.email, freelancerUser.email] } },
+    const otherClientEmail = 'otherclient@example.com';
+    const testEmails = [clientUser.email, freelancerUser.email, otherClientEmail];
+
+    const cleanUp = async () => {
+        const users = await prisma.user.findMany({
+            where: { email: { in: testEmails } },
+            select: { id: true },
         });
+
+        if (users.length === 0) return;
+
+        const userIds = users.map((u) => u.id);
+
+        await prisma.jobPost.deleteMany({
+            where: { clientId: { in: userIds } },
+        });
+
+        await prisma.user.deleteMany({
+            where: { id: { in: userIds } },
+        });
+    };
+
+    beforeAll(async () => {
+        await cleanUp();
 
         const clientRes = await request(app).post('/api/auth/register').send(clientUser);
         clientToken = clientRes.body.token;
@@ -36,10 +56,7 @@ describe('Jobs Module Integration Tests', () => {
     });
 
     afterAll(async () => {
-        await prisma.jobPost.deleteMany({ where: { clientId } });
-        await prisma.user.deleteMany({
-            where: { email: { in: [clientUser.email, freelancerUser.email] } },
-        });
+        await cleanUp();
         await prisma.$disconnect();
     });
 
@@ -136,6 +153,64 @@ describe('Jobs Module Integration Tests', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
+        });
+    });
+
+    describe('Job Post Edge Cases & Authorization', () => {
+        it('should return 403 when another client attempts to update or delete a job', async () => {
+            const otherClientRes = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    fullName: 'Other Client',
+                    email: otherClientEmail,
+                    password: 'Password123!',
+                    role: 'CLIENT',
+                });
+
+            const otherClientToken = otherClientRes.body.token;
+
+            const updateRes = await request(app)
+                .patch(`/api/jobs/${createdJobId}`)
+                .set('Authorization', `Bearer ${otherClientToken}`)
+                .send({ title: 'Hacked Title' });
+
+            expect(updateRes.statusCode).toBe(403);
+
+            const deleteRes = await request(app)
+                .delete(`/api/jobs/${createdJobId}`)
+                .set('Authorization', `Bearer ${otherClientToken}`);
+
+            expect(deleteRes.statusCode).toBe(403);
+        });
+
+        it('should return 400 when attempting to update a job that is not OPEN', async () => {
+            await prisma.jobPost.update({
+                where: { id: createdJobId },
+                data: { status: 'IN_PROGRESS' },
+            });
+
+            const res = await request(app)
+                .patch(`/api/jobs/${createdJobId}`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ title: 'New Title' });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toMatch(/open status/i);
+        });
+
+        it('should ignore status field if sent in update payload', async () => {
+            await prisma.jobPost.update({
+                where: { id: createdJobId },
+                data: { status: 'OPEN' },
+            });
+
+            const res = await request(app)
+                .patch(`/api/jobs/${createdJobId}`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ title: 'Updated Title', status: 'COMPLETED' });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.job.status).toBe('OPEN');
         });
     });
 });

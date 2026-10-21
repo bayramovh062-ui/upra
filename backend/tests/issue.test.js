@@ -28,7 +28,8 @@ describe('Issue & Kanban Board Integration Tests', () => {
         role: 'FREELANCER',
     };
 
-    const testEmails = [clientUser.email, freelancerUser.email, outsiderUser.email];
+    const randomUserEmail = 'random@example.com';
+    const testEmails = [clientUser.email, freelancerUser.email, outsiderUser.email, randomUserEmail];
 
     // Baza təmizlik funksiyası (FK zəncirinə uyğun ardıcıllıq)
     const cleanUp = async () => {
@@ -214,6 +215,72 @@ describe('Issue & Kanban Board Integration Tests', () => {
             expect(res.status).toBe(201);
             expect(res.body.success).toBe(true);
             expect(res.body.comment.body).toBe('Please review the schema changes before pushing to main.');
+        });
+    });
+
+    describe('Issue Security & Validation Edge Cases', () => {
+        it('should return 400 when assignee is not a participant of the contract', async () => {
+            const randomUser = await prisma.user.create({
+                data: {
+                    email: randomUserEmail,
+                    fullName: 'Random User',
+                    passwordHash: 'hashedpassword',
+                    role: 'FREELANCER',
+                },
+            });
+
+            const res = await request(app)
+                .post(`/api/contracts/${contractId}/issues`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({
+                    title: 'Task for outsider',
+                    assigneeId: randomUser.id,
+                });
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toMatch(/must be a participant/i);
+        });
+
+        it('should return 400 when attempting to create, update, or move issue on an inactive contract', async () => {
+            await prisma.contract.update({
+                where: { id: contractId },
+                data: { status: 'COMPLETED' },
+            });
+
+            const createRes = await request(app)
+                .post(`/api/contracts/${contractId}/issues`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ title: 'New Task on Closed Contract' });
+
+            expect(createRes.statusCode).toBe(400);
+
+            const moveRes = await request(app)
+                .patch(`/api/issues/${issueId}/move`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ status: 'DONE', position: 2000 });
+
+            expect(moveRes.statusCode).toBe(400);
+        });
+
+        it('should return 400 when moveIssue receives invalid status or non-integer position', async () => {
+            await prisma.contract.update({
+                where: { id: contractId },
+                data: { status: 'ACTIVE' },
+            });
+
+            const invalidStatusRes = await request(app)
+                .patch(`/api/issues/${issueId}/move`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ status: 'INVALID_STATUS', position: 1000 });
+
+            expect(invalidStatusRes.statusCode).toBe(400);
+
+            const floatPositionRes = await request(app)
+                .patch(`/api/issues/${issueId}/move`)
+                .set('Authorization', `Bearer ${clientToken}`)
+                .send({ status: 'IN_PROGRESS', position: 1500.5 });
+
+            expect(floatPositionRes.statusCode).toBe(400);
         });
     });
 });
