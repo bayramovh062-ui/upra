@@ -26,3 +26,12 @@ export const verifyContractAccess = async (contractId, userId) => {
 
     return contract;
 };
+
+export const assertAssigneeInContract = (contract, assigneeId) => {
+    if (
+        assigneeId &&
+        ![contract.clientId, contract.freelancerId].includes(assigneeId)
+    ) {
+        throw new AppError('Assignee must be a participant of this contract', 400);
+    }
+};

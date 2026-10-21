@@ -1,7 +1,10 @@
 import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { verifyContractAccess } from '../utils/contractAccess.js';
+import {
+    verifyContractAccess,
+    assertAssigneeInContract,
+} from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
 
 // @route   GET /api/contracts/:contractId/issues
@@ -43,6 +46,9 @@ export const createIssue = asyncHandler(async (req, res) => {
     if (!contract.board) {
         throw new AppError('Board not found for this contract', 404);
     }
+
+    // TƏHLÜKƏSİZLİK YOXLAMASI: Assignee müqavilə tərəflərindən biridirmi?
+    assertAssigneeInContract(contract, assigneeId);
 
     const lastIssue = await prisma.issue.findFirst({
         where: { boardId: contract.board.id, status: 'TODO' },
@@ -87,6 +93,11 @@ export const updateIssue = asyncHandler(async (req, res) => {
     }
 
     const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
+
+    // TƏHLÜKƏSİZLİK YOXLAMASI: Əgər güncəlləmədə assigneeId göndərilibsə yoxlayırıq
+    if (req.body.assigneeId) {
+        assertAssigneeInContract(contract, req.body.assigneeId);
+    }
 
     const updatedIssue = await prisma.issue.update({
         where: { id: req.params.id },
