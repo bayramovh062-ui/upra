@@ -17,6 +17,11 @@ import NotFoundPage from './pages/NotFoundPage';
 import DashboardPage from './pages/DashboardPage';
 import DashboardRedirect from './pages/DashboardRedirect';
 import ComingSoonPage from './pages/ComingSoonPage';
+import JobsPage from './pages/JobsPage';
+import JobDetailPage from './pages/JobDetailPage';
+import MyJobsPage from './pages/MyJobsPage';
+import CreateJobPage from './pages/CreateJobPage';
+import EditJobPage from './pages/EditJobPage';
 
 function App() {
     return (
@@ -46,14 +51,21 @@ function App() {
                             <Route path="/dashboard" element={<DashboardRedirect />} />
                             <Route path="/contracts" element={<ComingSoonPage title="Contracts" />} />
                             <Route path="/settings" element={<ComingSoonPage title="Settings" />} />
-                            {/* /jobs hələlik burada. Faza 2-də public olub-olmaması qərara alınacaq */}
-                            <Route path="/jobs" element={<ComingSoonPage title="Find work" />} />
+                            {/* Elanlar giriş tələb edir (backend-də GET /jobs/:id protect-dir) */}
+                            <Route path="/jobs" element={<JobsPage />} />
+                            <Route path="/jobs/:id" element={<JobDetailPage />} />
 
                             {/* Yalnız CLIENT */}
                             <Route element={<ProtectedRoute allowedRoles={['CLIENT']} />}>
                                 <Route path="/client/dashboard" element={<DashboardPage />} />
-                                <Route path="/client/jobs" element={<ComingSoonPage title="My jobs" />} />
-                                <Route path="/client/jobs/new" element={<ComingSoonPage title="Post a job" />} />
+                                <Route path="/client/jobs" element={<MyJobsPage />} />
+                                <Route path="/client/jobs/new" element={<CreateJobPage />} />
+                                <Route path="/client/jobs/:id/edit" element={<EditJobPage />} />
+                                {/* Faza 3-də real səhifə ilə əvəz olunacaq */}
+                                <Route
+                                    path="/client/jobs/:id/proposals"
+                                    element={<ComingSoonPage title="Proposals" />}
+                                />
                             </Route>
 
                             {/* Yalnız FREELANCER */}

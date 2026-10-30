@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import Icon from './Icon';
 
 // 1, 2, 3 … 10 kimi qısaldılmış səhifə siyahısı
 const buildPages = (page, totalPages) => {
@@ -13,24 +14,23 @@ const buildPages = (page, totalPages) => {
     return result;
 };
 
-const btn = 'min-w-9 rounded-lg border px-3 py-1.5 text-sm font-medium transition';
-
 const Pagination = ({ page, totalPages, onChange }) => {
     if (!totalPages || totalPages <= 1) return null;
 
     return (
-        <nav className="flex items-center justify-center gap-1" aria-label="Pagination">
+        <nav className="flex items-center gap-1" aria-label="Pagination">
             <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => onChange(page - 1)}
-                className={cn(btn, 'border-line bg-white hover:bg-gray-50 disabled:opacity-40')}
+                aria-label="Previous page"
+                className="flex items-center justify-center rounded-lg p-1.5 text-secondary transition hover:bg-surface-container hover:text-on-surface disabled:cursor-not-allowed disabled:text-outline-variant disabled:hover:bg-transparent"
             >
-                Prev
+                <Icon name="chevron_left" className="text-[18px]" />
             </button>
             {buildPages(page, totalPages).map((p, i) =>
                 p === '…' ? (
-                    <span key={`gap-${i}`} className="px-2 text-muted">
+                    <span key={`gap-${i}`} className="px-1 text-label-sm text-secondary">
                         …
                     </span>
                 ) : (
@@ -40,10 +40,10 @@ const Pagination = ({ page, totalPages, onChange }) => {
                         onClick={() => onChange(p)}
                         aria-current={p === page ? 'page' : undefined}
                         className={cn(
-                            btn,
+                            'flex h-8 w-8 items-center justify-center rounded-lg text-label-md transition',
                             p === page
-                                ? 'border-brand-600 bg-brand-600 text-white'
-                                : 'border-line bg-white hover:bg-gray-50'
+                                ? 'bg-primary-container font-semibold text-on-primary shadow-sm'
+                                : 'text-on-surface hover:bg-surface-container'
                         )}
                     >
                         {p}
@@ -54,9 +54,10 @@ const Pagination = ({ page, totalPages, onChange }) => {
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => onChange(page + 1)}
-                className={cn(btn, 'border-line bg-white hover:bg-gray-50 disabled:opacity-40')}
+                aria-label="Next page"
+                className="flex items-center justify-center rounded-lg p-1.5 text-secondary transition hover:bg-surface-container hover:text-on-surface disabled:cursor-not-allowed disabled:text-outline-variant disabled:hover:bg-transparent"
             >
-                Next
+                <Icon name="chevron_right" className="text-[18px]" />
             </button>
         </nav>
     );
