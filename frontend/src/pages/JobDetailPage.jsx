@@ -15,6 +15,8 @@ import {
 } from '../components/ui';
 import { useDeleteJobMutation, useGetJobQuery } from '../features/jobs/jobsApi';
 import ProposalForm from '../features/proposals/ProposalForm';
+import ProposalEditForm from '../features/proposals/ProposalEditForm';
+import { useDeleteProposalMutation } from '../features/proposals/proposalsApi';
 import { formatDate, formatMoney, getErrorMessage, timeAgo } from '../lib/format';
 
 const DetailSkeleton = () => (
@@ -35,7 +37,27 @@ const DetailSkeleton = () => (
 );
 
 // Frilanser: təklif göndərib və ya göndərməyib
-const MyProposalCard = ({ proposal }) => (
+const MyProposalCard = ({ proposal, job }) => {
+    const [editing, setEditing] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteProposal, { isLoading: withdrawing }] = useDeleteProposalMutation();
+    const canChange = proposal.status === 'PENDING' && job.status === 'OPEN';
+
+    if (editing) {
+        return <ProposalEditForm proposal={proposal} jobPostId={job.id} onDone={() => setEditing(false)} />;
+    }
+
+    const handleWithdraw = async () => {
+        try {
+            await deleteProposal({ id: proposal.id, jobPostId: job.id }).unwrap();
+            toast.success('Proposal withdrawn');
+            setConfirmOpen(false);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not withdraw the proposal'));
+        }
+    };
+
+    return (
     <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3 rounded-xl bg-secondary-container p-4">
             <Icon name="check_circle" filled className="mt-0.5 text-[24px] text-primary-container" />
@@ -65,13 +87,41 @@ const MyProposalCard = ({ proposal }) => (
             </p>
         </div>
 
+        {canChange && (
+            <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
+                    <Icon name="edit" className="text-[16px]" />
+                    Edit
+                </Button>
+                <Button
+                    variant="ghost"
+                    className="flex-1 text-error hover:bg-error-container"
+                    onClick={() => setConfirmOpen(true)}
+                >
+                    Withdraw
+                </Button>
+            </div>
+        )}
+
         <Link to="/freelancer/proposals">
             <Button variant="secondary" className="w-full">
                 View my proposals
             </Button>
         </Link>
+
+        <ConfirmDialog
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            onConfirm={handleWithdraw}
+            loading={withdrawing}
+            variant="danger"
+            title="Withdraw this proposal?"
+            message="The proposal will be deleted. You can send a new one while the job is open."
+            confirmText="Withdraw"
+        />
     </div>
-);
+    );
+};
 
 // Client: öz elanını idarə edir
 const OwnerCard = ({ job, onCancel }) => {
@@ -230,7 +280,7 @@ const JobDetailPage = () => {
                         {isOwner ? (
                             <OwnerCard job={job} onCancel={() => setConfirmOpen(true)} />
                         ) : isFreelancer && myProposal ? (
-                            <MyProposalCard proposal={myProposal} />
+                            <MyProposalCard proposal={myProposal} job={job} />
                         ) : isFreelancer && job.status === 'OPEN' ? (
                             <ProposalForm job={job} />
                         ) : isFreelancer ? (
