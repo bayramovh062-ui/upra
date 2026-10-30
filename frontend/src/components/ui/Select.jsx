@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { fieldClass } from './Input';
+import { fieldClass, FieldLabel, FieldError } from './Input';
 
 // options: [{ value, label }]
 const Select = ({ label, error, options = [], placeholder, className, id, ref, ...props }) => {
@@ -8,9 +8,9 @@ const Select = ({ label, error, options = [], placeholder, className, id, ref, .
     return (
         <div className={className}>
             {label && (
-                <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-gray-700">
+                <FieldLabel htmlFor={fieldId} error={error}>
                     {label}
-                </label>
+                </FieldLabel>
             )}
             <select id={fieldId} ref={ref} className={fieldClass(error)} {...props}>
                 {placeholder && <option value="">{placeholder}</option>}
@@ -20,7 +20,7 @@ const Select = ({ label, error, options = [], placeholder, className, id, ref, .
                     </option>
                 ))}
             </select>
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <FieldError>{error}</FieldError>
         </div>
     );
 };

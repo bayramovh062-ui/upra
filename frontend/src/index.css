@@ -1,25 +1,115 @@
 @import "tailwindcss";
 
 /*
-  Dizayn tokenləri (Google Stitch dizaynına uyğunlaşdırmaq üçün yalnız burada dəyiş).
-  Tailwind v4: --color-brand-500 → bg-brand-500, text-brand-500 və s. yaradır.
+  Dizayn tokenləri: Google Stitch "Upra Design System" (DESIGN.md) ilə eynidir.
+  Tailwind v4: --color-primary → bg-primary, text-primary və s. yaradır.
+  Dizayn dəyişəndə yalnız bu bloku dəyişmək kifayətdir.
 */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
+  /* Material 3 rəng rolları (Stitch) */
+  --color-background: #f9f9ff;
+  --color-surface: #f9f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f1f3ff;
+  --color-surface-container: #e9edff;
+  --color-surface-container-high: #e1e8fd;
+  --color-surface-container-highest: #dce2f7;
+  --color-surface-variant: #dce2f7;
+  --color-on-surface: #141b2b;
+  --color-on-surface-variant: #464555;
+  --color-inverse-surface: #293040;
+  --color-inverse-on-surface: #edf0ff;
+  --color-outline: #777587;
+  --color-outline-variant: #c7c4d8;
+  --color-surface-tint: #4d44e3;
+
+  --color-primary: #3525cd;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #4f46e5;
+  --color-on-primary-container: #dad7ff;
+  --color-primary-fixed: #e2dfff;
+  --color-primary-fixed-dim: #c3c0ff;
+  --color-on-primary-fixed: #0f0069;
+  --color-inverse-primary: #c3c0ff;
+
+  --color-secondary: #555f6f;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #d6e0f3;
+  --color-on-secondary-container: #596373;
+  --color-secondary-fixed-dim: #bdc7d9;
+
+  --color-tertiary: #434853;
+  --color-tertiary-container: #5b606b;
+  --color-on-tertiary-container: #d7dbe8;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Status çipləri (DESIGN.md → Badges) */
+  --color-success-soft: #dcfce7;
+  --color-success-ink: #166534;
+  --color-warning-soft: #fef3c7;
+  --color-warning-ink: #92400e;
+  --color-danger-soft: #fee2e2;
+  --color-danger-ink: #991b1b;
+  --color-info-soft: #eef2ff;
+  --color-info-ink: #3730a3;
+
+  /* Köhnə adlar: mövcud komponentlər pozulmasın deyə yeni dizayna yönləndirilib */
   --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
+  --color-brand-100: #e2dfff;
   --color-brand-500: #6366f1;
   --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-
-  --color-canvas: #f9fafb;
-  --color-ink: #111827;
-  --color-muted: #6b7280;
+  --color-brand-700: #3525cd;
+  --color-canvas: #f9f9ff;
+  --color-ink: #141b2b;
+  --color-muted: #555f6f;
   --color-line: #e5e7eb;
   --color-nav: #1f2937;
 
   --radius-card: 0.75rem;
+
+  /* Tipoqrafiya şkalası */
+  --text-display-lg: 36px;
+  --text-display-lg--line-height: 44px;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 600;
+  --text-display-lg-mobile: 28px;
+  --text-display-lg-mobile--line-height: 36px;
+  --text-display-lg-mobile--letter-spacing: -0.02em;
+  --text-display-lg-mobile--font-weight: 600;
+  --text-headline-lg: 28px;
+  --text-headline-lg--line-height: 36px;
+  --text-headline-lg--letter-spacing: -0.015em;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-md: 22px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 24px;
+  --text-headline-sm--font-weight: 600;
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--font-weight: 500;
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 16px;
+  --text-label-sm--font-weight: 500;
+  --text-caption: 11px;
+  --text-caption--line-height: 14px;
+  --text-caption--letter-spacing: 0.02em;
+  --text-caption--font-weight: 500;
 }
 
 html,
@@ -30,8 +120,14 @@ body,
 
 body {
   margin: 0;
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Pul və say göstəriciləri üçün bərabər enli rəqəmlər (DESIGN.md → Typography) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" on, "cv05" on;
 }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import Icon from './Icon';
 
 // Sağdan açılan panel (Kanban-da tapşırıq detalı üçün)
 const Drawer = ({ open, onClose, title, children, className }) => {
@@ -25,14 +26,14 @@ const Drawer = ({ open, onClose, title, children, className }) => {
                 )}
             >
                 <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                    <h2 className="text-lg font-semibold text-ink">{title}</h2>
+                    <h2 className="text-headline-sm text-on-surface">{title}</h2>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close"
-                        className="rounded p-1 text-muted hover:bg-gray-100 hover:text-ink"
+                        className="rounded-lg p-1 text-secondary hover:bg-surface-container hover:text-on-surface"
                     >
-                        ✕
+                        <Icon name="close" />
                     </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5">{children}</div>

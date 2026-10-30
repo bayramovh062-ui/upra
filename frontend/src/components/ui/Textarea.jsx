@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { fieldClass } from './Input';
+import { fieldClass, FieldLabel, FieldError } from './Input';
 
 const Textarea = ({ label, error, hint, className, id, ref, rows = 4, ...props }) => {
     const autoId = useId();
@@ -7,13 +7,20 @@ const Textarea = ({ label, error, hint, className, id, ref, rows = 4, ...props }
     return (
         <div className={className}>
             {label && (
-                <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-gray-700">
+                <FieldLabel htmlFor={fieldId} error={error}>
                     {label}
-                </label>
+                </FieldLabel>
             )}
-            <textarea id={fieldId} ref={ref} rows={rows} className={fieldClass(error)} {...props} />
-            {hint && !error && <p className="mt-1 text-xs text-muted">{hint}</p>}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <textarea
+                id={fieldId}
+                ref={ref}
+                rows={rows}
+                aria-invalid={error ? 'true' : undefined}
+                className={fieldClass(error)}
+                {...props}
+            />
+            {hint && !error && <p className="mt-1.5 text-label-sm text-secondary">{hint}</p>}
+            <FieldError>{error}</FieldError>
         </div>
     );
 };

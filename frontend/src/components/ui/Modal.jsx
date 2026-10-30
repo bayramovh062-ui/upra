@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import Icon from './Icon';
 
 const Modal = ({ open, onClose, title, children, footer, className }) => {
     // Escape ilə bağlanma və fonun sürüşməsini dayandırma
@@ -25,20 +26,20 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'relative w-full max-w-md rounded-card bg-white shadow-xl',
+                    'relative w-full max-w-md rounded-xl border border-line bg-white shadow-xl',
                     className
                 )}
             >
                 {title && (
                     <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+                        <h2 className="text-headline-sm text-on-surface">{title}</h2>
                         <button
                             type="button"
                             onClick={onClose}
                             aria-label="Close"
-                            className="rounded p-1 text-muted hover:bg-gray-100 hover:text-ink"
+                            className="rounded-lg p-1 text-secondary hover:bg-surface-container hover:text-on-surface"
                         >
-                            ✕
+                            <Icon name="close" />
                         </button>
                     </div>
                 )}

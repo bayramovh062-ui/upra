@@ -1,10 +1,10 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { cn } from '../../lib/cn';
 import { NAV_ITEMS } from '../../lib/navigation';
 import Icon from '../ui/Icon';
 
-// Mobil: açılıb-bağlanan panel, desktop (lg+): həmişə görünür
+// Üst panelin altında: ağ panel, w-64. Mobil: açılıb-bağlanan, desktop (lg+): həmişə görünür
 const Sidebar = ({ open, onClose }) => {
     const role = useSelector((state) => state.auth.user?.role);
     const items = NAV_ITEMS[role] || [];
@@ -13,23 +13,22 @@ const Sidebar = ({ open, onClose }) => {
         <>
             {open && (
                 <div
-                    className="fixed inset-0 z-30 bg-gray-900/40 lg:hidden"
+                    className="fixed inset-0 z-30 bg-inverse-surface/40 lg:hidden"
                     onClick={onClose}
                     aria-hidden="true"
                 />
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-nav text-gray-300 transition-transform',
-                    'lg:static lg:translate-x-0',
+                    'fixed bottom-0 left-0 top-16 z-40 flex w-64 flex-col border-r border-line bg-surface-container-lowest px-4 py-6 transition-transform',
+                    'lg:translate-x-0',
                     open ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
-                <Link to="/" className="flex h-16 items-center px-6 text-xl font-bold text-white">
-                    Upra
-                </Link>
-
-                <nav className="flex-1 space-y-1 px-3 py-4">
+                <p className="mb-3 px-4 text-caption uppercase tracking-wider text-on-surface-variant">
+                    Workspace
+                </p>
+                <nav className="flex flex-col gap-1.5">
                     {items.map((item) => (
                         <NavLink
                             key={item.to}
@@ -37,10 +36,10 @@ const Sidebar = ({ open, onClose }) => {
                             onClick={onClose}
                             className={({ isActive }) =>
                                 cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                                    'flex items-center gap-4 rounded-xl px-4 py-2 text-body-md font-medium transition-all',
                                     isActive
-                                        ? 'bg-brand-600 text-white'
-                                        : 'hover:bg-white/10 hover:text-white'
+                                        ? 'bg-primary-container text-on-primary shadow-sm'
+                                        : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                                 )
                             }
                         >

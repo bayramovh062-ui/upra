@@ -6,6 +6,7 @@ import SessionGate from './components/SessionGate';
 import ProtectedRoute from './components/ProtectedRoute';
 import GuestRoute from './components/GuestRoute';
 import PublicLayout from './components/layout/PublicLayout';
+import AuthLayout from './components/layout/AuthLayout';
 import AppLayout from './components/layout/AppLayout';
 
 // Səhifələr
@@ -25,15 +26,17 @@ function App() {
             {/* Səhifə yenilənəndə token getMe ilə yoxlanılır */}
             <SessionGate>
                 <Routes>
-                    {/* Qonaq səhifələri: yuxarıda Navbar */}
-                    <Route element={<PublicLayout />}>
-                        <Route path="/" element={<HomePage />} />
-
-                        <Route element={<GuestRoute />}>
+                    {/* Login və register: sol brend paneli, sağda forma (Stitch dizaynı). Navbar yoxdur. */}
+                    <Route element={<GuestRoute />}>
+                        <Route element={<AuthLayout />}>
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterPage />} />
                         </Route>
+                    </Route>
 
+                    {/* Qonaq səhifələri: yuxarıda Navbar, aşağıda Footer */}
+                    <Route element={<PublicLayout />}>
+                        <Route path="/" element={<HomePage />} />
                         <Route path="*" element={<NotFoundPage />} />
                     </Route>
 
