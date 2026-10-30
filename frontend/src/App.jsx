@@ -22,6 +22,8 @@ import JobDetailPage from './pages/JobDetailPage';
 import MyJobsPage from './pages/MyJobsPage';
 import CreateJobPage from './pages/CreateJobPage';
 import EditJobPage from './pages/EditJobPage';
+import JobProposalsPage from './pages/JobProposalsPage';
+import MyProposalsPage from './pages/MyProposalsPage';
 
 function App() {
     return (
@@ -61,20 +63,13 @@ function App() {
                                 <Route path="/client/jobs" element={<MyJobsPage />} />
                                 <Route path="/client/jobs/new" element={<CreateJobPage />} />
                                 <Route path="/client/jobs/:id/edit" element={<EditJobPage />} />
-                                {/* Faza 3-də real səhifə ilə əvəz olunacaq */}
-                                <Route
-                                    path="/client/jobs/:id/proposals"
-                                    element={<ComingSoonPage title="Proposals" />}
-                                />
+                                <Route path="/client/jobs/:id/proposals" element={<JobProposalsPage />} />
                             </Route>
 
                             {/* Yalnız FREELANCER */}
                             <Route element={<ProtectedRoute allowedRoles={['FREELANCER']} />}>
                                 <Route path="/freelancer/dashboard" element={<DashboardPage />} />
-                                <Route
-                                    path="/freelancer/proposals"
-                                    element={<ComingSoonPage title="My proposals" />}
-                                />
+                                <Route path="/freelancer/proposals" element={<MyProposalsPage />} />
                             </Route>
                         </Route>
                     </Route>

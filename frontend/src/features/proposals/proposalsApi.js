@@ -1,7 +1,5 @@
 import { baseApi } from '../../lib/baseApi';
 
-// Faza 2-də yalnız elan səhifəsindəki "Submit proposal" üçün lazım olan endpoint var.
-// Qalan endpoint-lər (my, job/:jobId, update, delete) Faza 3-də bura əlavə olunacaq.
 export const proposalsApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         // arg: { jobPostId, coverLetter, bidAmount }
@@ -14,7 +12,48 @@ export const proposalsApi = baseApi.injectEndpoints({
                 { type: 'Proposal', id: 'MY' },
             ],
         }),
+
+        // Frilanserin öz təkliflərı
+        getMyProposals: builder.query({
+            query: () => '/proposals/my',
+            providesTags: [{ type: 'Proposal', id: 'MY' }],
+        }),
+
+        // Client: öz elanına gələn təkliflər
+        getJobProposals: builder.query({
+            query: (jobId) => `/proposals/job/${jobId}`,
+            providesTags: (result, error, jobId) => [{ type: 'Proposal', id: `JOB-${jobId}` }],
+        }),
+
+        // arg: { id, jobPostId, coverLetter?, bidAmount? }
+        updateProposal: builder.mutation({
+            query: ({ id, coverLetter, bidAmount }) => ({
+                url: `/proposals/${id}`,
+                method: 'PATCH',
+                body: { coverLetter, bidAmount },
+            }),
+            invalidatesTags: (result, error, { jobPostId }) => [
+                { type: 'Job', id: jobPostId },
+                { type: 'Proposal', id: 'MY' },
+            ],
+        }),
+
+        // Geri çəkmə (yalnız PENDING). arg: { id, jobPostId }
+        deleteProposal: builder.mutation({
+            query: ({ id }) => ({ url: `/proposals/${id}`, method: 'DELETE' }),
+            invalidatesTags: (result, error, { jobPostId }) => [
+                { type: 'Job', id: jobPostId },
+                { type: 'Job', id: 'LIST' },
+                { type: 'Proposal', id: 'MY' },
+            ],
+        }),
     }),
 });
 
-export const { useCreateProposalMutation } = proposalsApi;
+export const {
+    useCreateProposalMutation,
+    useGetMyProposalsQuery,
+    useGetJobProposalsQuery,
+    useUpdateProposalMutation,
+    useDeleteProposalMutation,
+} = proposalsApi;
