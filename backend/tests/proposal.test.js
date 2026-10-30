@@ -108,7 +108,7 @@ describe('Proposal Module Integration Tests', () => {
                     bidAmount: 1000,
                 });
 
-            expect(res.status).toBe(400);
+            expect(res.status).toBe(409);
             expect(res.body.success).toBe(false);
         });
 

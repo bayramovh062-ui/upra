@@ -29,7 +29,7 @@ export const createProposal = asyncHandler(async (req, res) => {
     });
 
     if (existingProposal) {
-        throw new AppError('You have already submitted a proposal for this job post', 400);
+        throw new AppError('You have already submitted a proposal for this job post', 409);
     }
 
     const proposal = await prisma.proposal.create({
@@ -53,6 +53,8 @@ export const getMyProposals = asyncHandler(async (req, res) => {
             jobPost: {
                 select: { id: true, title: true, status: true, budget: true },
             },
+            // Qəbul olunan təklif üçün: frilanser "Open workspace" linkini bundan qurur
+            contract: { select: { id: true } },
         },
         orderBy: { createdAt: 'desc' },
     });

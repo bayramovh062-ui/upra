@@ -16,8 +16,9 @@ export const globalErrorMiddleware = (err, req, res, next) => {
         message = "The requested information was not found.";
     }
 
+    // Unikal indeks pozuntusu (məs. eyni anda iki eyni təklif sorğusu): 409 Conflict
     if (err.code === 'P2002') {
-        statusCode = 400;
+        statusCode = 409;
         message = "This information already exists in the system.";
     }
 
