@@ -1,53 +1,47 @@
 import { Link } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../features/auth/authSlice';
-import { baseApi } from '../lib/baseApi';
+import { useSelector } from 'react-redux';
+import { useLogout } from '../features/auth/useLogout';
+import { getDashboardPath } from '../lib/navigation';
+import Button from './ui/Button';
 
+// Yalnız qonaq (public) səhifələrdə görünür. Giriş etmiş istifadəçilər AppLayout-un sidebar-ını görür.
 const Navbar = () => {
-    const dispatch = useDispatch();
-    // Giriş statusu və istifadəçi məlumatları
+    const logout = useLogout();
     const isAuthenticated = useSelector((state) => !!state.auth?.token);
     const user = useSelector((state) => state.auth?.user);
 
-    const handleLogout = () => {
-        dispatch(logout());
-        // Cache-i təmizləyirik ki, başqa istifadəçi girəndə köhnə data görünməsin
-        dispatch(baseApi.util.resetApiState());
-    };
-
     return (
-        <nav className="flex items-center justify-between p-4 bg-gray-800 text-white">
-            {/* Loqo / Brend adı */}
+        <nav className="flex h-16 items-center justify-between bg-nav px-4 text-white sm:px-6">
             <Link to="/" className="text-xl font-bold">
                 Upra
             </Link>
 
-            {/* Giriş vəziyyətinə görə dinamik linklər */}
-            <div>
-                {isAuthenticated ? (
-                    <div className="flex items-center gap-4">
-                        <span>Welcome, {user?.fullName || 'User'}</span>
-                        <Link to="/dashboard" className="hover:text-gray-300">
-                            Dashboard
-                        </Link>
-                        <button
-                            onClick={handleLogout}
-                            className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
-                        >
-                            Logout
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex gap-4">
-                        <Link to="/login" className="hover:text-gray-300">
-                            Login
-                        </Link>
-                        <Link to="/register" className="hover:text-gray-300">
-                            Register
-                        </Link>
-                    </div>
-                )}
-            </div>
+            {isAuthenticated ? (
+                <div className="flex items-center gap-4">
+                    <span className="hidden text-sm text-gray-300 sm:inline">{user?.fullName}</span>
+                    <Link
+                        to={getDashboardPath(user?.role)}
+                        className="text-sm font-medium hover:text-gray-300"
+                    >
+                        Dashboard
+                    </Link>
+                    <Button size="sm" variant="danger" onClick={logout}>
+                        Log out
+                    </Button>
+                </div>
+            ) : (
+                <div className="flex items-center gap-3">
+                    <Link to="/login" className="text-sm font-medium hover:text-gray-300">
+                        Sign in
+                    </Link>
+                    <Link
+                        to="/register"
+                        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium hover:bg-brand-700"
+                    >
+                        Get started
+                    </Link>
+                </div>
+            )}
         </nav>
     );
 };

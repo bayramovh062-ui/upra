@@ -1,12 +1,13 @@
 import { useSelector } from 'react-redux';
 import { Navigate, Outlet } from 'react-router-dom';
+import { getDashboardPath } from '../lib/navigation';
 
 // Giriş etmiş istifadəçi /login və /register səhifələrinə girməsin
 const GuestRoute = () => {
-    const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+    const { isAuthenticated, user } = useSelector((state) => state.auth);
 
     if (isAuthenticated) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={getDashboardPath(user?.role)} replace />;
     }
 
     return <Outlet />;

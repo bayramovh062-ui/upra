@@ -27,7 +27,7 @@ const LoginPage = () => {
             // Token və user Redux-a authApi-dəki onQueryStarted ilə yazılır
             await login(formData).unwrap();
             toast.success('Logged in successfully!');
-            navigate('/');
+            navigate('/dashboard', { replace: true });
         } catch (err) {
             toast.error(err?.data?.message || 'Invalid email or password');
         }
