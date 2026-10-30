@@ -1,14 +1,11 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { loginSchema } from '../validations/authSchema';
-import { useLoginMutation } from '../redux/api/authApi';
-import { setCredentials } from '../redux/slices/authSlice';
+import { useLoginMutation } from '../features/auth/authApi';
 
 const LoginPage = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
     const [login, { isLoading }] = useLoginMutation();
 
@@ -27,9 +24,8 @@ const LoginPage = () => {
     const onSubmit = async (formData) => {
         try {
             // Backend-ə giriş sorğusunu atırıq
-            const result = await login(formData).unwrap();
-            // Gələn token və istifadəçi məlumatını Redux yaddaşına yazırıq
-            dispatch(setCredentials(result));
+            // Token və user Redux-a authApi-dəki onQueryStarted ilə yazılır
+            await login(formData).unwrap();
             toast.success('Logged in successfully!');
             navigate('/');
         } catch (err) {

@@ -1,14 +1,11 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { registerSchema } from '../validations/authSchema';
-import { useRegisterMutation } from '../redux/api/authApi';
-import { setCredentials } from '../redux/slices/authSlice';
+import { useRegisterMutation } from '../features/auth/authApi';
 
 const RegisterPage = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
     const [registerUser, { isLoading }] = useRegisterMutation();
 
@@ -19,22 +16,21 @@ const RegisterPage = () => {
     } = useForm({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            name: '',
+            fullName: '',
             email: '',
             password: '',
             confirmPassword: '',
-            role: 'client', // Default olaraq 'client' seçilir
+            role: 'CLIENT', // Default olaraq 'CLIENT' seçilir
         },
     });
 
     const onSubmit = async (formData) => {
         try {
             // Backend-ə göndərilmədən öncə confirmPassword sahəsini ayırırıq
+            // eslint-disable-next-line no-unused-vars
             const { confirmPassword, ...registerData } = formData;
-            const result = await registerUser(registerData).unwrap();
-
-            // Qeydiyyatdan sonra istifadəçini avtomatik daxil edirik
-            dispatch(setCredentials(result));
+            // Token və user Redux-a authApi-dəki onQueryStarted ilə yazılır
+            await registerUser(registerData).unwrap();
             toast.success('Account created successfully!');
             navigate('/');
         } catch (err) {
@@ -56,12 +52,12 @@ const RegisterPage = () => {
                         </label>
                         <input
                             type="text"
-                            {...register('name')}
+                            {...register('fullName')}
                             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
                             placeholder="John Doe"
                         />
-                        {errors.name && (
-                            <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
+                        {errors.fullName && (
+                            <p className="text-red-500 text-xs mt-1">{errors.fullName.message}</p>
                         )}
                     </div>
 
@@ -88,7 +84,7 @@ const RegisterPage = () => {
                             <label className="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50">
                                 <input
                                     type="radio"
-                                    value="client"
+                                    value="CLIENT"
                                     {...register('role')}
                                     className="sr-only"
                                 />
@@ -97,7 +93,7 @@ const RegisterPage = () => {
                             <label className="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50">
                                 <input
                                     type="radio"
-                                    value="freelancer"
+                                    value="FREELANCER"
                                     {...register('role')}
                                     className="sr-only"
                                 />

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-// import { logOut } from '../features/auth/authSlice'; // Öz logOut action-unu bura əlavə edə bilərsən
+import { logout } from '../features/auth/authSlice';
+import { baseApi } from '../lib/baseApi';
 
 const Navbar = () => {
     const dispatch = useDispatch();
@@ -9,22 +10,23 @@ const Navbar = () => {
     const user = useSelector((state) => state.auth?.user);
 
     const handleLogout = () => {
-        // Çıxış funksiyası üçün Redux action dispatch ediləcək
-        // dispatch(logOut());
+        dispatch(logout());
+        // Cache-i təmizləyirik ki, başqa istifadəçi girəndə köhnə data görünməsin
+        dispatch(baseApi.util.resetApiState());
     };
 
     return (
         <nav className="flex items-center justify-between p-4 bg-gray-800 text-white">
             {/* Loqo / Brend adı */}
             <Link to="/" className="text-xl font-bold">
-                My App
+                Upra
             </Link>
 
             {/* Giriş vəziyyətinə görə dinamik linklər */}
             <div>
                 {isAuthenticated ? (
                     <div className="flex items-center gap-4">
-                        <span>Welcome, {user?.name || 'User'}</span>
+                        <span>Welcome, {user?.fullName || 'User'}</span>
                         <Link to="/dashboard" className="hover:text-gray-300">
                             Dashboard
                         </Link>

@@ -1,9 +1,17 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+const loadStoredUser = () => {
+    try {
+        const stored = localStorage.getItem('user');
+        return stored ? JSON.parse(stored) : null;
+    } catch {
+        // Yaddaşdakı dəyər korlanıbsa, istifadəçini boş sayırıq
+        return null;
+    }
+};
+
 const token = localStorage.getItem('token') || null;
-const user = localStorage.getItem('user')
-    ? JSON.parse(localStorage.getItem('user'))
-    : null;
+const user = loadStoredUser();
 
 const authSlice = createSlice({
     name: 'auth',
