@@ -18,21 +18,25 @@ import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useCancelContractMutation,
     useCompleteContractMutation,
+    useDeliverContractMutation,
     useGetContractQuery,
+    useReopenContractMutation,
 } from '../features/contracts/contractsApi';
 import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
     const { id } = useParams();
     const user = useSelector((state) => state.auth.user);
-    const [action, setAction] = useState(null); // 'complete' | 'cancel' | null
+    const [action, setAction] = useState(null); // 'complete' | 'cancel' | 'deliver' | 'reopen' | null
 
     const { data, isLoading, isError, error, refetch } = useGetContractQuery(id);
-    // Lövhə ilə eyni cache-dən oxunur (əlavə sorğu yaratmır). Bitirmə xəbərdarlığı üçün lazımdır
+    // Lövhə ilə eyni cache-dən oxunur (əlavə sorğu yaratmır). Bitirmə/təhvil xəbərdarlığı üçün lazımdır
     const issuesQ = useGetIssuesQuery(id);
     const unfinished = (issuesQ.data?.issues ?? []).filter((i) => i.status !== 'DONE').length;
     const [completeContract, { isLoading: completing }] = useCompleteContractMutation();
     const [cancelContract, { isLoading: cancelling }] = useCancelContractMutation();
+    const [deliverContract, { isLoading: delivering }] = useDeliverContractMutation();
+    const [reopenContract, { isLoading: reopening }] = useReopenContractMutation();
 
     if (isLoading) {
         return (
@@ -64,18 +68,54 @@ const ContractDetailPage = () => {
 
     const { contract } = data;
     const isClient = user?.id === contract.clientId;
+    const isFreelancer = user?.id === contract.freelancerId;
     const other = isClient ? contract.freelancer : contract.client;
     const active = contract.status === 'ACTIVE';
+    const delivered = contract.status === 'DELIVERED';
+    const unfinishedText =
+        unfinished > 0 ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. ` : '';
+
+    // Hər əməliyyat üçün: backend çağırışı, uğur mesajı və təsdiq pəncərəsinin mətni
+    const ACTIONS = {
+        complete: {
+            run: completeContract,
+            success: 'Contract completed',
+            title: 'Mark contract as completed?',
+            confirmText: 'Complete',
+            variant: 'primary',
+            message: `${unfinishedText}The contract and its job will be marked as completed. This cannot be undone.`,
+        },
+        cancel: {
+            run: cancelContract,
+            success: 'Contract cancelled',
+            title: 'Cancel this contract?',
+            confirmText: 'Cancel contract',
+            variant: 'danger',
+            message: 'The contract and its job will be cancelled. This cannot be undone.',
+        },
+        deliver: {
+            run: deliverContract,
+            success: 'Work marked as delivered',
+            title: 'Deliver the work?',
+            confirmText: 'Deliver',
+            variant: 'primary',
+            message: `${unfinishedText}The client will be asked to review your work. The board becomes read-only until they accept it or request changes.`,
+        },
+        reopen: {
+            run: reopenContract,
+            success: 'Changes requested, the contract is active again',
+            title: 'Request changes?',
+            confirmText: 'Request changes',
+            variant: 'primary',
+            message: 'The contract goes back to Active and the freelancer can keep working on the board.',
+        },
+    };
+    const current = action ? ACTIONS[action] : null;
 
     const handleConfirm = async () => {
         try {
-            if (action === 'complete') {
-                await completeContract(contract.id).unwrap();
-                toast.success('Contract completed');
-            } else {
-                await cancelContract(contract.id).unwrap();
-                toast.success('Contract cancelled');
-            }
+            await current.run(contract.id).unwrap();
+            toast.success(current.success);
             setAction(null);
         } catch (err) {
             toast.error(getErrorMessage(err, 'Action failed'));
@@ -103,18 +143,39 @@ const ContractDetailPage = () => {
                     <h1 className="mt-2 break-words text-headline-lg text-on-surface">{contract.jobPost?.title}</h1>
                 </div>
 
-                {isClient && active && (
-                    <div className="flex gap-2">
+                {isClient && (active || delivered) && (
+                    <div className="flex flex-wrap gap-2">
                         <Button variant="ghost" className="text-error hover:bg-error-container" onClick={() => setAction('cancel')}>
                             Cancel contract
                         </Button>
+                        {delivered && (
+                            <Button variant="secondary" onClick={() => setAction('reopen')}>
+                                <Icon name="undo" className="text-[18px]" />
+                                Request changes
+                            </Button>
+                        )}
                         <Button onClick={() => setAction('complete')}>
                             <Icon name="task_alt" className="text-[18px]" />
-                            Mark as completed
+                            {delivered ? 'Accept & complete' : 'Mark as completed'}
                         </Button>
                     </div>
                 )}
+
+                {isFreelancer && active && (
+                    <Button onClick={() => setAction('deliver')}>
+                        <Icon name="outbox" className="text-[18px]" />
+                        Mark as delivered
+                    </Button>
+                )}
             </div>
+
+            {delivered && (
+                <div className="mb-6 rounded-xl border border-line bg-warning-soft p-4 text-body-md text-warning-ink">
+                    {isClient
+                        ? 'The freelancer marked the work as delivered. Review it, then accept it or request changes.'
+                        : 'You delivered the work. Waiting for the client to accept it or request changes.'}
+                </div>
+            )}
 
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="p-5">
@@ -148,19 +209,11 @@ const ContractDetailPage = () => {
                 open={!!action}
                 onClose={() => setAction(null)}
                 onConfirm={handleConfirm}
-                loading={completing || cancelling}
-                variant={action === 'cancel' ? 'danger' : 'primary'}
-                title={action === 'cancel' ? 'Cancel this contract?' : 'Mark contract as completed?'}
-                message={
-                    action === 'cancel'
-                        ? 'The contract and its job will be cancelled. This cannot be undone.'
-                        : `${
-                              unfinished > 0
-                                  ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. `
-                                  : ''
-                          }The contract and its job will be marked as completed. This cannot be undone.`
-                }
-                confirmText={action === 'cancel' ? 'Cancel contract' : 'Complete'}
+                loading={completing || cancelling || delivering || reopening}
+                variant={current?.variant}
+                title={current?.title}
+                message={current?.message}
+                confirmText={current?.confirmText}
             />
         </>
     );

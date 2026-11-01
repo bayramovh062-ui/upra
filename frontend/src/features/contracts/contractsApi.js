@@ -33,6 +33,18 @@ export const contractsApi = baseApi.injectEndpoints({
             invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }, 'Job'],
         }),
 
+        // Yalnız FREELANCER, yalnız ACTIVE → DELIVERED (lövhə read-only olur)
+        deliverContract: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/deliver`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
+        }),
+
+        // Yalnız CLIENT, yalnız DELIVERED → ACTIVE ("dəyişiklik istəyirəm")
+        reopenContract: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/reopen`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
+        }),
+
         cancelContract: builder.mutation({
             query: (id) => ({ url: `/contracts/${id}/cancel`, method: 'PATCH' }),
             invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }, 'Job'],
@@ -46,4 +58,6 @@ export const {
     useGetContractQuery,
     useCompleteContractMutation,
     useCancelContractMutation,
+    useDeliverContractMutation,
+    useReopenContractMutation,
 } = contractsApi;

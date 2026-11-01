@@ -13,6 +13,9 @@ const TABS = [
     { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
+// DELIVERED müqavilə hələ açıq işdir (client yoxlayır), ona görə "Active" tabında göstərilir
+const tabOf = (status) => (status === 'DELIVERED' ? 'ACTIVE' : status);
+
 const ContractsPage = () => {
     const user = useSelector((state) => state.auth.user);
     const [tab, setTab] = useState('ACTIVE');
@@ -23,12 +26,13 @@ const ContractsPage = () => {
     const counts = useMemo(() => {
         const c = { ALL: contracts.length, ACTIVE: 0, COMPLETED: 0, CANCELLED: 0 };
         contracts.forEach((x) => {
-            c[x.status] = (c[x.status] ?? 0) + 1;
+            const key = tabOf(x.status);
+            c[key] = (c[key] ?? 0) + 1;
         });
         return c;
     }, [contracts]);
 
-    const visible = tab === 'ALL' ? contracts : contracts.filter((c) => c.status === tab);
+    const visible = tab === 'ALL' ? contracts : contracts.filter((c) => tabOf(c.status) === tab);
     const isClient = user?.role === 'CLIENT';
 
     return (

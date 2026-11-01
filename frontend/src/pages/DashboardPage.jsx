@@ -49,7 +49,9 @@ const DashboardPage = () => {
     const proposals = proposalsQ.data?.proposals ?? [];
     const contracts = contractsQ.data?.contracts ?? [];
 
-    const countContracts = (status) => contracts.filter((c) => c.status === status).length;
+    // "ACTIVE" sayına DELIVERED da daxildir: iş hələ client tərəfindən təsdiqlənməyib
+    const countContracts = (status) =>
+        contracts.filter((c) => c.status === status || (status === 'ACTIVE' && c.status === 'DELIVERED')).length;
     const openJobs = jobs.filter((j) => j.status === 'OPEN');
 
     const loading = contractsQ.isLoading || (isClient ? jobsQ.isLoading : proposalsQ.isLoading);

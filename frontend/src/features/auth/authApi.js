@@ -56,10 +56,14 @@ export const settingsApi = baseApi.injectEndpoints({
                 }
             },
         }),
+        // Soft delete: parol tələb olunur. Aktiv müqavilə varsa backend 400 qaytarır
+        deleteAccount: builder.mutation({
+            query: (body) => ({ url: '/auth/me', method: 'DELETE', body }),
+        }),
         updatePassword: builder.mutation({
             query: (body) => ({ url: '/auth/update-password', method: 'PATCH', body }),
         }),
     }),
 });
 
-export const { useUpdateMeMutation, useUpdatePasswordMutation } = settingsApi;
+export const { useUpdateMeMutation, useUpdatePasswordMutation, useDeleteAccountMutation } = settingsApi;

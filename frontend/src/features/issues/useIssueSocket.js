@@ -68,6 +68,22 @@ const useIssueSocket = (contractId) => {
             }),
         );
 
+        // Digər tərəf təhvil verdi, bitirdi, ləğv etdi və ya dəyişiklik istədi: müqavilə və siyahılar yenilənir
+        socket.on('contract:updated', () =>
+            dispatch(
+                issuesApi.util.invalidateTags([
+                    { type: 'Contract', id: contractId },
+                    { type: 'Contract', id: 'LIST' },
+                    'Job',
+                ]),
+            ),
+        );
+
+        // Kart mövqeləri yenidən nömrələndi (backend rebalance etdi): siyahı təzələnir
+        socket.on('board:reordered', () =>
+            dispatch(issuesApi.util.invalidateTags([{ type: 'Issue', id: `C-${contractId}` }])),
+        );
+
         return () => {
             socket.emit('leave_contract', contractId);
             socket.disconnect();

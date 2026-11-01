@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { Badge, Button, Card, CardBody, CardHeader, Input, PageHeader, PasswordInput } from '../components/ui';
-import { useUpdateMeMutation, useUpdatePasswordMutation } from '../features/auth/authApi';
+import { Badge, Button, Card, CardBody, CardHeader, Input, Modal, PageHeader, PasswordInput } from '../components/ui';
+import {
+    useDeleteAccountMutation,
+    useUpdateMeMutation,
+    useUpdatePasswordMutation,
+} from '../features/auth/authApi';
+import { useLogout } from '../features/auth/useLogout';
 import { formatDate, getErrorMessage } from '../lib/format';
 import { passwordSchema, profileSchema } from '../validations/settingsSchema';
 
@@ -104,6 +110,72 @@ const PasswordForm = () => {
     );
 };
 
+// Hesabı silmə: parol təsdiqi ilə. Aktiv müqavilə varsa backend 400 qaytarır və mesajı toast-da göstərilir.
+const DangerZone = () => {
+    const [deleteAccount, { isLoading }] = useDeleteAccountMutation();
+    const logout = useLogout();
+    const [open, setOpen] = useState(false);
+    const [password, setPassword] = useState('');
+
+    const close = () => {
+        setOpen(false);
+        setPassword('');
+    };
+
+    const onConfirm = async () => {
+        try {
+            await deleteAccount({ password }).unwrap();
+            toast.success('Your account has been deleted');
+            logout();
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not delete the account'));
+        }
+    };
+
+    return (
+        <>
+            <Card className="border-error">
+                <CardHeader title="Danger zone" />
+                <CardBody>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <p className="max-w-md text-body-md text-secondary">
+                            Deleting your account cannot be undone. Your contract history stays visible to the other
+                            party, but your personal data is removed. Active contracts must be completed or cancelled
+                            first.
+                        </p>
+                        <Button variant="danger" onClick={() => setOpen(true)}>
+                            Delete account
+                        </Button>
+                    </div>
+                </CardBody>
+            </Card>
+
+            <Modal
+                open={open}
+                onClose={close}
+                title="Delete your account?"
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={close} disabled={isLoading}>
+                            Cancel
+                        </Button>
+                        <Button variant="danger" onClick={onConfirm} loading={isLoading} disabled={!password}>
+                            Delete account
+                        </Button>
+                    </>
+                }
+            >
+                <PasswordInput
+                    label="Confirm with your password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
+            </Modal>
+        </>
+    );
+};
+
 const SettingsPage = () => {
     const user = useSelector((state) => state.auth.user);
     if (!user) return null;
@@ -114,6 +186,7 @@ const SettingsPage = () => {
             <div className="grid max-w-3xl grid-cols-1 gap-6">
                 <ProfileForm user={user} />
                 <PasswordForm />
+                <DangerZone />
             </div>
         </>
     );
