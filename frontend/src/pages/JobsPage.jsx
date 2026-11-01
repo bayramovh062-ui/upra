@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Button, Card, EmptyState, ErrorState, Icon, Input, PageHeader, Pagination, Select, Skeleton } from '../components/ui';
-import JobCard from '../features/jobs/JobCard';
-import { useGetJobsQuery } from '../features/jobs/jobsApi';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import {
+    Button,
+    Card,
+    EmptyState,
+    ErrorState,
+    Icon,
+    Input,
+    PageHeader,
+    Pagination,
+    Select,
+    Skeleton,
+} from '../components/ui';
+import { cn } from '../lib/cn';
 import { formatMoney } from '../lib/format';
+import { EXPERIENCE_LEVELS, PAYMENT_STRUCTURES, experienceLabel, paymentLabel } from '../lib/labels';
+import { toSkillSlug } from '../lib/skills';
 import { useDebounce } from '../lib/useDebounce';
+import JobCard from '../features/jobs/JobCard';
+import JobFilters from '../features/jobs/JobFilters';
+import { useGetJobsQuery } from '../features/jobs/jobsApi';
+import { useGetCategoriesQuery } from '../features/taxonomy/taxonomyApi';
 
 const PAGE_SIZE = 10;
 
@@ -13,14 +29,18 @@ const SORT_OPTIONS = [
     { value: 'newest', label: 'Newest first' },
     { value: 'budget_desc', label: 'Budget: high to low' },
     { value: 'budget_asc', label: 'Budget: low to high' },
+    { value: 'proposals_desc', label: 'Most proposals' },
 ];
 
-const BUDGET_PRESETS = [
-    { label: 'Under $500', min: '', max: '500' },
-    { label: '$500 – $2,000', min: '500', max: '2000' },
-    { label: '$2,000 – $10,000', min: '2000', max: '10000' },
-    { label: '$10,000+', min: '10000', max: '' },
-];
+const LEVEL_VALUES = EXPERIENCE_LEVELS.map((l) => l.value);
+const PAYMENT_VALUES = PAYMENT_STRUCTURES.map((p) => p.value);
+
+// "a,b,c" -> ["a","b","c"]
+const csv = (value) =>
+    (value || '')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
 
 const ListSkeleton = () => (
     <div className="flex flex-col gap-4">
@@ -38,21 +58,66 @@ const ListSkeleton = () => (
     </div>
 );
 
+const TabButton = ({ active, icon, count, onClick, children }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className={cn(
+            'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-1.5 text-body-md transition-colors',
+            active
+                ? 'bg-inverse-surface font-medium text-on-primary shadow-sm'
+                : 'bg-surface-container-low text-secondary hover:bg-surface-container hover:text-on-surface'
+        )}
+    >
+        {icon && <Icon name={icon} className={cn('text-[16px]', !active && 'text-primary')} />}
+        {children}
+        {count !== undefined && <span className={cn('tabular', active ? 'opacity-80' : 'text-secondary')}>({count})</span>}
+    </button>
+);
+
+const FilterChip = ({ label, onRemove }) => (
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2.5 py-1 text-caption text-on-surface">
+        {label}
+        <button type="button" onClick={onRemove} aria-label={`Remove filter ${label}`} className="flex items-center hover:text-primary-container">
+            <Icon name="close" className="text-[13px]" />
+        </button>
+    </span>
+);
+
 // Frilanser üçün "Find work" (Stitch find_work dizaynı).
 // Bütün filtrlər URL-də saxlanılır: səhifəni yeniləyəndə və ya linki göndərəndə nəticə eyni qalır.
 const JobsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const user = useSelector((state) => state.auth.user);
+    const isFreelancer = user?.role === 'FREELANCER';
 
+    // ---- URL-dən oxu ----
     const page = Math.max(1, Number(searchParams.get('page')) || 1);
-    const sort = SORT_OPTIONS.some((o) => o.value === searchParams.get('sort')) ? searchParams.get('sort') : 'newest';
+    const sortParam = searchParams.get('sort');
+    const sort = SORT_OPTIONS.some((o) => o.value === sortParam) ? sortParam : 'newest';
+    const tabParam = searchParams.get('tab');
+    // Saved və Matched yalnız frilanser üçündür (backend də client üçün 403 qaytarır)
+    const tab = isFreelancer && (tabParam === 'saved' || tabParam === 'matched') ? tabParam : 'all';
     const search = searchParams.get('search') || '';
     const minBudget = searchParams.get('minBudget') || '';
     const maxBudget = searchParams.get('maxBudget') || '';
+    const category = csv(searchParams.get('category'));
+    const experienceLevel = csv(searchParams.get('experienceLevel')).filter((v) => LEVEL_VALUES.includes(v));
+    const skills = csv(searchParams.get('skills'));
+    const skillsMode = searchParams.get('skillsMode') === 'all' ? 'all' : '';
+    const paymentStructure = PAYMENT_VALUES.includes(searchParams.get('paymentStructure'))
+        ? searchParams.get('paymentStructure')
+        : '';
 
-    // Axtarış və büdcə sahələri lokal state-dir, URL-ə debounce ilə yazılır
+    const filterValues = { minBudget, maxBudget, category, experienceLevel, paymentStructure, skills, skillsMode };
+
+    const hasFilters = Boolean(
+        search || minBudget || maxBudget || category.length || experienceLevel.length || skills.length || paymentStructure
+    );
+
+    // Axtarış sahəsi lokal state-dir, URL-ə debounce ilə yazılır
     const [searchInput, setSearchInput] = useState(search);
-    const [minInput, setMinInput] = useState(minBudget);
-    const [maxInput, setMaxInput] = useState(maxBudget);
     const debouncedSearch = useDebounce(searchInput, 400);
 
     const updateParams = (patch, { keepPage = false } = {}) => {
@@ -60,8 +125,9 @@ const JobsPage = () => {
             (prev) => {
                 const next = new URLSearchParams(prev);
                 Object.entries(patch).forEach(([key, value]) => {
-                    if (value === '' || value === null || value === undefined) next.delete(key);
-                    else next.set(key, String(value));
+                    const text = Array.isArray(value) ? value.join(',') : value;
+                    if (text === '' || text === null || text === undefined) next.delete(key);
+                    else next.set(key, String(text));
                 });
                 if (!keepPage) next.delete('page');
                 return next;
@@ -90,45 +156,140 @@ const JobsPage = () => {
         page,
         limit: PAGE_SIZE,
         sort,
+        ...(tab !== 'all' && { tab }),
         ...(search && { search }),
         ...(minBudget && { minBudget }),
         ...(maxBudget && { maxBudget }),
+        ...(category.length > 0 && { category: category.join(',') }),
+        ...(experienceLevel.length > 0 && { experienceLevel: experienceLevel.join(',') }),
+        ...(skills.length > 0 && { skills: skills.join(',') }),
+        ...(skills.length > 1 && skillsMode === 'all' && { skillsMode }),
+        ...(paymentStructure && { paymentStructure }),
     });
+
+    const { data: categoriesData } = useGetCategoriesQuery();
 
     const jobs = data?.jobs ?? [];
     const pagination = data?.pagination;
-    const hasFilters = Boolean(search || minBudget || maxBudget);
+    const tabCounts = data?.tabCounts;
+    const mySkills = user?.skills ?? [];
+    const mySkillSlugs = new Set(mySkills.map((s) => toSkillSlug(typeof s === 'string' ? s : s.name)));
 
-    const applyBudget = () => {
-        if (minInput && maxInput && Number(minInput) > Number(maxInput)) {
-            toast.error('Minimum budget cannot be greater than maximum');
-            return;
-        }
-        updateParams({ minBudget: minInput, maxBudget: maxInput });
-    };
-
-    const applyPreset = (preset) => {
-        setMinInput(preset.min);
-        setMaxInput(preset.max);
-        updateParams({ minBudget: preset.min, maxBudget: preset.max });
-    };
-
-    const resetAll = () => {
+    const resetFilters = () => {
         setSearchInput('');
-        setMinInput('');
-        setMaxInput('');
-        setSearchParams({}, { replace: true });
+        // Tab və sıralama qalır, qalan filtrlər silinir
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams();
+                if (prev.get('tab')) next.set('tab', prev.get('tab'));
+                if (prev.get('sort')) next.set('sort', prev.get('sort'));
+                return next;
+            },
+            { replace: true }
+        );
     };
+
+    const changeTab = (nextTab) => updateParams({ tab: nextTab === 'all' ? '' : nextTab });
 
     const changePage = (nextPage) => {
         updateParams({ page: nextPage }, { keepPage: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // Aktiv filtr çipləri
     const budgetLabel = () => {
         if (minBudget && maxBudget) return `${formatMoney(minBudget)} – ${formatMoney(maxBudget)}`;
         if (minBudget) return `From ${formatMoney(minBudget)}`;
         return `Up to ${formatMoney(maxBudget)}`;
+    };
+    const categoryName = (slug) => categoriesData?.categories?.find((c) => c.slug === slug)?.name ?? slug;
+
+    const chips = [
+        search && {
+            key: 'search',
+            label: `“${search}”`,
+            onRemove: () => {
+                setSearchInput('');
+                updateParams({ search: '' });
+            },
+        },
+        (minBudget || maxBudget) && {
+            key: 'budget',
+            label: budgetLabel(),
+            onRemove: () => updateParams({ minBudget: '', maxBudget: '' }),
+        },
+        paymentStructure && {
+            key: 'payment',
+            label: paymentLabel(paymentStructure),
+            onRemove: () => updateParams({ paymentStructure: '' }),
+        },
+        ...category.map((slug) => ({
+            key: `category-${slug}`,
+            label: categoryName(slug),
+            onRemove: () => updateParams({ category: category.filter((c) => c !== slug) }),
+        })),
+        ...experienceLevel.map((level) => ({
+            key: `level-${level}`,
+            label: experienceLabel(level),
+            onRemove: () => updateParams({ experienceLevel: experienceLevel.filter((l) => l !== level) }),
+        })),
+        ...skills.map((name) => ({
+            key: `skill-${name}`,
+            label: name,
+            onRemove: () => updateParams({ skills: skills.filter((s) => s !== name) }),
+        })),
+    ].filter(Boolean);
+
+    // Boş vəziyyət mətni tab-a görə
+    const renderEmpty = () => {
+        if (hasFilters) {
+            return (
+                <EmptyState
+                    icon="search_off"
+                    title="No jobs match your search"
+                    description="Try a different keyword, widen the budget range or remove some filters."
+                    action={<Button onClick={resetFilters}>Reset all filters</Button>}
+                />
+            );
+        }
+        if (tab === 'saved') {
+            return (
+                <EmptyState
+                    icon="bookmark_border"
+                    title="No saved jobs yet"
+                    description="Tap the bookmark on a job to keep it here for later."
+                    action={<Button onClick={() => changeTab('all')}>Browse all jobs</Button>}
+                />
+            );
+        }
+        if (tab === 'matched') {
+            return mySkills.length === 0 ? (
+                <EmptyState
+                    icon="auto_awesome"
+                    title="Add your skills to see matches"
+                    description="Matched jobs are open jobs that require at least one of your skills."
+                    action={
+                        <Link to="/settings">
+                            <Button>Add skills in Settings</Button>
+                        </Link>
+                    }
+                />
+            ) : (
+                <EmptyState
+                    icon="auto_awesome"
+                    title="No matching jobs right now"
+                    description="No open job requires your skills yet. Check back later or browse all jobs."
+                    action={<Button onClick={() => changeTab('all')}>Browse all jobs</Button>}
+                />
+            );
+        }
+        return (
+            <EmptyState
+                icon="work_off"
+                title="No open jobs yet"
+                description="New jobs will appear here as soon as clients post them."
+            />
+        );
     };
 
     return (
@@ -140,78 +301,47 @@ const JobsPage = () => {
 
             <div className="flex flex-col items-start gap-6 lg:flex-row">
                 {/* Sol panel: filtrlər */}
-                <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-72">
-                    <Card className="flex flex-col gap-5 p-5">
-                        <div className="flex items-center justify-between">
-                            <h2 className="flex items-center gap-2 text-title-md text-on-surface">
-                                <Icon name="tune" className="text-primary-container" />
-                                Filters
-                            </h2>
-                            {hasFilters && (
-                                <button
-                                    type="button"
-                                    onClick={resetAll}
-                                    className="text-label-sm text-secondary transition-colors hover:text-primary-container"
-                                >
-                                    Reset all
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            <span className="text-label-md text-on-surface">Budget (USD)</span>
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    placeholder="Min"
-                                    aria-label="Minimum budget"
-                                    value={minInput}
-                                    onChange={(e) => setMinInput(e.target.value)}
-                                />
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    placeholder="Max"
-                                    aria-label="Maximum budget"
-                                    value={maxInput}
-                                    onChange={(e) => setMaxInput(e.target.value)}
-                                />
-                            </div>
-                            <Button variant="secondary" size="sm" onClick={applyBudget}>
-                                Apply budget
-                            </Button>
-                            <div className="flex flex-wrap gap-1.5">
-                                {BUDGET_PRESETS.map((preset) => {
-                                    const active = minBudget === preset.min && maxBudget === preset.max;
-                                    return (
-                                        <button
-                                            key={preset.label}
-                                            type="button"
-                                            onClick={() => applyPreset(preset)}
-                                            className={
-                                                active
-                                                    ? 'rounded-full bg-primary-container px-2.5 py-1 text-caption text-on-primary'
-                                                    : 'rounded-full bg-surface-container-low px-2.5 py-1 text-caption text-secondary transition-colors hover:bg-surface-container'
-                                            }
-                                        >
-                                            {preset.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </Card>
+                <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-80">
+                    <JobFilters
+                        values={filterValues}
+                        onChange={updateParams}
+                        onReset={resetFilters}
+                        hasFilters={hasFilters}
+                    />
                 </aside>
 
-                {/* Sağ tərəf: axtarış və siyahı */}
+                {/* Sağ tərəf: tab-lar, axtarış və siyahı */}
                 <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
+                    {isFreelancer && (
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                            <TabButton active={tab === 'all'} onClick={() => changeTab('all')}>
+                                All jobs
+                            </TabButton>
+                            <TabButton
+                                active={tab === 'saved'}
+                                icon="bookmark"
+                                count={tabCounts?.saved}
+                                onClick={() => changeTab('saved')}
+                            >
+                                Saved
+                            </TabButton>
+                            <TabButton
+                                active={tab === 'matched'}
+                                icon="auto_awesome"
+                                count={tabCounts?.matched}
+                                onClick={() => changeTab('matched')}
+                            >
+                                Matched to your skills
+                            </TabButton>
+                        </div>
+                    )}
+
                     <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
                         <Input
                             className="flex-1"
                             icon="search"
                             label="Search"
-                            placeholder="Search by title or description..."
+                            placeholder="Search by title, description or skill..."
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             endAdornment={
@@ -239,30 +369,19 @@ const JobsPage = () => {
                     {/* Aktiv filtr çipləri və nəticə sayı */}
                     <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-label-sm text-secondary">
                         <div className="flex flex-wrap items-center gap-2">
-                            {search && (
-                                <FilterChip
-                                    label={`“${search}”`}
-                                    onRemove={() => {
-                                        setSearchInput('');
-                                        updateParams({ search: '' });
-                                    }}
-                                />
-                            )}
-                            {(minBudget || maxBudget) && (
-                                <FilterChip
-                                    label={budgetLabel()}
-                                    onRemove={() => {
-                                        setMinInput('');
-                                        setMaxInput('');
-                                        updateParams({ minBudget: '', maxBudget: '' });
-                                    }}
-                                />
+                            {chips.map((chip) => (
+                                <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+                            ))}
+                            {chips.length > 1 && (
+                                <button type="button" onClick={resetFilters} className="text-label-sm text-primary hover:underline">
+                                    Clear all
+                                </button>
                             )}
                         </div>
                         {pagination && (
                             <span>
                                 <strong className="text-on-surface">{pagination.total}</strong>{' '}
-                                {pagination.total === 1 ? 'open job' : 'open jobs'}
+                                {pagination.total === 1 ? 'job' : 'jobs'}
                             </span>
                         )}
                     </div>
@@ -276,20 +395,11 @@ const JobsPage = () => {
                             onRetry={refetch}
                         />
                     ) : jobs.length === 0 ? (
-                        <EmptyState
-                            icon="search_off"
-                            title={hasFilters ? 'No jobs match your search' : 'No open jobs yet'}
-                            description={
-                                hasFilters
-                                    ? 'Try a different keyword or widen the budget range.'
-                                    : 'New jobs will appear here as soon as clients post them.'
-                            }
-                            action={hasFilters && <Button onClick={resetAll}>Reset all filters</Button>}
-                        />
+                        renderEmpty()
                     ) : (
-                        <div className={isFetching ? 'flex flex-col gap-4 opacity-60 transition-opacity' : 'flex flex-col gap-4'}>
+                        <div className={cn('flex flex-col gap-4 transition-opacity', isFetching && 'opacity-60')}>
                             {jobs.map((job) => (
-                                <JobCard key={job.id} job={job} />
+                                <JobCard key={job.id} job={job} mySkillSlugs={mySkillSlugs} />
                             ))}
                         </div>
                     )}
@@ -312,14 +422,5 @@ const JobsPage = () => {
         </>
     );
 };
-
-const FilterChip = ({ label, onRemove }) => (
-    <span className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2.5 py-1 text-caption text-on-surface">
-        {label}
-        <button type="button" onClick={onRemove} aria-label="Remove filter" className="flex items-center hover:text-primary-container">
-            <Icon name="close" className="text-[13px]" />
-        </button>
-    </span>
-);
 
 export default JobsPage;

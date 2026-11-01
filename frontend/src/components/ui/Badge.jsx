@@ -13,6 +13,7 @@ const tones = {
 // Backend enum dəyərləri → rəng və yazı. Yeni status gələndə yalnız bura əlavə et.
 const STATUS_MAP = {
     // JobPost
+    DRAFT: { tone: 'gray', label: 'Draft' },
     OPEN: { tone: 'brand', label: 'Open' },
     IN_PROGRESS: { tone: 'blue', label: 'In progress' },
     COMPLETED: { tone: 'green', label: 'Completed' },

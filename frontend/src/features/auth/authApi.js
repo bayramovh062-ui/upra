@@ -47,6 +47,8 @@ export const settingsApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         updateMe: builder.mutation({
             query: (body) => ({ url: '/auth/update-me', method: 'PATCH', body }),
+            // Bacarıq dəyişəndə elanlardakı matchScore və "Matched" tab-ı yenilənsin
+            invalidatesTags: [{ type: 'Job', id: 'LIST' }],
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
                 try {
                     const { data } = await queryFulfilled;

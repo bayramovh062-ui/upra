@@ -10,6 +10,7 @@ import {
     useUpdatePasswordMutation,
 } from '../features/auth/authApi';
 import { useLogout } from '../features/auth/useLogout';
+import SkillPicker from '../features/taxonomy/SkillPicker';
 import { formatDate, getErrorMessage } from '../lib/format';
 import { passwordSchema, profileSchema } from '../validations/settingsSchema';
 
@@ -49,6 +50,42 @@ const ProfileForm = ({ user }) => {
                         </Button>
                     </div>
                 </form>
+            </CardBody>
+        </Card>
+    );
+};
+
+// Frilanserin bacarıqları: "Matched to your skills" tab-ı və elanlardakı uyğunluq faizi bunlara əsaslandırılır
+const SkillsForm = ({ user }) => {
+    const [updateMe, { isLoading }] = useUpdateMeMutation();
+    const saved = (user.skills ?? []).map((s) => (typeof s === 'string' ? s : s.name));
+    const [skills, setSkills] = useState(saved);
+
+    const dirty =
+        skills.length !== saved.length || skills.some((name) => !saved.some((s) => s.toLowerCase() === name.toLowerCase()));
+
+    const onSave = async () => {
+        try {
+            await updateMe({ skills }).unwrap();
+            toast.success('Skills updated');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not update your skills'));
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader title="Skills" />
+            <CardBody className="flex flex-col gap-4">
+                <p className="text-body-md text-secondary">
+                    Add the skills you work with. Jobs that require them are shown under "Matched to your skills".
+                </p>
+                <SkillPicker value={skills} onChange={setSkills} max={15} />
+                <div className="flex justify-end">
+                    <Button onClick={onSave} loading={isLoading} disabled={!dirty}>
+                        Save skills
+                    </Button>
+                </div>
             </CardBody>
         </Card>
     );
@@ -185,6 +222,10 @@ const SettingsPage = () => {
             <PageHeader title="Settings" description="Manage your account details and password." />
             <div className="grid max-w-3xl grid-cols-1 gap-6">
                 <ProfileForm user={user} />
+                {user.role === 'FREELANCER' && (
+                    // key: bacarıqlar store-a gec gələndə (girişdən sonra getMe) forma təzələnsin, boş siyahı ilə üstünə yazılmasın
+                    <SkillsForm key={(user.skills ?? []).map((s) => (typeof s === 'string' ? s : s.name)).join('|')} user={user} />
+                )}
                 <PasswordForm />
                 <DangerZone />
             </div>
