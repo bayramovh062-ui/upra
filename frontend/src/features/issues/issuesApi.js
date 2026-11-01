@@ -59,6 +59,23 @@ export const issuesApi = baseApi.injectEndpoints({
             },
         }),
 
+        // arg: { id, contractId }
+        deleteIssue: builder.mutation({
+            query: ({ id }) => ({ url: `/issues/${id}`, method: 'DELETE' }),
+            async onQueryStarted({ id, contractId }, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(
+                        issuesApi.util.updateQueryData('getIssues', contractId, (draft) => {
+                            draft.issues = draft.issues.filter((i) => i.id !== id);
+                        }),
+                    );
+                } catch {
+                    // Xəta komponentdə toast ilə göstərilir
+                }
+            },
+        }),
+
         // arg: { id, contractId, body }
         addComment: builder.mutation({
             query: ({ id, body }) => ({ url: `/issues/${id}/comments`, method: 'POST', body: { body } }),
@@ -72,5 +89,6 @@ export const {
     useCreateIssueMutation,
     useUpdateIssueMutation,
     useMoveIssueMutation,
+    useDeleteIssueMutation,
     useAddCommentMutation,
 } = issuesApi;

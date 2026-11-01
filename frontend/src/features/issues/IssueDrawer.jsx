@@ -1,15 +1,28 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Avatar, Button, Drawer, Input, Select, StatusBadge, Textarea } from '../../components/ui';
+import {
+    Avatar,
+    Button,
+    ConfirmDialog,
+    Drawer,
+    Icon,
+    Input,
+    Select,
+    StatusBadge,
+    Textarea,
+} from '../../components/ui';
 import { getErrorMessage, timeAgo } from '../../lib/format';
 import { commentSchema, issueSchema } from '../../validations/issueSchema';
 import { assigneeOptions, PRIORITY_OPTIONS } from './IssueFormModal';
-import { useAddCommentMutation, useUpdateIssueMutation } from './issuesApi';
+import { useAddCommentMutation, useDeleteIssueMutation, useUpdateIssueMutation } from './issuesApi';
 
 const STATUS_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done' };
 
-const IssueDetails = ({ issue, contract, readOnly }) => {
+const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteIssue, { isLoading: deleting }] = useDeleteIssueMutation();
     const [updateIssue, { isLoading: saving }] = useUpdateIssueMutation();
     const [addComment, { isLoading: commenting }] = useAddCommentMutation();
 
@@ -47,6 +60,17 @@ const IssueDetails = ({ issue, contract, readOnly }) => {
             commentForm.reset({ body: '' });
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not add the comment'));
+        }
+    };
+
+    const handleDelete = async () => {
+        try {
+            await deleteIssue({ id: issue.id, contractId: contract.id }).unwrap();
+            toast.success('Issue deleted');
+            setConfirmOpen(false);
+            onDeleted();
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not delete the issue'));
         }
     };
 
@@ -124,6 +148,30 @@ const IssueDetails = ({ issue, contract, readOnly }) => {
                     </form>
                 )}
             </div>
+
+            {!readOnly && (
+                <div className="border-t border-line pt-4">
+                    <Button
+                        variant="ghost"
+                        className="text-error hover:bg-error-container"
+                        onClick={() => setConfirmOpen(true)}
+                    >
+                        <Icon name="delete_outline" className="text-[18px]" />
+                        Delete issue
+                    </Button>
+                </div>
+            )}
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={handleDelete}
+                loading={deleting}
+                variant="danger"
+                title="Delete this issue?"
+                message="The issue and its comments will be removed for both sides. This cannot be undone."
+                confirmText="Delete"
+            />
         </div>
     );
 };
@@ -131,7 +179,9 @@ const IssueDetails = ({ issue, contract, readOnly }) => {
 // issue: siyahıdan canlı götürülür; yenilənəndə key ilə forma sıfırlanır
 const IssueDrawer = ({ issue, contract, readOnly, onClose }) => (
     <Drawer open={!!issue} onClose={onClose} title="Issue details">
-        {issue && <IssueDetails key={issue.id} issue={issue} contract={contract} readOnly={readOnly} />}
+        {issue && (
+            <IssueDetails key={issue.id} issue={issue} contract={contract} readOnly={readOnly} onDeleted={onClose} />
+        )}
     </Drawer>
 );
 

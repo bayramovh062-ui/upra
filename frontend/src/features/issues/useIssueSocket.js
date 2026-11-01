@@ -52,6 +52,12 @@ const useIssueSocket = (contractId) => {
         socket.on('issue:updated', merge);
         socket.on('issue:moved', merge);
 
+        socket.on('issue:deleted', ({ id }) =>
+            patch((draft) => {
+                draft.issues = draft.issues.filter((i) => i.id !== id);
+            }),
+        );
+
         socket.on('comment:created', (comment) =>
             patch((draft) => {
                 const issue = draft.issues.find((i) => i.id === comment.issueId);

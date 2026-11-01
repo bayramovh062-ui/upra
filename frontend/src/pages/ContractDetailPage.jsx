@@ -14,6 +14,7 @@ import {
     StatusBadge,
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
+import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useCancelContractMutation,
     useCompleteContractMutation,
@@ -27,6 +28,9 @@ const ContractDetailPage = () => {
     const [action, setAction] = useState(null); // 'complete' | 'cancel' | null
 
     const { data, isLoading, isError, error, refetch } = useGetContractQuery(id);
+    // Lövhə ilə eyni cache-dən oxunur (əlavə sorğu yaratmır). Bitirmə xəbərdarlığı üçün lazımdır
+    const issuesQ = useGetIssuesQuery(id);
+    const unfinished = (issuesQ.data?.issues ?? []).filter((i) => i.status !== 'DONE').length;
     const [completeContract, { isLoading: completing }] = useCompleteContractMutation();
     const [cancelContract, { isLoading: cancelling }] = useCancelContractMutation();
 
@@ -150,7 +154,11 @@ const ContractDetailPage = () => {
                 message={
                     action === 'cancel'
                         ? 'The contract and its job will be cancelled. This cannot be undone.'
-                        : 'The contract and its job will be marked as completed. This cannot be undone.'
+                        : `${
+                              unfinished > 0
+                                  ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. `
+                                  : ''
+                          }The contract and its job will be marked as completed. This cannot be undone.`
                 }
                 confirmText={action === 'cancel' ? 'Cancel contract' : 'Complete'}
             />
