@@ -2,6 +2,7 @@ import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { verifyContractAccess } from '../utils/contractAccess.js';
+import { emitToContract } from '../socket.js';
 
 // @route   POST /api/contracts
 // @access  Private (CLIENT)
@@ -94,10 +95,10 @@ export const getMyContracts = asyncHandler(async (req, res) => {
                 select: { id: true, bidAmount: true, coverLetter: true },
             },
             client: {
-                select: { id: true, fullName: true, email: true },
+                select: { id: true, fullName: true },
             },
             freelancer: {
-                select: { id: true, fullName: true, email: true },
+                select: { id: true, fullName: true },
             },
             board: {
                 select: { id: true },
@@ -131,8 +132,8 @@ export const completeContract = asyncHandler(async (req, res) => {
         throw new AppError('Only the client can complete this contract', 403);
     }
 
-    if (contract.status !== 'ACTIVE') {
-        throw new AppError('Only ACTIVE contracts can be completed', 400);
+    if (!['ACTIVE', 'DELIVERED'].includes(contract.status)) {
+        throw new AppError('Only ACTIVE or DELIVERED contracts can be completed', 400);
     }
 
     const updatedContract = await prisma.$transaction(async (tx) => {
@@ -148,6 +149,8 @@ export const completeContract = asyncHandler(async (req, res) => {
 
         return updated;
     });
+
+    emitToContract(contract.id, 'contract:updated', { id: contract.id, status: updatedContract.status });
 
     res.status(200).json({ success: true, contract: updatedContract });
 });
@@ -167,8 +170,8 @@ export const cancelContract = asyncHandler(async (req, res) => {
         throw new AppError('Only the client can cancel this contract', 403);
     }
 
-    if (contract.status !== 'ACTIVE') {
-        throw new AppError('Only ACTIVE contracts can be cancelled', 400);
+    if (!['ACTIVE', 'DELIVERED'].includes(contract.status)) {
+        throw new AppError('Only ACTIVE or DELIVERED contracts can be cancelled', 400);
     }
 
     const cancelledContract = await prisma.$transaction(async (tx) => {
@@ -185,5 +188,66 @@ export const cancelContract = asyncHandler(async (req, res) => {
         return updated;
     });
 
+    emitToContract(contract.id, 'contract:updated', { id: contract.id, status: cancelledContract.status });
+
     res.status(200).json({ success: true, contract: cancelledContract });
+});
+
+// @route   PATCH /api/contracts/:id/deliver
+// @access  Private (FREELANCER of the contract)
+export const deliverContract = asyncHandler(async (req, res) => {
+    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
+
+    if (!contract) {
+        throw new AppError('Contract not found', 404);
+    }
+
+    if (contract.freelancerId !== req.user.id) {
+        throw new AppError('Only the freelancer of this contract can mark it as delivered', 403);
+    }
+
+    // Atomik keçid: yalnız ACTIVE olan DELIVERED olur
+    const result = await prisma.contract.updateMany({
+        where: { id: contract.id, status: 'ACTIVE' },
+        data: { status: 'DELIVERED' },
+    });
+
+    if (result.count === 0) {
+        throw new AppError('Only ACTIVE contracts can be delivered', 400);
+    }
+
+    const updated = await prisma.contract.findUnique({ where: { id: contract.id } });
+
+    emitToContract(contract.id, 'contract:updated', { id: contract.id, status: updated.status });
+
+    res.status(200).json({ success: true, contract: updated });
+});
+
+// @route   PATCH /api/contracts/:id/reopen
+// @access  Private (CLIENT of the contract): "dəyişiklik istəyirəm"
+export const reopenContract = asyncHandler(async (req, res) => {
+    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
+
+    if (!contract) {
+        throw new AppError('Contract not found', 404);
+    }
+
+    if (contract.clientId !== req.user.id) {
+        throw new AppError('Only the client can request changes on this contract', 403);
+    }
+
+    const result = await prisma.contract.updateMany({
+        where: { id: contract.id, status: 'DELIVERED' },
+        data: { status: 'ACTIVE' },
+    });
+
+    if (result.count === 0) {
+        throw new AppError('Only DELIVERED contracts can be reopened', 400);
+    }
+
+    const updated = await prisma.contract.findUnique({ where: { id: contract.id } });
+
+    emitToContract(contract.id, 'contract:updated', { id: contract.id, status: updated.status });
+
+    res.status(200).json({ success: true, contract: updated });
 });

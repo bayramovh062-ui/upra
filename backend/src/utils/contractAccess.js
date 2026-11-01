@@ -8,8 +8,8 @@ export const verifyContractAccess = async (contractId, userId) => {
             board: true,
             jobPost: true,
             proposal: true,
-            client: { select: { id: true, fullName: true, email: true } },
-            freelancer: { select: { id: true, fullName: true, email: true } },
+            client: { select: { id: true, fullName: true } },
+            freelancer: { select: { id: true, fullName: true } },
         },
     });
 

@@ -20,8 +20,24 @@ export const loginSchema = z.object({
     password: z.string().min(1, 'Password is required'),
 });
 
-export const updateMeSchema = z.object({
-    fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long'),
+export const updateMeSchema = z
+    .object({
+        fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long').optional(),
+        headline: z.string().trim().max(120, 'Headline must be at most 120 characters long').nullable().optional(),
+        bio: z.string().trim().max(1000, 'Bio must be at most 1000 characters long').nullable().optional(),
+        hourlyRate: z
+            .number({ error: 'Hourly rate must be a number' })
+            .positive('Hourly rate must be a positive number')
+            .max(10000, 'Hourly rate is too high')
+            .nullable()
+            .optional(),
+    })
+    .refine((data) => Object.keys(data).length > 0, {
+        message: 'Please provide at least one field to update',
+    });
+
+export const deleteAccountSchema = z.object({
+    password: z.string({ error: 'Password is required' }).min(1, 'Password is required'),
 });
 
 export const updatePasswordSchema = z.object({

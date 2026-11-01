@@ -6,6 +6,7 @@ import {
     updateMe,
     updatePassword,
 } from '../controllers/authController.js';
+import { deleteAccount } from '../controllers/accountController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validate } from '../middlewares/validate.js';
 import { authLimiter } from '../middlewares/rateLimiter.js';
@@ -14,6 +15,7 @@ import {
     loginSchema,
     updateMeSchema,
     updatePasswordSchema,
+    deleteAccountSchema,
 } from '../validators/authValidator.js';
 
 const router = express.Router();
@@ -22,6 +24,7 @@ router.post('/register', authLimiter, validate(registerSchema), register);
 router.post('/login', authLimiter, validate(loginSchema), login);
 
 router.get('/me', protect, getMe);
+router.delete('/me', protect, validate(deleteAccountSchema), deleteAccount);
 router.patch('/update-me', protect, validate(updateMeSchema), updateMe);
 router.patch('/update-password', protect, validate(updatePasswordSchema), updatePassword);
 

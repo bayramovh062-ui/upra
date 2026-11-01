@@ -7,6 +7,7 @@ import {
     updateIssue,
     moveIssue,
     addIssueComment,
+    deleteIssue,
 } from '../controllers/issueController.js';
 import {
     createIssueSchema,
@@ -29,6 +30,8 @@ router.post(
 router.patch('/issues/:id', protect, validate(updateIssueSchema), updateIssue);
 
 router.patch('/issues/:id/move', protect, validate(moveIssueSchema), moveIssue);
+
+router.delete('/issues/:id', protect, deleteIssue);
 
 router.post(
     '/issues/:id/comments',

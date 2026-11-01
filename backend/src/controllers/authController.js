@@ -78,16 +78,30 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // @route   PATCH /api/auth/update-me
 export const updateMe = asyncHandler(async (req, res) => {
-    const { fullName } = req.body;
+    const { fullName, headline, bio, hourlyRate } = req.body;
+
+    if (hourlyRate != null && req.user.role !== 'FREELANCER') {
+        throw new AppError('Only freelancers can set an hourly rate', 400);
+    }
+
+    // Yalnız göndərilən sahələr dəyişir; boş sətir null olur
+    const data = {};
+    if (fullName !== undefined) data.fullName = fullName;
+    if (headline !== undefined) data.headline = headline || null;
+    if (bio !== undefined) data.bio = bio || null;
+    if (hourlyRate !== undefined) data.hourlyRate = hourlyRate;
 
     const updatedUser = await prisma.user.update({
         where: { id: req.user.id },
-        data: { fullName },
+        data,
         select: {
             id: true,
             email: true,
             fullName: true,
             role: true,
+            headline: true,
+            bio: true,
+            hourlyRate: true,
             createdAt: true,
         },
     });
@@ -112,7 +126,8 @@ export const updatePassword = asyncHandler(async (req, res) => {
     );
 
     if (!isPasswordCorrect) {
-        throw new AppError('Current password is incorrect.', 401);
+        // 401 yox, 400: frontend istənilən 401-də istifadəçini sessiyadan çıxarır, parol səhvi isə sessiya xətası deyil
+        throw new AppError('Current password is incorrect.', 400);
     }
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);

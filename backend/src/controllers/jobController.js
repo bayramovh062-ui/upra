@@ -153,10 +153,17 @@ export const deleteJob = asyncHandler(async (req, res) => {
         throw new AppError('You can only delete with open status job', 400)
     }
 
-    await prisma.jobPost.update({
-        where: { id: req.params.id },
-        data: { status: 'CANCELLED' },
-    });
+    // Elan ləğv olunanda gözləyən təkliflər də bağlanır, yoxsa frilanserlərdə PENDING qalardı
+    await prisma.$transaction([
+        prisma.jobPost.update({
+            where: { id: req.params.id },
+            data: { status: 'CANCELLED' },
+        }),
+        prisma.proposal.updateMany({
+            where: { jobPostId: req.params.id, status: 'PENDING' },
+            data: { status: 'REJECTED' },
+        }),
+    ]);
 
     res.status(200).json({ success: true, message: 'Job cancelled successfully' });
 });

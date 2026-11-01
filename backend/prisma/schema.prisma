@@ -29,6 +29,7 @@ enum ProposalStatus {
 
 enum ContractStatus {
   ACTIVE
+  DELIVERED // frilanser işi təhvil verib, client baxır (lövhə read-only)
   COMPLETED
   CANCELLED
 }

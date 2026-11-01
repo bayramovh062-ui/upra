@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const createIssueSchema = z.object({
     title: z
         .string({ error: 'Title is required' })
-        .min(3, 'Title must be at least 3 characters long')
-        .trim(),
+        .trim()
+        .min(3, 'Title must be at least 3 characters long'),
     description: z.string().trim().optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
     assigneeId: z.string().uuid('Invalid Assignee ID format').optional(),
@@ -12,7 +12,7 @@ export const createIssueSchema = z.object({
 
 export const updateIssueSchema = z
     .object({
-        title: z.string().min(3).trim().optional(),
+        title: z.string().trim().min(3, 'Title must be at least 3 characters long').optional(),
         description: z.string().trim().optional(),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
         assigneeId: z.string().uuid('Invalid Assignee ID format').nullable().optional(),
@@ -31,6 +31,6 @@ export const moveIssueSchema = z.object({
 export const createCommentSchema = z.object({
     body: z
         .string({ error: 'Comment body is required' })
-        .min(1, 'Comment body cannot be empty')
-        .trim(),
+        .trim()
+        .min(1, 'Comment body cannot be empty'),
 });

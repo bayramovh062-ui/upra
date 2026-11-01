@@ -6,8 +6,8 @@ export const createProposalSchema = z.object({
         .uuid('Invalid Job Post ID format'),
     coverLetter: z
         .string({ error: 'Cover letter is required' })
-        .min(20, 'Cover letter must be at least 20 characters long')
-        .trim(),
+        .trim()
+        .min(20, 'Cover letter must be at least 20 characters long'),
     bidAmount: z
         .number({ error: 'Bid amount must be a number' })
         .positive('Bid amount must be a positive number'),
@@ -17,8 +17,8 @@ export const updateProposalSchema = z
     .object({
         coverLetter: z
             .string()
-            .min(20, 'Cover letter must be at least 20 characters long')
             .trim()
+            .min(20, 'Cover letter must be at least 20 characters long')
             .optional(),
         bidAmount: z
             .number()

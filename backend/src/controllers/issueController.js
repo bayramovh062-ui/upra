@@ -8,6 +8,8 @@ import {
 } from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
 
+const MIN_POSITION_GAP = 0.001;
+
 // @route   GET /api/contracts/:contractId/issues
 // @access  Private (Contract Client & Freelancer)
 export const getContractIssues = asyncHandler(async (req, res) => {
@@ -21,8 +23,8 @@ export const getContractIssues = asyncHandler(async (req, res) => {
     const issues = await prisma.issue.findMany({
         where: { boardId: contract.board.id },
         include: {
-            createdBy: { select: { id: true, fullName: true, email: true } },
-            assignee: { select: { id: true, fullName: true, email: true } },
+            createdBy: { select: { id: true, fullName: true } },
+            assignee: { select: { id: true, fullName: true } },
             comments: {
                 include: {
                     author: { select: { id: true, fullName: true } },
@@ -138,17 +140,53 @@ export const moveIssue = asyncHandler(async (req, res) => {
     // Yoxlama: Müqavilə ACTIVE-dirmi?
     assertContractActive(contract);
 
-    const movedIssue = await prisma.issue.update({
+    let movedIssue = await prisma.issue.update({
         where: { id: req.params.id },
         data: {
             status,
             position,
         },
+        // updateIssue ilə eyni format (socket hadisələri və frontend cache üçün)
+        include: {
+            createdBy: { select: { id: true, fullName: true } },
+            assignee: { select: { id: true, fullName: true } },
+        },
     });
+
+    // Float mövqe: iki kartın arasına dayanıq bölünmə dəqiqliyi itirir. Qonşular çox yaxınlaşıbsa
+    // sütun 1000, 2000, 3000... şəklində yenidən nömrələnir (sıra dəyişmir, yalnız ədədlər).
+    const column = await prisma.issue.findMany({
+        where: { boardId: movedIssue.boardId, status: movedIssue.status },
+        orderBy: { position: 'asc' },
+        select: { id: true, position: true },
+    });
+
+    const tooClose = column.some((c, i) => i > 0 && c.position - column[i - 1].position < MIN_POSITION_GAP);
+
+    if (tooClose) {
+        await prisma.$transaction(
+            column.map((c, i) =>
+                prisma.issue.update({ where: { id: c.id }, data: { position: (i + 1) * 1000 } })
+            )
+        );
+
+        movedIssue = await prisma.issue.findUnique({
+            where: { id: movedIssue.id },
+            include: {
+                createdBy: { select: { id: true, fullName: true } },
+                assignee: { select: { id: true, fullName: true } },
+            },
+        });
+    }
 
     emitToContract(contract.id, 'issue:moved', movedIssue);
 
-    res.status(200).json({ success: true, issue: movedIssue });
+    if (tooClose) {
+        // Digər kartların mövqeyi dəyişib: bütün müştərilər siyahını yenidən çəkir
+        emitToContract(contract.id, 'board:reordered', { status: movedIssue.status });
+    }
+
+    res.status(200).json({ success: true, issue: movedIssue, rebalanced: tooClose });
 });
 
 // @route   POST /api/issues/:id/comments
@@ -183,4 +221,28 @@ export const addIssueComment = asyncHandler(async (req, res) => {
     emitToContract(contract.id, 'comment:created', comment);
 
     res.status(201).json({ success: true, comment });
+});
+
+// @route   DELETE /api/issues/:id
+// @access  Private (Contract Client & Freelancer)
+export const deleteIssue = asyncHandler(async (req, res) => {
+    const issue = await prisma.issue.findUnique({
+        where: { id: req.params.id },
+        include: { board: { include: { contract: true } } },
+    });
+
+    if (!issue) {
+        throw new AppError('Issue not found', 404);
+    }
+
+    const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
+
+    assertContractActive(contract);
+
+    // Şərhlər schema-da onDelete: Cascade ilə birlikdə silinir
+    await prisma.issue.delete({ where: { id: issue.id } });
+
+    emitToContract(contract.id, 'issue:deleted', { id: issue.id });
+
+    res.status(200).json({ success: true, message: 'Issue deleted successfully' });
 });

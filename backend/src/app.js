@@ -9,13 +9,22 @@ import { globalErrorMiddleware } from './middlewares/errorMiddleware.js';
 import proposalRoutes from './routes/proposalRoutes.js';
 import contractRoutes from './routes/contractRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import { AppError } from './utils/AppError.js';
 
 const app = express();
 
 // Middlewares
 app.use(helmet());
-app.use(cors());
+// CLIENT_URL təyin olunubsa yalnız həmin ünvan(lar)a icazə verilir (vergüllə bir neçə ola bilər).
+// Təyin olunmayıbsa (lokal inkişaf) hamıya açıqdır.
+app.use(
+    cors({
+        origin: process.env.CLIENT_URL
+            ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+            : true,
+    })
+);
 app.use(express.json());
 
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
@@ -26,6 +35,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api', issueRoutes);
+app.use('/api', userRoutes);
 
 app.use((req, res, next) => {
     next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));

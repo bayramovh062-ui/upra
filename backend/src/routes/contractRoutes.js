@@ -8,6 +8,8 @@ import {
     getContractById,
     completeContract,
     cancelContract,
+    deliverContract,
+    reopenContract,
 } from '../controllers/contractController.js';
 
 const router = express.Router();
@@ -19,5 +21,7 @@ router.get('/my', getMyContracts);
 router.get('/:id', getContractById);
 router.patch('/:id/complete', restrictTo('CLIENT'), completeContract);
 router.patch('/:id/cancel', restrictTo('CLIENT'), cancelContract);
+router.patch('/:id/deliver', restrictTo('FREELANCER'), deliverContract);
+router.patch('/:id/reopen', restrictTo('CLIENT'), reopenContract);
 
 export default router;
