@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../lib/format';
 import IssueDrawer from './IssueDrawer';
 import IssueFormModal from './IssueFormModal';
 import { useGetIssuesQuery, useMoveIssueMutation } from './issuesApi';
+import useIssueSocket from './useIssueSocket';
 
 const COLUMNS = [
     { status: 'TODO', title: 'To do', dot: 'bg-outline' },
@@ -54,6 +55,7 @@ const IssueCard = ({ issue, onOpen }) => (
 const KanbanBoard = ({ contract, readOnly }) => {
     const { data, isLoading, isError, refetch } = useGetIssuesQuery(contract.id);
     const [moveIssue] = useMoveIssueMutation();
+    const live = useIssueSocket(contract.id);
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
 
@@ -111,6 +113,15 @@ const KanbanBoard = ({ contract, readOnly }) => {
                     Project board
                     <span className="text-label-md font-normal text-secondary">
                         {issues.filter((i) => i.status === 'DONE').length} / {issues.length} done
+                    </span>
+                    <span
+                        className={cn(
+                            'flex items-center gap-1 text-caption font-medium',
+                            live ? 'text-emerald-600' : 'text-secondary',
+                        )}
+                    >
+                        <span className={cn('h-1.5 w-1.5 rounded-full', live ? 'bg-emerald-500' : 'bg-outline')} />
+                        {live ? 'Live' : 'Offline'}
                     </span>
                 </h2>
                 {!readOnly && (
