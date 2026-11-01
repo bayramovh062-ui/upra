@@ -13,6 +13,7 @@ import {
     Skeleton,
     StatusBadge,
 } from '../components/ui';
+import KanbanBoard from '../features/issues/KanbanBoard';
 import {
     useCancelContractMutation,
     useCompleteContractMutation,
@@ -137,17 +138,7 @@ const ContractDetailPage = () => {
                 </Card>
             </div>
 
-            {/* Faza 5-də buraya Kanban lövhəsi (contract.board.id) gələcək */}
-            <Card className="p-6">
-                <h2 className="mb-2 flex items-center gap-2 text-headline-sm text-on-surface">
-                    <Icon name="view_kanban" className="text-[22px] text-primary-container" />
-                    Project board
-                </h2>
-                <p className="text-body-md text-secondary">
-                    The board was created automatically with this contract. Tasks and drag-and-drop columns arrive in the
-                    next step.
-                </p>
-            </Card>
+            <KanbanBoard contract={contract} readOnly={!active} />
 
             <ConfirmDialog
                 open={!!action}
