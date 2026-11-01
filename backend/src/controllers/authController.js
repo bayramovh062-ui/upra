@@ -3,6 +3,8 @@ import prisma from '../config/db.js';
 import { generateToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import { ownProfileSelect, withFlatSkills } from '../utils/profile.js';
+import { resolveSkillIds } from '../utils/skills.js';
 
 // @route   POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -69,19 +71,29 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 // @route   GET /api/auth/me
+// Tam profil (bacarıqlar daxil). Hər sorğuda işləyən protect middleware-i yüngül qalsın deyə bacarıqlar burada çəkilir.
 export const getMe = asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: ownProfileSelect,
+    });
+
     res.status(200).json({
         success: true,
-        user: req.user,
+        user: withFlatSkills(user),
     });
 });
 
 // @route   PATCH /api/auth/update-me
 export const updateMe = asyncHandler(async (req, res) => {
-    const { fullName, headline, bio, hourlyRate } = req.body;
+    const { fullName, headline, bio, hourlyRate, location, timezone, availability, avatarUrl, skills } = req.body;
 
     if (hourlyRate != null && req.user.role !== 'FREELANCER') {
         throw new AppError('Only freelancers can set an hourly rate', 400);
+    }
+
+    if (skills !== undefined && req.user.role !== 'FREELANCER') {
+        throw new AppError('Only freelancers can set skills', 400);
     }
 
     // Yalnız göndərilən sahələr dəyişir; boş sətir null olur
@@ -90,25 +102,30 @@ export const updateMe = asyncHandler(async (req, res) => {
     if (headline !== undefined) data.headline = headline || null;
     if (bio !== undefined) data.bio = bio || null;
     if (hourlyRate !== undefined) data.hourlyRate = hourlyRate;
+    if (location !== undefined) data.location = location || null;
+    if (timezone !== undefined) data.timezone = timezone || null;
+    if (availability !== undefined) data.availability = availability;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl || null;
 
-    const updatedUser = await prisma.user.update({
-        where: { id: req.user.id },
-        data,
-        select: {
-            id: true,
-            email: true,
-            fullName: true,
-            role: true,
-            headline: true,
-            bio: true,
-            hourlyRate: true,
-            createdAt: true,
-        },
+    const updatedUser = await prisma.$transaction(async (tx) => {
+        if (skills !== undefined) {
+            const skillIds = await resolveSkillIds(tx, skills);
+            await tx.userSkill.deleteMany({ where: { userId: req.user.id } });
+            if (skillIds.length > 0) {
+                await tx.userSkill.createMany({ data: skillIds.map((skillId) => ({ userId: req.user.id, skillId })) });
+            }
+        }
+
+        return tx.user.update({
+            where: { id: req.user.id },
+            data,
+            select: ownProfileSelect,
+        });
     });
 
     res.status(200).json({
         success: true,
-        user: updatedUser,
+        user: withFlatSkills(updatedUser),
     });
 });
 

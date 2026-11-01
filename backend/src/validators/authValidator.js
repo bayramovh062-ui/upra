@@ -1,4 +1,16 @@
 import { z } from 'zod';
+import { skillNameSchema } from '../utils/skills.js';
+
+export const MAX_USER_SKILLS = 15;
+
+const isHttpUrl = (value) => {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
 
 export const registerSchema = z.object({
     email: z
@@ -31,6 +43,22 @@ export const updateMeSchema = z
             .max(10000, 'Hourly rate is too high')
             .nullable()
             .optional(),
+        location: z.string().trim().max(80, 'Location must be at most 80 characters long').nullable().optional(),
+        timezone: z.string().trim().max(60, 'Timezone must be at most 60 characters long').nullable().optional(),
+        availability: z
+            .enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE'], {
+                error: 'Availability must be AVAILABLE, BUSY or UNAVAILABLE',
+            })
+            .optional(),
+        avatarUrl: z
+            .string()
+            .trim()
+            .max(500, 'Avatar URL is too long')
+            .refine((v) => v === '' || isHttpUrl(v), 'Avatar URL must start with http:// or https://')
+            .nullable()
+            .optional(),
+        // Frilanserin bacarıqları (tam siyahı göndərilir, köhnəsi əvəz olunur). Boş massiv hamısını silir.
+        skills: z.array(skillNameSchema).max(MAX_USER_SKILLS, `You can add at most ${MAX_USER_SKILLS} skills`).optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
         message: 'Please provide at least one field to update',

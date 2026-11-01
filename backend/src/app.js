@@ -10,6 +10,7 @@ import proposalRoutes from './routes/proposalRoutes.js';
 import contractRoutes from './routes/contractRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import taxonomyRoutes from './routes/taxonomyRoutes.js';
 import { AppError } from './utils/AppError.js';
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
+app.use('/api', taxonomyRoutes);
 
 app.use((req, res, next) => {
     next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));

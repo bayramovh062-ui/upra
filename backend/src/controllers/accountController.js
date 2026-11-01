@@ -2,11 +2,12 @@ import bcrypt from 'bcryptjs';
 import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import { publicProfileSelect, withFlatSkills } from '../utils/profile.js';
 
 // @route   DELETE /api/auth/me
 // @access  Private (parol tələb olunur)
-// Soft delete: sətir bazadan silinmir (müqavilə tarixçəsi qalır), amma kişi məlumatı təmizlənir
-// və e-poçt boşaltılır ki, aynı adı yenidən qeydiyyat etmək olsun.
+// Soft delete: sətir bazadan silinmir (müqavilə tarixçəsi qalır), amma şəxsi məlumat təmizlənir
+// və e-poçt boşaldılır ki, eyni ünvanla yenidən qeydiyyatdan keçmək olsun.
 export const deleteAccount = asyncHandler(async (req, res) => {
     const { password } = req.body;
 
@@ -38,10 +39,11 @@ export const deleteAccount = asyncHandler(async (req, res) => {
             data: { status: 'REJECTED' },
         }),
         prisma.jobPost.updateMany({
-            where: { clientId: user.id, status: 'OPEN' },
+            where: { clientId: user.id, status: { in: ['OPEN', 'DRAFT'] } },
             data: { status: 'CANCELLED' },
         }),
-        // Freelancer: gözləyən təkliflər geri çəkilir
+        // Freelancer: gözləyən təkliflər geri çəkilir.
+        // Saxlanmış işlər və bacarıqlar silinmir: hesab anonimləşir və profili 404 verir.
         prisma.proposal.deleteMany({ where: { freelancerId: user.id, status: 'PENDING' } }),
         prisma.user.update({
             where: { id: user.id },
@@ -52,6 +54,9 @@ export const deleteAccount = asyncHandler(async (req, res) => {
                 headline: null,
                 bio: null,
                 hourlyRate: null,
+                location: null,
+                timezone: null,
+                avatarUrl: null,
                 passwordHash: '!',
             },
         }),
@@ -65,16 +70,7 @@ export const deleteAccount = asyncHandler(async (req, res) => {
 export const getUserProfile = asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({
         where: { id: req.params.id },
-        select: {
-            id: true,
-            fullName: true,
-            role: true,
-            headline: true,
-            bio: true,
-            hourlyRate: true,
-            createdAt: true,
-            deletedAt: true,
-        },
+        select: publicProfileSelect,
     });
 
     if (!user || user.deletedAt !== null) {
@@ -87,10 +83,13 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         prisma.contract.count({
             where: { status: 'COMPLETED', ...(isClient ? { clientId: user.id } : { freelancerId: user.id }) },
         }),
-        isClient ? prisma.jobPost.count({ where: { clientId: user.id } }) : Promise.resolve(null),
+        // Qaralamalar saya daxil edilmir: onlar ictimai deyil
+        isClient
+            ? prisma.jobPost.count({ where: { clientId: user.id, status: { not: 'DRAFT' } } })
+            : Promise.resolve(null),
     ]);
 
-    const { deletedAt, ...publicUser } = user;
+    const { deletedAt, ...publicUser } = withFlatSkills(user);
 
     res.status(200).json({
         success: true,

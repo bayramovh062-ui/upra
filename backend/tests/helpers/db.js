@@ -12,6 +12,7 @@ export const cleanUpUsers = async (emails) => {
 };
 
 // Soft-delete olunmuş hesabların e-poçtu dəyişir, ona görə onları id ilə təmizləmək lazımdır
+// (SavedJob, JobSkill, UserSkill FK-ları CASCADE-dir, ayrıca silmək lazım deyil)
 export const cleanUpUserIds = async (ids) => {
     if (ids.length === 0) return;
 
@@ -27,6 +28,12 @@ export const cleanUpUserIds = async (ids) => {
     });
     await prisma.jobPost.deleteMany({ where: { clientId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
+};
+
+// Testlərin yaratdığı bacarıqları silir (JobSkill və UserSkill CASCADE ilə gedir).
+// Seed olunmuş bacarıqlara toxunmamaq üçün testlər "zz-" ilə başlayan adlar işlətməlidir.
+export const cleanUpTestSkills = async () => {
+    await prisma.skill.deleteMany({ where: { slug: { startsWith: 'zz-' } } });
 };
 
 // Qeydiyyat: { token, user } qaytarır
