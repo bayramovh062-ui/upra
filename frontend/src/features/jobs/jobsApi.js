@@ -62,7 +62,8 @@ export const jobsApi = baseApi.injectEndpoints({
             ],
         }),
 
-        // arg: { id, title?, description?, budget? }
+        // arg: { id, title?, description?, budget?, categoryId?, experienceLevel?, paymentStructure?,
+        //         deadline? (null = sil), skills? (ad siyahısı) }. OPEN və DRAFT elanlar redaktə olunur.
         updateJob: builder.mutation({
             query: ({ id, ...body }) => ({ url: `/jobs/${id}`, method: 'PATCH', body }),
             invalidatesTags: (result, error, { id }) => [
@@ -75,6 +76,16 @@ export const jobsApi = baseApi.injectEndpoints({
         // Backend fiziki silmir, statusu CANCELLED edir
         deleteJob: builder.mutation({
             query: (id) => ({ url: `/jobs/${id}`, method: 'DELETE' }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Job', id },
+                { type: 'Job', id: 'LIST' },
+                { type: 'Job', id: 'MY' },
+            ],
+        }),
+
+        // Qaralamanı dərc edir (DRAFT → OPEN). Yalnız elanın sahibi. arg: jobId
+        publishJob: builder.mutation({
+            query: (id) => ({ url: `/jobs/${id}/publish`, method: 'POST' }),
             invalidatesTags: (result, error, id) => [
                 { type: 'Job', id },
                 { type: 'Job', id: 'LIST' },
@@ -119,6 +130,7 @@ export const {
     useCreateJobMutation,
     useUpdateJobMutation,
     useDeleteJobMutation,
+    usePublishJobMutation,
     useSaveJobMutation,
     useUnsaveJobMutation,
 } = jobsApi;

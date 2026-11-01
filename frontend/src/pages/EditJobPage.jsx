@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '../components/ui';
 import JobForm from '../features/jobs/JobForm';
-import { useGetJobQuery, useUpdateJobMutation } from '../features/jobs/jobsApi';
+import { useGetJobQuery, usePublishJobMutation, useUpdateJobMutation } from '../features/jobs/jobsApi';
 import { getErrorMessage } from '../lib/format';
 
 const EditJobPage = () => {
@@ -12,7 +12,8 @@ const EditJobPage = () => {
     const user = useSelector((state) => state.auth.user);
 
     const { data, isLoading, isError, error, refetch } = useGetJobQuery(id);
-    const [updateJob, { isLoading: saving }] = useUpdateJobMutation();
+    const [updateJob, { isLoading: updating }] = useUpdateJobMutation();
+    const [publishJob, { isLoading: publishing }] = usePublishJobMutation();
 
     const backButton = (
         <Link to="/client/jobs">
@@ -48,40 +49,67 @@ const EditJobPage = () => {
             />
         );
     }
-    if (job.status !== 'OPEN') {
+
+    const isDraft = job.status === 'DRAFT';
+    if (job.status !== 'OPEN' && !isDraft) {
         return (
             <EmptyState
                 icon="lock"
                 title="This job can no longer be edited"
-                description="Only open jobs can be edited. Once a contract starts, the job is locked."
+                description="Only drafts and open jobs can be edited. Once a contract starts, the job is locked."
                 action={backButton}
             />
         );
     }
 
-    const onSubmit = async (values) => {
+    // intent: 'publish' (qaralamanı dərc et), 'draft' (qaralamanı saxla), 'save' (açıq elanı saxla)
+    const onSubmit = async (payload, intent) => {
         try {
-            await updateJob({ id: job.id, ...values }).unwrap();
-            toast.success('Job updated');
-            navigate(`/jobs/${job.id}`, { replace: true });
+            await updateJob({ id: job.id, ...payload }).unwrap();
+
+            if (intent === 'publish') {
+                await publishJob(job.id).unwrap();
+                toast.success('Job published');
+                navigate(`/jobs/${job.id}`, { replace: true });
+            } else if (intent === 'draft') {
+                toast.success('Draft saved');
+                navigate('/client/jobs?tab=DRAFT', { replace: true });
+            } else {
+                toast.success('Job updated');
+                navigate(`/jobs/${job.id}`, { replace: true });
+            }
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update the job'));
+            toast.error(getErrorMessage(err, 'Could not save the job'));
         }
     };
 
     return (
         <>
-            <PageHeader title="Edit job" description="Changes are visible to freelancers right away." />
+            <PageHeader
+                title={isDraft ? 'Edit draft' : 'Edit job'}
+                description={
+                    isDraft
+                        ? 'Only you can see this draft. Publish it when it is ready.'
+                        : 'Changes are visible to freelancers right away.'
+                }
+            />
             <JobForm
-                // Prisma Decimal string qayıdır ("500.00"), formada rəqəm lazımdır
+                key={job.id}
+                mode={isDraft ? 'editDraft' : 'editOpen'}
+                // Prisma Decimal string qayıdır ("500.00"), formada rəqəm lazımdır.
+                // Köhnə elanlarda kateqoriya, səviyyə və bacarıq boş ola bilər.
                 defaultValues={{
                     title: job.title,
                     description: job.description,
                     budget: Number(job.budget),
+                    categoryId: job.category?.id ?? '',
+                    experienceLevel: job.experienceLevel ?? '',
+                    paymentStructure: job.paymentStructure ?? 'MILESTONES',
+                    skills: (job.skills ?? []).map((skill) => skill.name),
+                    deadline: job.deadline ? String(job.deadline).slice(0, 10) : '',
                 }}
                 onSubmit={onSubmit}
-                submitting={saving}
-                submitLabel="Save changes"
+                submitting={updating || publishing}
                 cancelTo={`/jobs/${job.id}`}
             />
         </>

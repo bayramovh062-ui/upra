@@ -9,13 +9,20 @@ const CreateJobPage = () => {
     const navigate = useNavigate();
     const [createJob, { isLoading }] = useCreateJobMutation();
 
-    const onSubmit = async (values) => {
+    // intent: 'publish' → dərhal OPEN, 'draft' → yalnız client görür
+    const onSubmit = async (payload, intent) => {
+        const isDraft = intent === 'draft';
         try {
-            const { job } = await createJob(values).unwrap();
-            toast.success('Job published');
-            navigate(`/jobs/${job.id}`, { replace: true });
+            const { job } = await createJob({ ...payload, status: isDraft ? 'DRAFT' : 'OPEN' }).unwrap();
+            if (isDraft) {
+                toast.success('Draft saved');
+                navigate('/client/jobs?tab=DRAFT', { replace: true });
+            } else {
+                toast.success('Job published');
+                navigate(`/jobs/${job.id}`, { replace: true });
+            }
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not publish the job'));
+            toast.error(getErrorMessage(err, isDraft ? 'Could not save the draft' : 'Could not publish the job'));
         }
     };
 
@@ -23,14 +30,9 @@ const CreateJobPage = () => {
         <>
             <PageHeader
                 title="Post a job"
-                description="Describe what you need. Freelancers will send you proposals."
+                description="Describe what you need in three quick steps. Freelancers will send you proposals."
             />
-            <JobForm
-                onSubmit={onSubmit}
-                submitting={isLoading}
-                submitLabel="Publish job"
-                cancelTo="/client/jobs"
-            />
+            <JobForm mode="create" onSubmit={onSubmit} submitting={isLoading} cancelTo="/client/jobs" />
         </>
     );
 };

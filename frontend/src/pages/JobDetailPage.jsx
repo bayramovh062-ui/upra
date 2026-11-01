@@ -13,11 +13,12 @@ import {
     Skeleton,
     StatusBadge,
 } from '../components/ui';
-import { useDeleteJobMutation, useGetJobQuery } from '../features/jobs/jobsApi';
+import { useDeleteJobMutation, useGetJobQuery, usePublishJobMutation } from '../features/jobs/jobsApi';
 import ProposalForm from '../features/proposals/ProposalForm';
 import ProposalEditForm from '../features/proposals/ProposalEditForm';
 import { useDeleteProposalMutation } from '../features/proposals/proposalsApi';
 import { formatDate, formatMoney, getErrorMessage, timeAgo } from '../lib/format';
+import { experienceLabel, paymentLabel } from '../lib/labels';
 
 const DetailSkeleton = () => (
     <div className="flex flex-col gap-6 lg:flex-row">
@@ -123,46 +124,66 @@ const MyProposalCard = ({ proposal, job }) => {
     );
 };
 
-// Client: öz elanını idarə edir
-const OwnerCard = ({ job, onCancel }) => {
+// Client: öz elanını idarə edir (qaralama və açıq elan üçün fərqli düymələr)
+const OwnerCard = ({ job, onCancel, onPublish, publishing }) => {
     const proposals = job._count?.proposals ?? 0;
-    const isOpen = job.status === 'OPEN';
+    const isDraft = job.status === 'DRAFT';
+    const canEdit = job.status === 'OPEN' || isDraft;
 
     return (
         <div className="flex flex-col gap-3">
             <div>
                 <h3 className="text-headline-sm text-on-surface">Manage this job</h3>
-                <p className="text-caption text-secondary">You posted this job</p>
+                <p className="text-caption text-secondary">
+                    {isDraft ? 'Draft: only you can see it' : 'You posted this job'}
+                </p>
             </div>
 
-            <Link to={`/client/jobs/${job.id}/proposals`}>
-                <Button className="w-full">
-                    <Icon name="inbox" />
-                    View proposals ({proposals})
+            {isDraft ? (
+                <Button className="w-full" loading={publishing} onClick={onPublish}>
+                    <Icon name="rocket_launch" />
+                    Publish job
                 </Button>
-            </Link>
+            ) : (
+                <Link to={`/client/jobs/${job.id}/proposals`}>
+                    <Button className="w-full">
+                        <Icon name="inbox" />
+                        View proposals ({proposals})
+                    </Button>
+                </Link>
+            )}
 
-            {isOpen ? (
+            {canEdit ? (
                 <>
                     <Link to={`/client/jobs/${job.id}/edit`}>
                         <Button variant="secondary" className="w-full">
                             <Icon name="edit" />
-                            Edit job
+                            {isDraft ? 'Edit draft' : 'Edit job'}
                         </Button>
                     </Link>
                     <Button variant="ghost" className="w-full text-error hover:bg-error-container" onClick={onCancel}>
                         <Icon name="delete_outline" />
-                        Cancel job
+                        {isDraft ? 'Discard draft' : 'Cancel job'}
                     </Button>
                 </>
             ) : (
                 <p className="rounded-lg bg-surface-container-low px-3 py-2 text-label-sm text-secondary">
-                    Only open jobs can be edited or cancelled.
+                    Only drafts and open jobs can be edited or cancelled.
                 </p>
             )}
         </div>
     );
 };
+
+const InfoTile = ({ icon, label, children }) => (
+    <div className="rounded-xl bg-surface-container-low p-4">
+        <p className="flex items-center gap-1.5 text-caption text-secondary">
+            <Icon name={icon} className="text-[15px]" />
+            {label}
+        </p>
+        <p className="mt-1 text-title-md text-on-surface">{children}</p>
+    </div>
+);
 
 // Stitch "job details & proposal" dizaynı: solda məzmun, sağda yapışqan əməliyyat kartı
 const JobDetailPage = () => {
@@ -173,6 +194,7 @@ const JobDetailPage = () => {
 
     const { data, isLoading, isError, error, refetch } = useGetJobQuery(id);
     const [deleteJob, { isLoading: cancelling }] = useDeleteJobMutation();
+    const [publishJob, { isLoading: publishing }] = usePublishJobMutation();
 
     const backTo = user?.role === 'FREELANCER' ? '/jobs' : '/client/jobs';
     const backLabel = user?.role === 'FREELANCER' ? 'Back to jobs' : 'Back to my jobs';
@@ -200,17 +222,30 @@ const JobDetailPage = () => {
     const { job, myProposal } = data;
     const isOwner = user?.role === 'CLIENT' && job.client?.id === user.id;
     const isFreelancer = user?.role === 'FREELANCER';
+    const isDraft = job.status === 'DRAFT';
     const proposals = job._count?.proposals ?? 0;
+    const skills = job.skills ?? [];
+    const level = experienceLabel(job.experienceLevel);
+    const payment = paymentLabel(job.paymentStructure);
 
     const handleCancel = async () => {
         try {
             await deleteJob(job.id).unwrap();
-            toast.success('Job cancelled');
+            toast.success(isDraft ? 'Draft discarded' : 'Job cancelled');
             setConfirmOpen(false);
             // Yalnız elanın sahibi (CLIENT) ləğv edə bilir
             navigate('/client/jobs', { replace: true });
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not cancel the job'));
+        }
+    };
+
+    const handlePublish = async () => {
+        try {
+            await publishJob(job.id).unwrap();
+            toast.success('Job published');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not publish the job'));
         }
     };
 
@@ -230,9 +265,23 @@ const JobDetailPage = () => {
                     <Card className="p-6 sm:p-8">
                         <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge status={job.status} />
-                            <span className="text-label-sm text-secondary">Posted {timeAgo(job.createdAt)}</span>
+                            {job.category && (
+                                <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-caption font-semibold text-on-secondary-container">
+                                    {job.category.name}
+                                </span>
+                            )}
+                            <span className="text-label-sm text-secondary">
+                                {isDraft ? 'Saved' : 'Posted'} {timeAgo(job.createdAt)}
+                            </span>
                         </div>
                         <h1 className="mt-3 break-words text-headline-lg text-on-surface">{job.title}</h1>
+
+                        {isDraft && isOwner && (
+                            <div className="mt-4 flex items-start gap-2 rounded-xl bg-warning-soft px-4 py-3 text-body-md text-warning-ink">
+                                <Icon name="visibility_off" className="mt-0.5 text-[18px]" />
+                                This is a draft. Freelancers cannot see it until you publish it.
+                            </div>
+                        )}
 
                         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                             <div className="rounded-xl bg-surface-container-low p-4">
@@ -248,6 +297,26 @@ const JobDetailPage = () => {
                                 <p className="mt-1 text-title-md text-on-surface">{formatDate(job.createdAt)}</p>
                             </div>
                         </div>
+
+                        {(level || payment || job.deadline) && (
+                            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                {level && (
+                                    <InfoTile icon="military_tech" label="Experience level">
+                                        {level}
+                                    </InfoTile>
+                                )}
+                                {payment && (
+                                    <InfoTile icon="payments" label="Payment">
+                                        {payment}
+                                    </InfoTile>
+                                )}
+                                {job.deadline && (
+                                    <InfoTile icon="event" label="Deadline">
+                                        {formatDate(job.deadline)}
+                                    </InfoTile>
+                                )}
+                            </div>
+                        )}
                     </Card>
 
                     <Card className="p-6 sm:p-8">
@@ -259,6 +328,25 @@ const JobDetailPage = () => {
                             {job.description}
                         </p>
                     </Card>
+
+                    {skills.length > 0 && (
+                        <Card className="p-6 sm:p-8">
+                            <h2 className="mb-3 flex items-center gap-2 text-headline-sm text-on-surface">
+                                <Icon name="psychology" className="text-[22px] text-primary-container" />
+                                Skills and expertise
+                            </h2>
+                            <div className="flex flex-wrap gap-2">
+                                {skills.map((skill) => (
+                                    <span
+                                        key={skill.id}
+                                        className="rounded-full bg-surface-container-low px-3 py-1 text-body-md text-on-surface"
+                                    >
+                                        {skill.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
 
                     <Card className="flex items-start gap-3 p-5">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
@@ -278,7 +366,12 @@ const JobDetailPage = () => {
                 <div className="flex w-full flex-col gap-6 lg:sticky lg:top-24 lg:w-[360px] lg:shrink-0">
                     <Card className="p-6">
                         {isOwner ? (
-                            <OwnerCard job={job} onCancel={() => setConfirmOpen(true)} />
+                            <OwnerCard
+                                job={job}
+                                onCancel={() => setConfirmOpen(true)}
+                                onPublish={handlePublish}
+                                publishing={publishing}
+                            />
                         ) : isFreelancer && myProposal ? (
                             <MyProposalCard proposal={myProposal} job={job} />
                         ) : isFreelancer && job.status === 'OPEN' ? (
@@ -319,9 +412,13 @@ const JobDetailPage = () => {
                 onConfirm={handleCancel}
                 loading={cancelling}
                 variant="danger"
-                title="Cancel this job?"
-                message="The job will be closed and freelancers will no longer be able to send proposals. This cannot be undone."
-                confirmText="Cancel job"
+                title={isDraft ? 'Discard this draft?' : 'Cancel this job?'}
+                message={
+                    isDraft
+                        ? 'The draft will be discarded. This cannot be undone.'
+                        : 'The job will be closed and freelancers will no longer be able to send proposals. This cannot be undone.'
+                }
+                confirmText={isDraft ? 'Discard draft' : 'Cancel job'}
             />
         </>
     );

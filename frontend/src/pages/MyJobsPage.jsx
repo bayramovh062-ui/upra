@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Button,
@@ -18,6 +18,7 @@ import { cn } from '../lib/cn';
 
 const TABS = [
     { key: 'ALL', label: 'All' },
+    { key: 'DRAFT', label: 'Drafts' },
     { key: 'OPEN', label: 'Open' },
     { key: 'IN_PROGRESS', label: 'In progress' },
     { key: 'COMPLETED', label: 'Completed' },
@@ -37,7 +38,11 @@ const IconLink = ({ to, label, icon }) => (
 
 // Client: "My jobs" cədvəli (Stitch client dashboard-dakı My jobs bölməsinin tam səhifə variantı)
 const MyJobsPage = () => {
-    const [tab, setTab] = useState('ALL');
+    // Tab URL-də saxlanır (?tab=DRAFT): qaralama saxlayandan sonra birbaşa Drafts tab-ına düşür
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    const tab = TABS.some((t) => t.key === tabParam) ? tabParam : 'ALL';
+    const setTab = (key) => setSearchParams(key === 'ALL' ? {} : { tab: key }, { replace: true });
     const [jobToCancel, setJobToCancel] = useState(null);
 
     const { data, isLoading, isError, refetch } = useGetMyJobsQuery();
@@ -50,7 +55,7 @@ const MyJobsPage = () => {
     const confirmCancel = async () => {
         try {
             await deleteJob(jobToCancel.id).unwrap();
-            toast.success('Job cancelled');
+            toast.success(jobToCancel.status === 'DRAFT' ? 'Draft discarded' : 'Job cancelled');
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not cancel the job'));
         } finally {
@@ -136,6 +141,8 @@ const MyJobsPage = () => {
                             <tbody>
                                 {visible.map((job) => {
                                     const isOpen = job.status === 'OPEN';
+                                    const isDraft = job.status === 'DRAFT';
+                                    const canEdit = isOpen || isDraft;
                                     return (
                                         <tr
                                             key={job.id}
@@ -149,7 +156,7 @@ const MyJobsPage = () => {
                                                     {job.title}
                                                 </Link>
                                                 <p className="text-caption text-secondary">
-                                                    Posted {timeAgo(job.createdAt)}
+                                                    {isDraft ? 'Saved' : 'Posted'} {timeAgo(job.createdAt)}
                                                 </p>
                                             </td>
                                             <td className="px-5 py-4">
@@ -163,12 +170,14 @@ const MyJobsPage = () => {
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="flex justify-end gap-1">
-                                                    <IconLink
-                                                        to={`/client/jobs/${job.id}/proposals`}
-                                                        label="View proposals"
-                                                        icon="inbox"
-                                                    />
-                                                    {isOpen && (
+                                                    {!isDraft && (
+                                                        <IconLink
+                                                            to={`/client/jobs/${job.id}/proposals`}
+                                                            label="View proposals"
+                                                            icon="inbox"
+                                                        />
+                                                    )}
+                                                    {canEdit && (
                                                         <>
                                                             <IconLink
                                                                 to={`/client/jobs/${job.id}/edit`}
@@ -177,8 +186,8 @@ const MyJobsPage = () => {
                                                             />
                                                             <button
                                                                 type="button"
-                                                                title="Cancel job"
-                                                                aria-label="Cancel job"
+                                                                title={isDraft ? 'Discard draft' : 'Cancel job'}
+                                                                aria-label={isDraft ? 'Discard draft' : 'Cancel job'}
                                                                 onClick={() => setJobToCancel(job)}
                                                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-error-container hover:text-error"
                                                             >
@@ -203,9 +212,13 @@ const MyJobsPage = () => {
                 onConfirm={confirmCancel}
                 loading={cancelling}
                 variant="danger"
-                title="Cancel this job?"
-                message={`“${jobToCancel?.title ?? ''}” will be closed and freelancers can no longer send proposals. This cannot be undone.`}
-                confirmText="Cancel job"
+                title={jobToCancel?.status === 'DRAFT' ? 'Discard this draft?' : 'Cancel this job?'}
+                message={
+                    jobToCancel?.status === 'DRAFT'
+                        ? `The draft “${jobToCancel?.title ?? ''}” will be discarded. This cannot be undone.`
+                        : `“${jobToCancel?.title ?? ''}” will be closed and freelancers can no longer send proposals. This cannot be undone.`
+                }
+                confirmText={jobToCancel?.status === 'DRAFT' ? 'Discard draft' : 'Cancel job'}
             />
         </>
     );
