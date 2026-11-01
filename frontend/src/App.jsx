@@ -16,7 +16,7 @@ import RegisterPage from './pages/RegisterPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DashboardPage from './pages/DashboardPage';
 import DashboardRedirect from './pages/DashboardRedirect';
-import ComingSoonPage from './pages/ComingSoonPage';
+import SettingsPage from './pages/SettingsPage';
 import JobsPage from './pages/JobsPage';
 import JobDetailPage from './pages/JobDetailPage';
 import MyJobsPage from './pages/MyJobsPage';
@@ -55,7 +55,7 @@ function App() {
                             <Route path="/dashboard" element={<DashboardRedirect />} />
                             <Route path="/contracts" element={<ContractsPage />} />
                             <Route path="/contracts/:id" element={<ContractDetailPage />} />
-                            <Route path="/settings" element={<ComingSoonPage title="Settings" />} />
+                            <Route path="/settings" element={<SettingsPage />} />
                             {/* Elanlar giriş tələb edir (backend-də GET /jobs/:id protect-dir) */}
                             <Route path="/jobs" element={<JobsPage />} />
                             <Route path="/jobs/:id" element={<JobDetailPage />} />

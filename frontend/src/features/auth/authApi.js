@@ -1,5 +1,5 @@
 import { baseApi } from '../../lib/baseApi';
-import { setCredentials } from './authSlice';
+import { setCredentials, updateUser } from './authSlice';
 
 export const authApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
@@ -41,3 +41,25 @@ export const authApi = baseApi.injectEndpoints({
 });
 
 export const { useLoginMutation, useRegisterMutation, useGetMeQuery } = authApi;
+
+// Settings: ad dəyişmə və parol dəyişmə
+export const settingsApi = baseApi.injectEndpoints({
+    endpoints: (builder) => ({
+        updateMe: builder.mutation({
+            query: (body) => ({ url: '/auth/update-me', method: 'PATCH', body }),
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled;
+                    dispatch(updateUser(data.user));
+                } catch {
+                    // Xəta komponentdə toast ilə göstərilir
+                }
+            },
+        }),
+        updatePassword: builder.mutation({
+            query: (body) => ({ url: '/auth/update-password', method: 'PATCH', body }),
+        }),
+    }),
+});
+
+export const { useUpdateMeMutation, useUpdatePasswordMutation } = settingsApi;
