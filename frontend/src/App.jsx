@@ -24,6 +24,8 @@ import CreateJobPage from './pages/CreateJobPage';
 import EditJobPage from './pages/EditJobPage';
 import JobProposalsPage from './pages/JobProposalsPage';
 import MyProposalsPage from './pages/MyProposalsPage';
+import ContractsPage from './pages/ContractsPage';
+import ContractDetailPage from './pages/ContractDetailPage';
 
 function App() {
     return (
@@ -51,7 +53,8 @@ function App() {
                     <Route element={<ProtectedRoute />}>
                         <Route element={<AppLayout />}>
                             <Route path="/dashboard" element={<DashboardRedirect />} />
-                            <Route path="/contracts" element={<ComingSoonPage title="Contracts" />} />
+                            <Route path="/contracts" element={<ContractsPage />} />
+                            <Route path="/contracts/:id" element={<ContractDetailPage />} />
                             <Route path="/settings" element={<ComingSoonPage title="Settings" />} />
                             {/* Elanlar giriş tələb edir (backend-də GET /jobs/:id protect-dir) */}
                             <Route path="/jobs" element={<JobsPage />} />

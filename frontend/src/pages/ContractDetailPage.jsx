@@ -1,0 +1,170 @@
+import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
+import {
+    Avatar,
+    Button,
+    Card,
+    ConfirmDialog,
+    EmptyState,
+    ErrorState,
+    Icon,
+    Skeleton,
+    StatusBadge,
+} from '../components/ui';
+import {
+    useCancelContractMutation,
+    useCompleteContractMutation,
+    useGetContractQuery,
+} from '../features/contracts/contractsApi';
+import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
+
+const ContractDetailPage = () => {
+    const { id } = useParams();
+    const user = useSelector((state) => state.auth.user);
+    const [action, setAction] = useState(null); // 'complete' | 'cancel' | null
+
+    const { data, isLoading, isError, error, refetch } = useGetContractQuery(id);
+    const [completeContract, { isLoading: completing }] = useCompleteContractMutation();
+    const [cancelContract, { isLoading: cancelling }] = useCancelContractMutation();
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col gap-4">
+                <Skeleton className="h-10 w-1/2" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
+    }
+
+    if (isError) {
+        if ([400, 403, 404].includes(error?.status)) {
+            return (
+                <EmptyState
+                    icon="lock"
+                    title="Contract not available"
+                    description="It does not exist or you are not a party to it."
+                    action={
+                        <Link to="/contracts">
+                            <Button>Back to contracts</Button>
+                        </Link>
+                    }
+                />
+            );
+        }
+        return <ErrorState title="Could not load this contract" onRetry={refetch} />;
+    }
+
+    const { contract } = data;
+    const isClient = user?.id === contract.clientId;
+    const other = isClient ? contract.freelancer : contract.client;
+    const active = contract.status === 'ACTIVE';
+
+    const handleConfirm = async () => {
+        try {
+            if (action === 'complete') {
+                await completeContract(contract.id).unwrap();
+                toast.success('Contract completed');
+            } else {
+                await cancelContract(contract.id).unwrap();
+                toast.success('Contract cancelled');
+            }
+            setAction(null);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Action failed'));
+        }
+    };
+
+    return (
+        <>
+            <Link
+                to="/contracts"
+                className="mb-4 inline-flex items-center gap-1 text-label-md text-secondary hover:text-primary-container"
+            >
+                <Icon name="arrow_back" className="text-[18px]" />
+                Back to contracts
+            </Link>
+
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-caption font-semibold uppercase tracking-wide text-primary-container">
+                            CTR-{contract.id.slice(0, 8)}
+                        </span>
+                        <StatusBadge status={contract.status} />
+                    </div>
+                    <h1 className="mt-2 break-words text-headline-lg text-on-surface">{contract.jobPost?.title}</h1>
+                </div>
+
+                {isClient && active && (
+                    <div className="flex gap-2">
+                        <Button variant="ghost" className="text-error hover:bg-error-container" onClick={() => setAction('cancel')}>
+                            Cancel contract
+                        </Button>
+                        <Button onClick={() => setAction('complete')}>
+                            <Icon name="task_alt" className="text-[18px]" />
+                            Mark as completed
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <Card className="p-5">
+                    <p className="text-caption uppercase tracking-wider text-secondary">Contract value</p>
+                    <p className="tabular mt-1 text-headline-md text-on-surface">
+                        {formatMoney(contract.proposal?.bidAmount)}
+                    </p>
+                    <p className="mt-1 text-caption text-secondary">Job budget {formatMoney(contract.jobPost?.budget)}</p>
+                </Card>
+                <Card className="flex items-center gap-3 p-5">
+                    <Avatar name={other?.fullName} size="lg" />
+                    <div className="min-w-0">
+                        <p className="text-caption uppercase tracking-wider text-secondary">
+                            {isClient ? 'Freelancer' : 'Client'}
+                        </p>
+                        <p className="truncate text-title-md text-on-surface">{other?.fullName}</p>
+                    </div>
+                </Card>
+                <Card className="p-5">
+                    <p className="text-caption uppercase tracking-wider text-secondary">Started</p>
+                    <p className="mt-1 text-title-md text-on-surface">{formatDate(contract.createdAt)}</p>
+                    <Link to={`/jobs/${contract.jobPostId}`} className="mt-1 inline-block text-label-sm text-primary hover:underline">
+                        View original job
+                    </Link>
+                </Card>
+            </div>
+
+            {/* Faza 5-də buraya Kanban lövhəsi (contract.board.id) gələcək */}
+            <Card className="p-6">
+                <h2 className="mb-2 flex items-center gap-2 text-headline-sm text-on-surface">
+                    <Icon name="view_kanban" className="text-[22px] text-primary-container" />
+                    Project board
+                </h2>
+                <p className="text-body-md text-secondary">
+                    The board was created automatically with this contract. Tasks and drag-and-drop columns arrive in the
+                    next step.
+                </p>
+            </Card>
+
+            <ConfirmDialog
+                open={!!action}
+                onClose={() => setAction(null)}
+                onConfirm={handleConfirm}
+                loading={completing || cancelling}
+                variant={action === 'cancel' ? 'danger' : 'primary'}
+                title={action === 'cancel' ? 'Cancel this contract?' : 'Mark contract as completed?'}
+                message={
+                    action === 'cancel'
+                        ? 'The contract and its job will be cancelled. This cannot be undone.'
+                        : 'The contract and its job will be marked as completed. This cannot be undone.'
+                }
+                confirmText={action === 'cancel' ? 'Cancel contract' : 'Complete'}
+            />
+        </>
+    );
+};
+
+export default ContractDetailPage;
