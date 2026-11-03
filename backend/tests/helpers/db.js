@@ -18,6 +18,14 @@ export const cleanUpUserIds = async (ids) => {
 
     const contractWhere = { OR: [{ clientId: { in: ids } }, { freelancerId: { in: ids } }] };
 
+    // Maliyyə cədvəlləri RESTRICT-dir: əvvəl ledger, sonra mərhələ və pul kisəsi (yalnız test bazasında)
+    await prisma.transaction.deleteMany({
+        where: { OR: [{ wallet: { userId: { in: ids } } }, { milestone: { contract: contractWhere } }] },
+    });
+    await prisma.issue.updateMany({ where: { milestone: { contract: contractWhere } }, data: { milestoneId: null } });
+    await prisma.milestone.deleteMany({ where: { contract: contractWhere } });
+    await prisma.wallet.deleteMany({ where: { userId: { in: ids } } });
+
     await prisma.issueComment.deleteMany({ where: { issue: { board: { contract: contractWhere } } } });
     await prisma.issueComment.deleteMany({ where: { authorId: { in: ids } } });
     await prisma.issue.deleteMany({ where: { board: { contract: contractWhere } } });
