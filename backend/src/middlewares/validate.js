@@ -1,7 +1,7 @@
 import { AppError } from '../utils/AppError.js';
 
 export const validate = (schema) => (req, res, next) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req.body ?? {}); // Express 5: body yoxdursa req.body undefined olur
 
     if (!result.success) {
         const issues = result.error.issues || [];

@@ -12,13 +12,15 @@ import issueRoutes from './routes/issueRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import taxonomyRoutes from './routes/taxonomyRoutes.js';
 import { AppError } from './utils/AppError.js';
+import { resolveTrustProxy } from './config/proxy.js';
 
 const app = express();
 
 // Render/Railway kimi hostinqlərdə sorğular proxy-dən keçir. Bunu yazmasaq rate limiter
-// bütün istifadəçiləri eyni IP sanıb hamısını birlikdə bloklayar.
-if (process.env.NODE_ENV === 'production') {
-    app.set('trust proxy', 1);
+// bütün istifadəçiləri eyni IP sanıb hamısını birlikdə bloklayar. Dəyər TRUST_PROXY ilə tənzimlənir (config/proxy.js).
+const trustProxy = resolveTrustProxy();
+if (trustProxy !== false) {
+    app.set('trust proxy', trustProxy);
 }
 
 // Middlewares
