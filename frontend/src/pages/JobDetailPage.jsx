@@ -400,6 +400,11 @@ const JobDetailPage = () => {
                                 <p className="text-caption text-secondary">
                                     Member since {formatDate(job.client?.createdAt)}
                                 </p>
+                                {job.client?.id && (
+                                    <Link to={`/users/${job.client.id}`} className="text-label-sm text-primary hover:underline">
+                                        View profile
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </Card>

@@ -13,7 +13,7 @@ export const authApi = baseApi.injectEndpoints({
                 try {
                     const { data } = await queryFulfilled;
                     dispatch(setCredentials({ token: data.token, user: data.user }));
-                } catch (err) {
+                } catch {
                     // Xətalar komponent səviyyəsində react-hot-toast ilə tutulur
                 }
             },
@@ -28,7 +28,7 @@ export const authApi = baseApi.injectEndpoints({
                 try {
                     const { data } = await queryFulfilled;
                     dispatch(setCredentials({ token: data.token, user: data.user }));
-                } catch (err) {
+                } catch {
                     // Xətalar komponent səviyyəsində react-hot-toast ilə tutulur
                 }
             },
@@ -47,8 +47,11 @@ export const settingsApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         updateMe: builder.mutation({
             query: (body) => ({ url: '/auth/update-me', method: 'PATCH', body }),
-            // Bacarıq dəyişəndə elanlardakı matchScore və "Matched" tab-ı yenilənsin
-            invalidatesTags: [{ type: 'Job', id: 'LIST' }],
+            // Bacarıq dəyişəndə elanlardakı matchScore və "Matched" tab-ı yenilənsin, ictimai profil də təzələnsin
+            invalidatesTags: (result) => [
+                { type: 'Job', id: 'LIST' },
+                ...(result?.user ? [{ type: 'User', id: result.user.id }] : []),
+            ],
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
                 try {
                     const { data } = await queryFulfilled;

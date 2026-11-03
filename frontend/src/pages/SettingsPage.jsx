@@ -1,9 +1,24 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { Badge, Button, Card, CardBody, CardHeader, Input, Modal, PageHeader, PasswordInput } from '../components/ui';
+import {
+    Avatar,
+    Badge,
+    Button,
+    Card,
+    CardBody,
+    CardHeader,
+    Icon,
+    Input,
+    Modal,
+    PageHeader,
+    PasswordInput,
+    Select,
+    Textarea,
+} from '../components/ui';
 import {
     useDeleteAccountMutation,
     useUpdateMeMutation,
@@ -11,22 +26,49 @@ import {
 } from '../features/auth/authApi';
 import { useLogout } from '../features/auth/useLogout';
 import SkillPicker from '../features/taxonomy/SkillPicker';
+import { cn } from '../lib/cn';
 import { formatDate, getErrorMessage } from '../lib/format';
-import { passwordSchema, profileSchema } from '../validations/settingsSchema';
+import { AVAILABILITY_OPTIONS, TIMEZONES } from '../lib/labels';
+import { passwordSchema, professionalSchema, profileSchema } from '../validations/settingsSchema';
 
+// Boş sahə backend-ə "" kimi gedir və orada null olur
+const toFormText = (value) => value ?? '';
+
+const SaveButton = ({ loading, disabled, children = 'Save changes' }) => (
+    <div className="flex justify-end">
+        <Button type="submit" loading={loading} disabled={disabled}>
+            {children}
+        </Button>
+    </div>
+);
+
+// Şəxsi məlumat: ad, avatar, məkan, saat qurşağı (hər iki rol)
 const ProfileForm = ({ user }) => {
     const [updateMe, { isLoading }] = useUpdateMeMutation();
     const {
         register,
         handleSubmit,
         reset,
+        control,
         formState: { errors, isDirty },
-    } = useForm({ resolver: zodResolver(profileSchema), defaultValues: { fullName: user.fullName } });
+    } = useForm({
+        resolver: zodResolver(profileSchema),
+        defaultValues: {
+            fullName: user.fullName,
+            avatarUrl: toFormText(user.avatarUrl),
+            location: toFormText(user.location),
+            timezone: toFormText(user.timezone),
+        },
+    });
+
+    // Canlı avatar önizləməsi
+    const [avatarPreview, fullName] = useWatch({ control, name: ['avatarUrl', 'fullName'] });
+    const timezoneOptions = TIMEZONES.map((zone) => ({ value: zone, label: zone.replaceAll('_', ' ') }));
 
     const onSubmit = async (values) => {
         try {
             await updateMe(values).unwrap();
-            toast.success('Profile updated');
+            toast.success('Personal information updated');
             reset(values);
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not update your profile'));
@@ -35,21 +77,183 @@ const ProfileForm = ({ user }) => {
 
     return (
         <Card>
-            <CardHeader title="Profile" />
+            <CardHeader title="Personal information" />
             <CardBody>
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+                    <div className="flex items-center gap-4">
+                        <Avatar name={fullName} src={errors.avatarUrl ? null : avatarPreview} size="xl" />
+                        <div className="flex flex-wrap items-center gap-3 text-body-md text-secondary">
+                            <Badge>{user.role === 'CLIENT' ? 'Client' : 'Freelancer'}</Badge>
+                            {user.createdAt && <span>Member since {formatDate(user.createdAt)}</span>}
+                        </div>
+                    </div>
                     <Input label="Full name" error={errors.fullName?.message} {...register('fullName')} />
                     <Input label="Email" value={user.email ?? ''} disabled readOnly hint="Email cannot be changed" />
-                    <div className="flex flex-wrap items-center gap-3 text-body-md text-secondary">
-                        <Badge>{user.role === 'CLIENT' ? 'Client' : 'Freelancer'}</Badge>
-                        {user.createdAt && <span>Member since {formatDate(user.createdAt)}</span>}
+                    <Input
+                        label="Avatar URL"
+                        type="url"
+                        placeholder="https://example.com/photo.jpg"
+                        hint="Link to a square image (JPG, PNG or WebP). Leave empty to show your initials."
+                        error={errors.avatarUrl?.message}
+                        {...register('avatarUrl')}
+                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <Input
+                            label="Location"
+                            placeholder="City, Country"
+                            icon="location_on"
+                            error={errors.location?.message}
+                            {...register('location')}
+                        />
+                        <Select
+                            label="Time zone"
+                            placeholder="Not set"
+                            options={timezoneOptions}
+                            error={errors.timezone?.message}
+                            {...register('timezone')}
+                        />
                     </div>
-                    <div className="flex justify-end">
-                        <Button type="submit" loading={isLoading} disabled={!isDirty}>
-                            Save changes
-                        </Button>
-                    </div>
+                    <SaveButton loading={isLoading} disabled={!isDirty} />
                 </form>
+            </CardBody>
+        </Card>
+    );
+};
+
+// Peşəkar məlumat: başlıq və bio hər iki rol üçün, saat haqqı və əlçatanlıq yalnız frilanser üçün
+const ProfessionalForm = ({ user }) => {
+    const isFreelancer = user.role === 'FREELANCER';
+    const [updateMe, { isLoading }] = useUpdateMeMutation();
+    const {
+        register,
+        handleSubmit,
+        reset,
+        control,
+        formState: { errors, isDirty },
+    } = useForm({
+        resolver: zodResolver(professionalSchema),
+        defaultValues: {
+            headline: toFormText(user.headline),
+            bio: toFormText(user.bio),
+            hourlyRate: user.hourlyRate != null ? String(Number(user.hourlyRate)) : '',
+            availability: user.availability ?? 'AVAILABLE',
+        },
+    });
+
+    const bioLength = useWatch({ control, name: 'bio' })?.length ?? 0;
+
+    const onSubmit = async (values) => {
+        const body = { headline: values.headline, bio: values.bio };
+        if (isFreelancer) {
+            body.hourlyRate = values.hourlyRate === '' ? null : Number(values.hourlyRate);
+            body.availability = values.availability;
+        }
+        try {
+            await updateMe(body).unwrap();
+            toast.success('Professional information updated');
+            reset(values);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not update your profile'));
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader title="Professional information" />
+            <CardBody>
+                <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+                    <Input
+                        label="Professional headline"
+                        placeholder={isFreelancer ? 'e.g. Senior React & Node.js developer' : 'e.g. Product lead at Acme'}
+                        error={errors.headline?.message}
+                        {...register('headline')}
+                    />
+                    <Textarea
+                        label="Biography"
+                        rows={6}
+                        placeholder="Tell others about your experience, what you work on and how you like to collaborate."
+                        hint={`${bioLength}/1000 characters`}
+                        error={errors.bio?.message}
+                        {...register('bio')}
+                    />
+                    {isFreelancer && (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Input
+                                label="Hourly rate (USD)"
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="0.01"
+                                placeholder="e.g. 45"
+                                icon="payments"
+                                hint="Leave empty to hide your rate"
+                                error={errors.hourlyRate?.message}
+                                {...register('hourlyRate')}
+                            />
+                            <Select
+                                label="Availability"
+                                options={AVAILABILITY_OPTIONS}
+                                error={errors.availability?.message}
+                                {...register('availability')}
+                            />
+                        </div>
+                    )}
+                    <SaveButton loading={isLoading} disabled={!isDirty} />
+                </form>
+            </CardBody>
+        </Card>
+    );
+};
+
+// Görünürlük: dərhal yadda saxlanılır. Gizli profildə başqaları yalnız ad və rolu görür
+const VisibilityForm = ({ user }) => {
+    const [updateMe, { isLoading }] = useUpdateMeMutation();
+    const isPublic = user.profilePublic !== false;
+
+    const toggle = async () => {
+        try {
+            await updateMe({ profilePublic: !isPublic }).unwrap();
+            toast.success(isPublic ? 'Your profile is now private' : 'Your profile is now public');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not update profile visibility'));
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader title="Profile visibility" />
+            <CardBody>
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-body-md font-medium text-on-surface">Public profile</p>
+                        <p className="mt-1 max-w-md text-body-md text-secondary">
+                            {isPublic
+                                ? 'Other Upra members can see your headline, biography, skills, rate, location and stats.'
+                                : 'Your profile is private. Other members only see your name and role.'}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isPublic}
+                        aria-label="Public profile"
+                        onClick={toggle}
+                        disabled={isLoading}
+                        className={cn(
+                            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2',
+                            'disabled:cursor-not-allowed disabled:opacity-50',
+                            isPublic ? 'bg-primary-container' : 'bg-outline-variant'
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform',
+                                isPublic ? 'translate-x-5' : 'translate-x-0.5'
+                            )}
+                        />
+                    </button>
+                </div>
             </CardBody>
         </Card>
     );
@@ -217,15 +421,32 @@ const SettingsPage = () => {
     const user = useSelector((state) => state.auth.user);
     if (!user) return null;
 
+    // key: profil store-a gec gələndə (girişdən sonra getMe) və ya yadda saxlananda forma yeni dəyərlərlə qurulsun
+    const personalKey = [user.id, user.fullName, user.avatarUrl, user.location, user.timezone].join('|');
+    const professionalKey = [user.id, user.headline, user.bio, user.hourlyRate, user.availability].join('|');
+
     return (
         <>
-            <PageHeader title="Settings" description="Manage your account details and password." />
+            <PageHeader
+                title="Settings"
+                description="Manage your profile, visibility, password and account."
+                action={
+                    <Link to={`/users/${user.id}`}>
+                        <Button variant="secondary">
+                            <Icon name="visibility" className="text-[18px]" />
+                            View public profile
+                        </Button>
+                    </Link>
+                }
+            />
             <div className="grid max-w-3xl grid-cols-1 gap-6">
-                <ProfileForm user={user} />
+                <ProfileForm key={personalKey} user={user} />
+                <ProfessionalForm key={professionalKey} user={user} />
                 {user.role === 'FREELANCER' && (
                     // key: bacarıqlar store-a gec gələndə (girişdən sonra getMe) forma təzələnsin, boş siyahı ilə üstünə yazılmasın
                     <SkillsForm key={(user.skills ?? []).map((s) => (typeof s === 'string' ? s : s.name)).join('|')} user={user} />
                 )}
+                <VisibilityForm user={user} />
                 <PasswordForm />
                 <DangerZone />
             </div>

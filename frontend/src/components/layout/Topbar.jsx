@@ -39,7 +39,7 @@ const Topbar = ({ onMenuClick }) => {
                         onClick={() => setMenuOpen((v) => !v)}
                         className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/10"
                     >
-                        <Avatar name={user?.fullName} size="sm" className="bg-primary-container text-white" />
+                        <Avatar name={user?.fullName} src={user?.avatarUrl} size="sm" className="bg-primary-container text-white" />
                         <span className="hidden text-left sm:block">
                             <span className="block text-body-md font-medium leading-tight text-white">
                                 {user?.fullName}
@@ -59,6 +59,14 @@ const Topbar = ({ onMenuClick }) => {
                                 aria-hidden="true"
                             />
                             <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-white py-1 shadow-lg">
+                                <Link
+                                    to={`/users/${user?.id}`}
+                                    onClick={() => setMenuOpen(false)}
+                                    className="flex items-center gap-2 px-4 py-2 text-body-md text-on-surface hover:bg-surface-container-low"
+                                >
+                                    <Icon name="person" className="text-[18px] text-secondary" />
+                                    My profile
+                                </Link>
                                 <Link
                                     to="/settings"
                                     onClick={() => setMenuOpen(false)}
