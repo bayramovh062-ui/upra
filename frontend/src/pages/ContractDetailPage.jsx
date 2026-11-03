@@ -288,6 +288,11 @@ const ContractDetailPage = () => {
                             {isClient ? 'Freelancer' : 'Client'}
                         </p>
                         <p className="truncate text-title-md text-on-surface">{other?.fullName}</p>
+                        {other?.id && (
+                            <Link to={`/users/${other.id}`} className="text-label-sm text-primary hover:underline">
+                                View profile
+                            </Link>
+                        )}
                     </div>
                 </Card>
                 <Card className="p-5">

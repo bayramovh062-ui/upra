@@ -31,7 +31,15 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept }) => {
                     <Avatar name={f?.fullName} size="lg" />
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="truncate text-headline-sm text-on-surface">{f?.fullName}</h2>
+                            <h2 className="truncate text-headline-sm text-on-surface">
+                                {f?.id ? (
+                                    <Link to={`/users/${f.id}`} className="hover:text-primary hover:underline">
+                                        {f.fullName}
+                                    </Link>
+                                ) : (
+                                    f?.fullName
+                                )}
+                            </h2>
                             <StatusBadge status={proposal.status} />
                         </div>
                         {f?.headline && <p className="mt-0.5 text-body-md text-on-surface">{f.headline}</p>}
