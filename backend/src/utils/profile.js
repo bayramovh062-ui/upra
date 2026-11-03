@@ -15,6 +15,7 @@ export const ownProfileSelect = {
     timezone: true,
     availability: true,
     avatarUrl: true,
+    profilePublic: true,
     createdAt: true,
     skills: skillInclude,
 };
@@ -31,6 +32,7 @@ export const publicProfileSelect = {
     timezone: true,
     availability: true,
     avatarUrl: true,
+    profilePublic: true,
     createdAt: true,
     deletedAt: true,
     skills: skillInclude,

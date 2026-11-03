@@ -9,7 +9,7 @@ import {
 import { deleteAccount } from '../controllers/accountController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validate } from '../middlewares/validate.js';
-import { authLimiter } from '../middlewares/rateLimiter.js';
+import { loginLimiter, registerLimiter } from '../middlewares/rateLimiter.js';
 import {
     registerSchema,
     loginSchema,
@@ -20,8 +20,8 @@ import {
 
 const router = express.Router();
 
-router.post('/register', authLimiter, validate(registerSchema), register);
-router.post('/login', authLimiter, validate(loginSchema), login);
+router.post('/register', registerLimiter, validate(registerSchema), register);
+router.post('/login', loginLimiter, validate(loginSchema), login);
 
 router.get('/me', protect, getMe);
 router.delete('/me', protect, validate(deleteAccountSchema), deleteAccount);

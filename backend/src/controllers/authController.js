@@ -86,7 +86,7 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // @route   PATCH /api/auth/update-me
 export const updateMe = asyncHandler(async (req, res) => {
-    const { fullName, headline, bio, hourlyRate, location, timezone, availability, avatarUrl, skills } = req.body;
+    const { fullName, headline, bio, hourlyRate, location, timezone, availability, avatarUrl, profilePublic, skills } = req.body;
 
     if (hourlyRate != null && req.user.role !== 'FREELANCER') {
         throw new AppError('Only freelancers can set an hourly rate', 400);
@@ -106,6 +106,7 @@ export const updateMe = asyncHandler(async (req, res) => {
     if (timezone !== undefined) data.timezone = timezone || null;
     if (availability !== undefined) data.availability = availability;
     if (avatarUrl !== undefined) data.avatarUrl = avatarUrl || null;
+    if (profilePublic !== undefined) data.profilePublic = profilePublic;
 
     const updatedUser = await prisma.$transaction(async (tx) => {
         if (skills !== undefined) {

@@ -15,6 +15,12 @@ import { AppError } from './utils/AppError.js';
 
 const app = express();
 
+// Render/Railway kimi hostinqlərdə sorğular proxy-dən keçir. Bunu yazmasaq rate limiter
+// bütün istifadəçiləri eyni IP sanıb hamısını birlikdə bloklayar.
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
 // Middlewares
 app.use(helmet());
 // CLIENT_URL təyin olunubsa yalnız həmin ünvan(lar)a icazə verilir (vergüllə bir neçə ola bilər).

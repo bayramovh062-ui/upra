@@ -45,9 +45,34 @@ export const contractsApi = baseApi.injectEndpoints({
             invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
         }),
 
+        // Birbaşa ləğv: yalnız iş hələ başlamayıbsa (contract.workStarted === false), hər iki tərəf edə bilər
         cancelContract: builder.mutation({
             query: (id) => ({ url: `/contracts/${id}/cancel`, method: 'PATCH' }),
             invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }, 'Job'],
+        }),
+
+        // İş başlayandan sonra ləğv təklifi. arg: { id, reason? }
+        requestCancellation: builder.mutation({
+            query: ({ id, reason }) => ({ url: `/contracts/${id}/cancel-request`, method: 'PATCH', body: { reason } }),
+            invalidatesTags: (result, error, { id }) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
+        }),
+
+        // Digər tərəf qəbul edir: müqavilə və iş CANCELLED olur
+        acceptCancellation: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/cancel-request/accept`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }, 'Job'],
+        }),
+
+        // Digər tərəf rədd edir: müqavilə davam edir
+        declineCancellation: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/cancel-request/decline`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
+        }),
+
+        // Göndərən özü geri çəkir
+        withdrawCancellation: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/cancel-request/withdraw`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
         }),
     }),
 });
@@ -58,6 +83,10 @@ export const {
     useGetContractQuery,
     useCompleteContractMutation,
     useCancelContractMutation,
+    useRequestCancellationMutation,
+    useAcceptCancellationMutation,
+    useDeclineCancellationMutation,
+    useWithdrawCancellationMutation,
     useDeliverContractMutation,
     useReopenContractMutation,
 } = contractsApi;

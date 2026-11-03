@@ -66,14 +66,22 @@ describe('Contracts and issues: permissions, response shape, delete, cancel', ()
             expect(res.body.contracts.some((c) => c.id === contract.id)).toBe(true);
         });
 
-        it('forbids the freelancer from completing or cancelling', async () => {
+        it('forbids the freelancer from completing the contract', async () => {
             const complete = await request(app)
                 .patch(`/api/contracts/${contract.id}/complete`)
                 .set(auth(freelancer.token));
             expect(complete.status).toBe(403);
+        });
 
-            const cancel = await request(app).patch(`/api/contracts/${contract.id}/cancel`).set(auth(freelancer.token));
+        it('forbids an outsider from cancelling or requesting cancellation', async () => {
+            const cancel = await request(app).patch(`/api/contracts/${contract.id}/cancel`).set(auth(outsider.token));
             expect(cancel.status).toBe(403);
+
+            const request403 = await request(app)
+                .patch(`/api/contracts/${contract.id}/cancel-request`)
+                .set(auth(outsider.token))
+                .send({});
+            expect(request403.status).toBe(403);
         });
 
         it('rejects a malformed proposal id when creating a contract', async () => {

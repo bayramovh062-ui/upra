@@ -81,7 +81,7 @@ model User {
   timezone     String?
   availability Availability @default(AVAILABLE)
   avatarUrl    String?
-
+  profilePublic Boolean @default(true) // false: başqaları yalnız ad və rolu görür
   deletedAt    DateTime? // Soft delete: doludursa hesab silinib (bazadan silinmir)
 
   createdAt    DateTime @default(now())
@@ -167,6 +167,12 @@ model Contract {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Ləğv təklifi: iş başlayanda müqaviləni tek başına ləğv etmək olmur, digər tərəf razı olmalıdır.
+  // cancelRequestedById dolu = gözləyən təklif var (kimə aid olduğu burada). Ləğv olunandan sonra tarixçə üçün qalır.
+  cancelRequestedById String?
+  cancelRequestedAt   DateTime?
+  cancelReason        String?
 
   board        Board?   // 1 contract = 1 board
 

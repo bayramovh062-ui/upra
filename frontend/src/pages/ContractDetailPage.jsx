@@ -10,24 +10,33 @@ import {
     EmptyState,
     ErrorState,
     Icon,
+    Modal,
     Skeleton,
     StatusBadge,
+    Textarea,
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
+    useAcceptCancellationMutation,
     useCancelContractMutation,
     useCompleteContractMutation,
+    useDeclineCancellationMutation,
     useDeliverContractMutation,
     useGetContractQuery,
     useReopenContractMutation,
+    useRequestCancellationMutation,
+    useWithdrawCancellationMutation,
 } from '../features/contracts/contractsApi';
 import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
     const { id } = useParams();
     const user = useSelector((state) => state.auth.user);
-    const [action, setAction] = useState(null); // 'complete' | 'cancel' | 'deliver' | 'reopen' | null
+    // 'complete' | 'cancel' | 'deliver' | 'reopen' | 'acceptCancel' | 'declineCancel' | 'withdrawCancel' | null
+    const [action, setAction] = useState(null);
+    const [requestOpen, setRequestOpen] = useState(false); // ləğv təklifi pəncərəsi (səbəb yazılır)
+    const [reason, setReason] = useState('');
 
     const { data, isLoading, isError, error, refetch } = useGetContractQuery(id);
     // Lövhə ilə eyni cache-dən oxunur (əlavə sorğu yaratmır). Bitirmə/təhvil xəbərdarlığı üçün lazımdır
@@ -37,6 +46,10 @@ const ContractDetailPage = () => {
     const [cancelContract, { isLoading: cancelling }] = useCancelContractMutation();
     const [deliverContract, { isLoading: delivering }] = useDeliverContractMutation();
     const [reopenContract, { isLoading: reopening }] = useReopenContractMutation();
+    const [requestCancellation, { isLoading: requesting }] = useRequestCancellationMutation();
+    const [acceptCancellation, { isLoading: accepting }] = useAcceptCancellationMutation();
+    const [declineCancellation, { isLoading: declining }] = useDeclineCancellationMutation();
+    const [withdrawCancellation, { isLoading: withdrawing }] = useWithdrawCancellationMutation();
 
     if (isLoading) {
         return (
@@ -72,6 +85,10 @@ const ContractDetailPage = () => {
     const other = isClient ? contract.freelancer : contract.client;
     const active = contract.status === 'ACTIVE';
     const delivered = contract.status === 'DELIVERED';
+    const open = active || delivered;
+    // Gözləyən ləğv təklifi: kim göndərib, ona görə fərqli düymələr göstərilir
+    const pendingCancel = open && !!contract.cancelRequestedById;
+    const iRequestedCancel = pendingCancel && contract.cancelRequestedById === user?.id;
     const unfinishedText =
         unfinished > 0 ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. ` : '';
 
@@ -91,7 +108,31 @@ const ContractDetailPage = () => {
             title: 'Cancel this contract?',
             confirmText: 'Cancel contract',
             variant: 'danger',
+            message: 'Work has not started yet, so you can cancel right away. The contract and its job will be cancelled. This cannot be undone.',
+        },
+        acceptCancel: {
+            run: acceptCancellation,
+            success: 'Contract cancelled',
+            title: 'Agree to cancel this contract?',
+            confirmText: 'Agree and cancel',
+            variant: 'danger',
             message: 'The contract and its job will be cancelled. This cannot be undone.',
+        },
+        declineCancel: {
+            run: declineCancellation,
+            success: 'Cancellation request declined, the contract continues',
+            title: 'Decline the cancellation request?',
+            confirmText: 'Decline',
+            variant: 'primary',
+            message: 'The contract stays open and work continues.',
+        },
+        withdrawCancel: {
+            run: withdrawCancellation,
+            success: 'Cancellation request withdrawn',
+            title: 'Withdraw your cancellation request?',
+            confirmText: 'Withdraw request',
+            variant: 'primary',
+            message: 'The contract stays open and work continues.',
         },
         deliver: {
             run: deliverContract,
@@ -122,6 +163,24 @@ const ContractDetailPage = () => {
         }
     };
 
+    // İş başlayanda birbaşa ləğv olmur: səbəb yazılıb digər tərəfə təklif göndərilir
+    const handleCancelClick = () => (contract.workStarted ? setRequestOpen(true) : setAction('cancel'));
+
+    const closeRequest = () => {
+        setRequestOpen(false);
+        setReason('');
+    };
+
+    const handleSendRequest = async () => {
+        try {
+            await requestCancellation({ id: contract.id, reason: reason.trim() || undefined }).unwrap();
+            toast.success('Cancellation request sent');
+            closeRequest();
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not send the request'));
+        }
+    };
+
     return (
         <>
             <Link
@@ -143,11 +202,16 @@ const ContractDetailPage = () => {
                     <h1 className="mt-2 break-words text-headline-lg text-on-surface">{contract.jobPost?.title}</h1>
                 </div>
 
-                {isClient && (active || delivered) && (
+                <div className="flex flex-wrap items-center gap-2">
+                {/* Ləğv düyməsi hər iki tərəf üçündür; gözləyən təklif varsa, əvəzinə aşağıdakı bannerdə düymələr olur */}
+                {(isClient || isFreelancer) && open && !pendingCancel && (
+                    <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>
+                        {contract.workStarted ? 'Request cancellation' : 'Cancel contract'}
+                    </Button>
+                )}
+
+                {isClient && open && (
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="ghost" className="text-error hover:bg-error-container" onClick={() => setAction('cancel')}>
-                            Cancel contract
-                        </Button>
                         {delivered && (
                             <Button variant="secondary" onClick={() => setAction('reopen')}>
                                 <Icon name="undo" className="text-[18px]" />
@@ -167,6 +231,7 @@ const ContractDetailPage = () => {
                         Mark as delivered
                     </Button>
                 )}
+                </div>
             </div>
 
             {delivered && (
@@ -174,6 +239,37 @@ const ContractDetailPage = () => {
                     {isClient
                         ? 'The freelancer marked the work as delivered. Review it, then accept it or request changes.'
                         : 'You delivered the work. Waiting for the client to accept it or request changes.'}
+                </div>
+            )}
+
+            {pendingCancel && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-error-container p-4 text-body-md text-on-surface">
+                    <div className="min-w-0">
+                        {iRequestedCancel ? (
+                            <p>You asked to cancel this contract. Waiting for {other?.fullName} to respond.</p>
+                        ) : (
+                            <p>{other?.fullName} asked to cancel this contract.</p>
+                        )}
+                        {contract.cancelReason && (
+                            <p className="mt-1 break-words text-secondary">Reason: {contract.cancelReason}</p>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {iRequestedCancel ? (
+                            <Button variant="secondary" onClick={() => setAction('withdrawCancel')}>
+                                Withdraw request
+                            </Button>
+                        ) : (
+                            <>
+                                <Button variant="secondary" onClick={() => setAction('declineCancel')}>
+                                    Decline
+                                </Button>
+                                <Button variant="danger" onClick={() => setAction('acceptCancel')}>
+                                    Agree and cancel
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -209,12 +305,40 @@ const ContractDetailPage = () => {
                 open={!!action}
                 onClose={() => setAction(null)}
                 onConfirm={handleConfirm}
-                loading={completing || cancelling || delivering || reopening}
+                loading={completing || cancelling || delivering || reopening || accepting || declining || withdrawing}
                 variant={current?.variant}
                 title={current?.title}
                 message={current?.message}
                 confirmText={current?.confirmText}
             />
+
+            <Modal
+                open={requestOpen}
+                onClose={closeRequest}
+                title="Request cancellation"
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={closeRequest} disabled={requesting}>
+                            Keep contract
+                        </Button>
+                        <Button variant="danger" onClick={handleSendRequest} loading={requesting}>
+                            Send request
+                        </Button>
+                    </>
+                }
+            >
+                <p className="mb-3 text-body-md text-secondary">
+                    Work has already started, so {other?.fullName} has to agree before the contract is cancelled. Until they
+                    answer, the contract stays open.
+                </p>
+                <Textarea
+                    label="Reason (optional)"
+                    rows={3}
+                    maxLength={500}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                />
+            </Modal>
         </>
     );
 };

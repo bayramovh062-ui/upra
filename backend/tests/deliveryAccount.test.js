@@ -149,14 +149,22 @@ describe('Delivery flow, dashboard stats and public profile', () => {
             expect(late.status).toBe(400);
         });
 
-        it('lets the client cancel a DELIVERED contract and cancels the job', async () => {
+        it('does not let either party cancel a DELIVERED contract alone, only by agreement', async () => {
             const job = await createJob(client.token, { title: 'Delivered then cancelled job' });
             const proposal = await createProposal(freelancer.token, job.id);
             const contract = await createContract(client.token, proposal.id);
 
             await patchContract(contract.id, 'deliver', freelancer.token);
-            const res = await patchContract(contract.id, 'cancel', client.token);
 
+            // Təhvil verilib = iş başlayıb: tək ləğv olmur
+            const direct = await patchContract(contract.id, 'cancel', client.token);
+            expect(direct.status).toBe(400);
+
+            const asked = await patchContract(contract.id, 'cancel-request', client.token);
+            expect(asked.status).toBe(200);
+            expect(asked.body.contract.cancelRequestedById).toBe(client.user.id);
+
+            const res = await patchContract(contract.id, 'cancel-request/accept', freelancer.token);
             expect(res.status).toBe(200);
             expect(res.body.contract.status).toBe('CANCELLED');
             const stored = await prisma.jobPost.findUnique({ where: { id: job.id } });

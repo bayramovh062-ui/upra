@@ -77,6 +77,15 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         throw new AppError('User not found', 404);
     }
 
+    // Gizli profil: başqalar yalnız ad və rolu görür (statistika, bio, bacarıqlar göstərilmir). Sahibi hər zaman tam görür.
+    if (!user.profilePublic && user.id !== req.user.id) {
+        return res.status(200).json({
+            success: true,
+            user: { id: user.id, fullName: user.fullName, role: user.role, profilePublic: false },
+            stats: null,
+        });
+    }
+
     const isClient = user.role === 'CLIENT';
 
     const [completedContracts, jobsPosted] = await Promise.all([

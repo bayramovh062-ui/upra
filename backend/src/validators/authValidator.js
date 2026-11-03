@@ -57,6 +57,8 @@ export const updateMeSchema = z
             .refine((v) => v === '' || isHttpUrl(v), 'Avatar URL must start with http:// or https://')
             .nullable()
             .optional(),
+        // false: profili yalnız özü tam görür, başqalar ad və rolu görür
+        profilePublic: z.boolean({ error: 'Profile visibility must be true or false' }).optional(),
         // Frilanserin bacarıqları (tam siyahı göndərilir, köhnəsi əvəz olunur). Boş massiv hamısını silir.
         skills: z.array(skillNameSchema).max(MAX_USER_SKILLS, `You can add at most ${MAX_USER_SKILLS} skills`).optional(),
     })
