@@ -9,13 +9,19 @@ import { formatCents, formatDate, formatMoney } from '../lib/format';
 
 const TABS = [
     { key: 'ALL', label: 'All' },
+    { key: 'PENDING_ACCEPTANCE', label: 'Offers' },
     { key: 'ACTIVE', label: 'Active' },
     { key: 'COMPLETED', label: 'Completed' },
     { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
-// DELIVERED müqavilə hələ açıq işdir (client yoxlayır), ona görə "Active" tabında göstərilir
-const tabOf = (status) => (status === 'DELIVERED' ? 'ACTIVE' : status);
+// DELIVERED müqavilə hələ açıq işdir (client yoxlayır), ona görə "Active" tabında göstərilir.
+// DECLINED frilanser tərəfindən rədd edilib və bağlanıb, ona görə "Cancelled" tabında göstərilir.
+const tabOf = (status) => {
+    if (status === 'DELIVERED') return 'ACTIVE';
+    if (status === 'DECLINED') return 'CANCELLED';
+    return status;
+};
 
 const ContractsPage = () => {
     const user = useSelector((state) => state.auth.user);
@@ -25,7 +31,7 @@ const ContractsPage = () => {
     const contracts = data?.contracts ?? [];
 
     const counts = useMemo(() => {
-        const c = { ALL: contracts.length, ACTIVE: 0, COMPLETED: 0, CANCELLED: 0 };
+        const c = { ALL: contracts.length, PENDING_ACCEPTANCE: 0, ACTIVE: 0, COMPLETED: 0, CANCELLED: 0 };
         contracts.forEach((x) => {
             const key = tabOf(x.status);
             c[key] = (c[key] ?? 0) + 1;
@@ -40,7 +46,7 @@ const ContractsPage = () => {
         <>
             <PageHeader
                 title="Contracts"
-                description="Every accepted proposal becomes a contract with its own project board."
+                description="Every accepted proposal becomes a contract. Offers stay pending until the freelancer accepts them."
             />
 
             <div className="mb-6 inline-flex gap-1 rounded-xl bg-surface-container-low p-1">
@@ -75,8 +81,8 @@ const ContractsPage = () => {
                     title="No contracts here"
                     description={
                         isClient
-                            ? 'Accept a proposal on one of your jobs to start a contract.'
-                            : 'When a client accepts your proposal, the contract appears here.'
+                            ? 'Accept a proposal on one of your jobs to send a contract offer.'
+                            : 'When a client sends you a contract offer, it appears here. Accept it to start working.'
                     }
                     action={
                         <Link to={isClient ? '/client/jobs' : '/jobs'}>
@@ -154,8 +160,15 @@ const ContractsPage = () => {
                                     ) : null}
                                     <Link to={`/contracts/${c.id}`}>
                                         <Button>
-                                            Open workspace
-                                            <Icon name="arrow_forward" className="text-[16px]" />
+                                            {c.status === 'PENDING_ACCEPTANCE'
+                                                ? isClient
+                                                    ? 'View offer'
+                                                    : 'Review offer'
+                                                : 'Open workspace'}
+                                            <Icon
+                                                name={c.status === 'PENDING_ACCEPTANCE' ? 'mail' : 'arrow_forward'}
+                                                className="text-[16px]"
+                                            />
                                         </Button>
                                     </Link>
                                 </div>

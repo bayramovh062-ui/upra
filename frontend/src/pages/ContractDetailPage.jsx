@@ -21,15 +21,18 @@ import { summarizeMilestones } from '../features/escrow/escrow';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useAcceptCancellationMutation,
+    useAcceptContractMutation,
     useCancelContractMutation,
     useCompleteContractMutation,
     useDeclineCancellationMutation,
+    useDeclineContractMutation,
     useDeliverContractMutation,
     useGetContractQuery,
     useReopenContractMutation,
     useRequestCancellationMutation,
     useWithdrawCancellationMutation,
 } from '../features/contracts/contractsApi';
+import { canRespondToOffer, isPendingOffer } from '../features/contracts/contractOffer';
 import { cn } from '../lib/cn';
 import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
@@ -57,6 +60,8 @@ const ContractDetailPage = () => {
     const [acceptCancellation, { isLoading: accepting }] = useAcceptCancellationMutation();
     const [declineCancellation, { isLoading: declining }] = useDeclineCancellationMutation();
     const [withdrawCancellation, { isLoading: withdrawing }] = useWithdrawCancellationMutation();
+    const [acceptContract, { isLoading: acceptingOffer }] = useAcceptContractMutation();
+    const [declineContract, { isLoading: decliningOffer }] = useDeclineContractMutation();
 
     if (isLoading) {
         return (
@@ -93,6 +98,9 @@ const ContractDetailPage = () => {
     const active = contract.status === 'ACTIVE';
     const delivered = contract.status === 'DELIVERED';
     const open = active || delivered;
+    // Client təklif göndərib, frilanser hələ cavab verməyib: iş başlamayıb, pul hərəkəti yoxdur
+    const pendingOffer = isPendingOffer(contract.status);
+    const canRespond = canRespondToOffer(contract, user?.id);
     // Gözləyən ləğv təklifi: kim göndərib, ona görə fərqli düymələr göstərilir
     const pendingCancel = open && !!contract.cancelRequestedById;
     const iRequestedCancel = pendingCancel && contract.cancelRequestedById === user?.id;
@@ -173,6 +181,22 @@ const ContractDetailPage = () => {
             confirmText: 'Request changes',
             variant: 'primary',
             message: 'The contract goes back to Active and the freelancer can keep working on the board.',
+        },
+        acceptOffer: {
+            run: acceptContract,
+            success: 'Offer accepted, the contract is active',
+            title: 'Accept this contract offer?',
+            confirmText: 'Accept offer',
+            variant: 'primary',
+            message: `The contract becomes active for ${formatMoney(contract.proposal?.bidAmount)} and you can start working. The other proposals for this job will be rejected.`,
+        },
+        declineOffer: {
+            run: declineContract,
+            success: 'Offer declined',
+            title: 'Decline this contract offer?',
+            confirmText: 'Decline offer',
+            variant: 'danger',
+            message: 'The client will be able to offer the job to another freelancer. You cannot undo this.',
         },
     };
     const current = action ? ACTIONS[action] : null;
@@ -265,6 +289,27 @@ const ContractDetailPage = () => {
                 )}
                 </div>
             </div>
+
+            {pendingOffer && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-info-soft p-4 text-body-md text-info-ink">
+                    <div className="min-w-0">
+                        <p className="font-semibold">Contract offer pending</p>
+                        <p className="mt-1 break-words">
+                            {isFreelancer
+                                ? `${contract.client?.fullName} offered you this contract for ${formatMoney(contract.proposal?.bidAmount)}. Accept it to start working.`
+                                : `Waiting for ${contract.freelancer?.fullName} to accept or decline this offer. Work starts only after they accept.`}
+                        </p>
+                    </div>
+                    {canRespond && (
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="secondary" onClick={() => setAction('declineOffer')}>
+                                Decline
+                            </Button>
+                            <Button onClick={() => setAction('acceptOffer')}>Accept offer</Button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {delivered && (
                 <div className="mb-6 rounded-xl border border-line bg-warning-soft p-4 text-body-md text-warning-ink">
@@ -383,7 +428,17 @@ const ContractDetailPage = () => {
                 open={!!action}
                 onClose={() => setAction(null)}
                 onConfirm={handleConfirm}
-                loading={completing || cancelling || delivering || reopening || accepting || declining || withdrawing}
+                loading={
+                    completing ||
+                    cancelling ||
+                    delivering ||
+                    reopening ||
+                    accepting ||
+                    declining ||
+                    withdrawing ||
+                    acceptingOffer ||
+                    decliningOffer
+                }
                 variant={current?.variant}
                 title={current?.title}
                 message={current?.message}

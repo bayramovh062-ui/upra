@@ -95,7 +95,7 @@ const MilestonePlanModal = ({ open, onClose, onConfirm, loading, proposal, other
         <Modal
             open={open}
             onClose={close}
-            title="Accept proposal & start contract"
+            title="Send a contract offer"
             className="max-w-2xl"
             footer={
                 <>
@@ -103,15 +103,17 @@ const MilestonePlanModal = ({ open, onClose, onConfirm, loading, proposal, other
                         Cancel
                     </Button>
                     <Button onClick={submit} loading={loading} disabled={showErrors && !valid}>
-                        Confirm &amp; create board
+                        Send offer
                     </Button>
                 </>
             }
         >
             <p className="mb-4 text-body-md text-secondary">
-                You are about to hire {proposal?.freelancer?.fullName} for {formatMoney(proposal?.bidAmount)}.{' '}
-                {otherPending > 0 && `The other ${otherPending} pending proposal(s) will be rejected. `}
-                A project board will be created automatically.
+                You are about to send a contract offer to {proposal?.freelancer?.fullName} for{' '}
+                {formatMoney(proposal?.bidAmount)}. The freelancer must accept it before work starts.{' '}
+                {otherPending > 0 &&
+                    `If they accept, the other ${otherPending} pending proposal(s) will be rejected. `}
+                A project board will be ready as soon as they accept.
             </p>
 
             <div className="mb-4 inline-flex gap-1 rounded-xl bg-surface-container-low p-1">

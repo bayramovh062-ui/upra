@@ -91,8 +91,8 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept }) => {
             {proposal.status === 'PENDING' && canAccept && (
                 <div className="mt-4">
                     <Button onClick={() => onAccept(proposal)}>
-                        <Icon name="bolt" className="text-[18px]" />
-                        Accept &amp; start contract
+                        <Icon name="send" className="text-[18px]" />
+                        Send contract offer
                     </Button>
                 </div>
             )}
@@ -153,10 +153,10 @@ const JobProposalsPage = () => {
     const handleAccept = async (milestones) => {
         try {
             await createContract({ proposalId: selected.id, milestones }).unwrap();
-            toast.success('Contract started. Fund the first milestone in the Escrow tab.');
+            toast.success('Offer sent. The freelancer must accept it before work starts.');
             setSelected(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not accept the proposal'));
+            toast.error(getErrorMessage(err, 'Could not send the offer'));
         }
     };
 

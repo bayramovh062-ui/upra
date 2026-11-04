@@ -23,8 +23,10 @@ const STATUS_MAP = {
     ACCEPTED: { tone: 'green', label: 'Accepted' },
     REJECTED: { tone: 'red', label: 'Rejected' },
     // Contract
+    PENDING_ACCEPTANCE: { tone: 'amber', label: 'Offer pending' },
     ACTIVE: { tone: 'brand', label: 'Active' },
     DELIVERED: { tone: 'amber', label: 'Delivered' },
+    DECLINED: { tone: 'red', label: 'Declined' },
     // Issue
     TODO: { tone: 'gray', label: 'To do' },
     DONE: { tone: 'green', label: 'Done' },

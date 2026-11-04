@@ -18,6 +18,28 @@ export const contractsApi = baseApi.injectEndpoints({
             ],
         }),
 
+        // Frilanser tərəfindən təklifin qəbulu: PENDING_ACCEPTANCE → ACTIVE
+        acceptContract: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/accept`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Contract', id },
+                { type: 'Contract', id: 'LIST' },
+                'Proposal',
+                'Job',
+            ],
+        }),
+
+        // Frilanser tərəfindən təklifin rəddi: PENDING_ACCEPTANCE → DECLINED, iş yenidən OPEN olur
+        declineContract: builder.mutation({
+            query: (id) => ({ url: `/contracts/${id}/decline`, method: 'PATCH' }),
+            invalidatesTags: (result, error, id) => [
+                { type: 'Contract', id },
+                { type: 'Contract', id: 'LIST' },
+                'Proposal',
+                'Job',
+            ],
+        }),
+
         // Cavab: { contracts } (jobPost, proposal, client, freelancer, board daxil)
         getMyContracts: builder.query({
             query: () => '/contracts/my',
@@ -84,6 +106,8 @@ export const {
     useCreateContractMutation,
     useGetMyContractsQuery,
     useGetContractQuery,
+    useAcceptContractMutation,
+    useDeclineContractMutation,
     useCompleteContractMutation,
     useCancelContractMutation,
     useRequestCancellationMutation,
