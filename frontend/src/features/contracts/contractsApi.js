@@ -1,11 +1,14 @@
 import { baseApi } from '../../lib/baseApi';
+import { buildCreateContractBody } from './createContractPayload';
 
 export const contractsApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         // Təklifi qəbul et: backend bir tranzaksiyada contract + board yaradır,
-        // digər təklifləri REJECTED, işi IN_PROGRESS edir. arg: { proposalId }
+        // digər təklifləri REJECTED, işi IN_PROGRESS edir.
+        // arg: { proposalId, milestones?: [{ title, amount, dueDate? }] }
+        // milestones verilməzsə backend tək "Full delivery" mərhələsi yaradır.
         createContract: builder.mutation({
-            query: ({ proposalId }) => ({ url: '/contracts', method: 'POST', body: { proposalId } }),
+            query: (arg) => ({ url: '/contracts', method: 'POST', body: buildCreateContractBody(arg) }),
             invalidatesTags: [
                 { type: 'Job', id: 'LIST' },
                 { type: 'Job', id: 'MY' },
