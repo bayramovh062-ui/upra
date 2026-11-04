@@ -15,6 +15,7 @@ import {
     deliverContract,
     reopenContract,
 } from '../controllers/contractController.js';
+import { getContractMilestones } from '../controllers/milestoneController.js';
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.use(protect);
 router.post('/', restrictTo('CLIENT'), validate(createContractSchema), createContract);
 router.get('/my', getMyContracts);
 router.get('/:id', getContractById);
+router.get('/:id/milestones', getContractMilestones);
 router.patch('/:id/complete', restrictTo('CLIENT'), completeContract);
 router.patch('/:id/deliver', restrictTo('FREELANCER'), deliverContract);
 router.patch('/:id/reopen', restrictTo('CLIENT'), reopenContract);

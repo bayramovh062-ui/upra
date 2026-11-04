@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../src/app.js';
 import prisma from '../src/config/db.js';
+import { cleanUpUsers } from './helpers/db.js';
 
 describe('Issue & Kanban Board Integration Tests', () => {
     let clientToken, freelancerToken, outsiderToken;
@@ -31,55 +32,8 @@ describe('Issue & Kanban Board Integration Tests', () => {
     const randomUserEmail = 'random@example.com';
     const testEmails = [clientUser.email, freelancerUser.email, outsiderUser.email, randomUserEmail];
 
-    // Baza təmizlik funksiyası (FK zəncirinə uyğun ardıcıllıq)
-    const cleanUp = async () => {
-        const users = await prisma.user.findMany({
-            where: { email: { in: testEmails } },
-            select: { id: true },
-        });
-
-        if (users.length === 0) return;
-
-        const userIds = users.map((u) => u.id);
-
-        await prisma.issueComment.deleteMany({
-            where: { authorId: { in: userIds } },
-        });
-
-        await prisma.issue.deleteMany({
-            where: {
-                OR: [{ createdById: { in: userIds } }, { assigneeId: { in: userIds } }],
-            },
-        });
-
-        await prisma.board.deleteMany({
-            where: {
-                contract: {
-                    OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
-                },
-            },
-        });
-
-        await prisma.contract.deleteMany({
-            where: {
-                OR: [{ clientId: { in: userIds } }, { freelancerId: { in: userIds } }],
-            },
-        });
-
-        await prisma.proposal.deleteMany({
-            where: {
-                OR: [{ freelancerId: { in: userIds } }, { jobPost: { clientId: { in: userIds } } }],
-            },
-        });
-
-        await prisma.jobPost.deleteMany({
-            where: { clientId: { in: userIds } },
-        });
-
-        await prisma.user.deleteMany({
-            where: { id: { in: userIds } },
-        });
-    };
+    // Ortaq helper: mərhələ, pul kisəsi və ledger də FK sırası ilə silinir (Milestone RESTRICT-dir)
+    const cleanUp = () => cleanUpUsers(testEmails);
 
     beforeAll(async () => {
         await cleanUp();

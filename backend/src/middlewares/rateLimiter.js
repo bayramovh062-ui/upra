@@ -217,3 +217,23 @@ export const registerLimiter = rateLimit({
 
 // Köhnə ad: başqa yerdə import olunubsa sınmasın
 export const authLimiter = loginLimiter;
+
+// ================= WALLET TOP-UP (demo) =================
+// İstifadəçi başına saatda 30 sorğu. Bir sorğunun özünün də limiti var ($5000), amma
+// limitsiz çoxlu sorğu göndərib demo balansını sınırsız artırmaq olmasın. Açar: giriş etmiş istifadəçi (protect-dən sonra işləyir).
+export const topUpLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: pick(30, 300),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : ipKey(req)),
+    handler: (req, res, next, options) => {
+        const retryAfterMs = Math.max(0, (req.rateLimit?.resetTime?.getTime() ?? Date.now()) - Date.now());
+        res.status(options.statusCode).json(
+            tooMany(
+                `Too many top-up requests. Please try again in ${minutesText(retryAfterMs)}.`,
+                Math.ceil(retryAfterMs / 1000)
+            )
+        );
+    },
+});

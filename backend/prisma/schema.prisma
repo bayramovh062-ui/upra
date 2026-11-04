@@ -64,14 +64,17 @@ enum Availability {
   UNAVAILABLE
 }
 
-// Mərhələ (ödəniş mərhələsi + sprint). Axın: PENDING -> FUNDED -> IN_REVIEW -> APPROVED -> PAID; DISPUTED ayrıca
+// Mərhələ (ödəniş mərhələsi + sprint).
+// Real axın (2B): PENDING -> FUNDED -> IN_REVIEW -> PAID; IN_REVIEW -> FUNDED (dəyişiklik istə); ləğvdə -> CANCELLED.
+// APPROVED və DISPUTED enum-da qalır (geriyə uyğunluq), amma 2B-də heç bir əməliyyat onlara keçmir.
 enum MilestoneStatus {
   PENDING // hələ maliyyələşdirilməyib
   FUNDED // client pulu escrow-a qoyub, iş gedir
   IN_REVIEW // frilanser təhvil verib, client baxır
-  APPROVED // client təsdiqləyib, ödəniş gözlənilir
-  PAID // ödəniş tranzaksiyası yazılıb
-  DISPUTED // mübahisəli
+  APPROVED // istifadə olunmur
+  PAID // ödəniş tranzaksiyası yazılıb (təsdiq və ödəniş eyni addımdır)
+  DISPUTED // istifadə olunmur (mübahisə həlli üçün admin lazımdır)
+  CANCELLED // müqavilə ləğv olunub; maliyyələşmiş idisə pul geri qaytarılıb
 }
 
 // Ledger yazısının növü (əməliyyat)

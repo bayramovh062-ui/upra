@@ -11,6 +11,8 @@ import contractRoutes from './routes/contractRoutes.js';
 import issueRoutes from './routes/issueRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import taxonomyRoutes from './routes/taxonomyRoutes.js';
+import walletRoutes from './routes/walletRoutes.js';
+import milestoneRoutes from './routes/milestoneRoutes.js';
 import { AppError } from './utils/AppError.js';
 import { resolveTrustProxy } from './config/proxy.js';
 
@@ -43,6 +45,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/milestones', milestoneRoutes);
 app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
 app.use('/api', taxonomyRoutes);

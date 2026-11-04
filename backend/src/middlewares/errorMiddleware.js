@@ -22,6 +22,12 @@ export const globalErrorMiddleware = (err, req, res, next) => {
         message = "This information already exists in the system.";
     }
 
+    // Deadlock / yazma konflikti (maliyyə servisi 3 dəfə cəhd edib, nəticə alınmayıb)
+    if (err.code === 'P2034') {
+        statusCode = 409;
+        message = "The operation conflicted with another request. Please try again.";
+    }
+
     // JWT errors
     if (err.name === "JsonWebTokenError") {
         statusCode = 401;

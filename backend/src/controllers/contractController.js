@@ -3,6 +3,13 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { verifyContractAccess } from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
+import {
+    MAX_AMOUNT_CENTS,
+    ensureWallet,
+    lockContract,
+    refundContractEscrow,
+    settleMilestonesOnComplete,
+} from '../services/financialService.js';
 
 const OPEN_STATUSES = ['ACTIVE', 'DELIVERED'];
 
@@ -13,10 +20,16 @@ const CLEAR_CANCEL_REQUEST = { cancelRequestedById: null, cancelRequestedAt: nul
 // Başlamamış müqaviləni hər iki tərəf tək ləğv edə bilər, başlamışı yalnız qarşılıqlı razılıqla.
 const hasWorkStarted = async (contract) => {
     if (contract.status === 'DELIVERED') return true;
-    const moved = await prisma.issue.count({
-        where: { board: { contractId: contract.id }, status: { not: 'TODO' } },
-    });
-    return moved > 0;
+    // Mərhələ IN_REVIEW və ya PAID olubsa da iş başlayıb sayılır
+    const [moved, reviewedOrPaid] = await Promise.all([
+        prisma.issue.count({
+            where: { board: { contractId: contract.id }, status: { not: 'TODO' } },
+        }),
+        prisma.milestone.count({
+            where: { contractId: contract.id, status: { in: ['IN_REVIEW', 'PAID'] } },
+        }),
+    ]);
+    return moved > 0 || reviewedOrPaid > 0;
 };
 
 // Müqaviləni tapır və yalnız tərəflərin girişinə icazə verir
@@ -46,29 +59,74 @@ const emitUpdated = (contract) =>
     });
 
 // Ləğvi tətbiq edir: müqavilə və iş CANCELLED olur. Atomikdir: yalnız hələ açıq olan müqavilə ləğv olunur
-const applyCancellation = async (contract, extraData = {}) =>
-    prisma.$transaction(async (tx) => {
-        const result = await tx.contract.updateMany({
-            where: { id: contract.id, status: { in: OPEN_STATUSES } },
-            data: { status: 'CANCELLED', ...extraData },
-        });
+// Pul kisəsi tranzaksiyadan ƏVVƏL yaradılır (mövcud olmayan sətri FOR UPDATE ilə kilidləmək olmur).
+// Kilid sırası: Contract -> mərhələlər -> client pul kisəsi. Maliyyələşmiş mərhələlərin pulu clientə qaytarılır.
+const applyCancellation = async (contract, extraData = {}) => {
+    await ensureWallet(contract.clientId);
 
-        if (result.count === 0) {
-            throw new AppError('This contract is no longer open', 400);
+    return prisma.$transaction(
+        async (tx) => {
+            await lockContract(tx, contract.id);
+
+            const result = await tx.contract.updateMany({
+                where: { id: contract.id, status: { in: OPEN_STATUSES } },
+                data: { status: 'CANCELLED', ...extraData },
+            });
+
+            if (result.count === 0) {
+                throw new AppError('This contract is no longer open', 400);
+            }
+
+            // FUNDED/IN_REVIEW: geri qaytarma + CANCELLED; PENDING: CANCELLED (ledger yoxdur); PAID: toxunulmur
+            await refundContractEscrow(tx, contract);
+
+            await tx.jobPost.update({
+                where: { id: contract.jobPostId },
+                data: { status: 'CANCELLED' },
+            });
+
+            return tx.contract.findUnique({ where: { id: contract.id } });
+        },
+        { maxWait: 10_000, timeout: 20_000 }
+    );
+};
+
+// Təklifin qəbul olunmuş məbləğinə görə mərhələ planı (sentlə). Verilməyibsə tam məbləğ üçün tək "Full delivery".
+const buildMilestonePlan = (proposal, input) => {
+    const bidCents = Math.round(Number(proposal.bidAmount) * 100);
+
+    if (!input) {
+        if (bidCents <= 0 || bidCents > MAX_AMOUNT_CENTS) {
+            throw new AppError('This bid amount is too large to be held in escrow', 400);
         }
+        return [{ title: 'Full delivery', amountCents: bidCents, dueDate: null }];
+    }
 
-        await tx.jobPost.update({
-            where: { id: contract.jobPostId },
-            data: { status: 'CANCELLED' },
-        });
+    const plan = input.map((m) => ({
+        title: m.title,
+        amountCents: Math.round(m.amount * 100),
+        dueDate: m.dueDate ?? null,
+    }));
 
-        return tx.contract.findUnique({ where: { id: contract.id } });
-    });
+    if (plan.some((m) => m.amountCents <= 0 || m.amountCents > MAX_AMOUNT_CENTS)) {
+        throw new AppError('A milestone amount is out of the allowed range', 400);
+    }
+
+    const total = plan.reduce((sum, m) => sum + m.amountCents, 0);
+    if (total !== bidCents) {
+        throw new AppError(
+            `Milestone amounts must add up to the accepted bid ($${(bidCents / 100).toFixed(2)}), but add up to $${(total / 100).toFixed(2)}`,
+            400
+        );
+    }
+
+    return plan;
+};
 
 // @route   POST /api/contracts
 // @access  Private (CLIENT)
 export const createContract = asyncHandler(async (req, res) => {
-    const { proposalId } = req.body;
+    const { proposalId, milestones: milestoneInput } = req.body;
 
     const proposal = await prisma.proposal.findUnique({
         where: { id: proposalId },
@@ -88,6 +146,9 @@ export const createContract = asyncHandler(async (req, res) => {
     if (proposal.status !== 'PENDING') {
         throw new AppError('Contract can only be created from a PENDING proposal', 400);
     }
+
+    // Mərhələ planı (cemə təklifin məbləğinə bərabər olmalıdır) tranzaksiyadan əvvəl yoxlanılır
+    const milestonePlan = buildMilestonePlan(proposal, milestoneInput);
 
     const contract = await prisma.$transaction(async (tx) => {
         // ATOMİK YOXLAMA VƏ KİLİDLƏMƏ (Race condition qarşısını alır)
@@ -118,6 +179,17 @@ export const createContract = asyncHandler(async (req, res) => {
             },
         });
 
+        await tx.milestone.createMany({
+            data: milestonePlan.map((m, index) => ({
+                contractId: newContract.id,
+                title: m.title,
+                amountCents: m.amountCents,
+                sequence: index + 1,
+                dueDate: m.dueDate,
+                updatedAt: new Date(),
+            })),
+        });
+
         await tx.proposal.update({
             where: { id: proposal.id },
             data: { status: 'ACCEPTED' },
@@ -135,7 +207,12 @@ export const createContract = asyncHandler(async (req, res) => {
         return newContract;
     });
 
-    res.status(201).json({ success: true, contract });
+    const milestones = await prisma.milestone.findMany({
+        where: { contractId: contract.id },
+        orderBy: { sequence: 'asc' },
+    });
+
+    res.status(201).json({ success: true, contract: { ...contract, milestones } });
 });
 
 // @route   GET /api/contracts/my
@@ -164,6 +241,10 @@ export const getMyContracts = asyncHandler(async (req, res) => {
             board: {
                 select: { id: true },
             },
+            milestones: {
+                select: { id: true, sequence: true, title: true, status: true, amountCents: true },
+                orderBy: { sequence: 'asc' },
+            },
         },
         orderBy: { createdAt: 'desc' },
     });
@@ -177,8 +258,12 @@ export const getMyContracts = asyncHandler(async (req, res) => {
 export const getContractById = asyncHandler(async (req, res) => {
     const contract = await verifyContractAccess(req.params.id, req.user.id);
     const workStarted = OPEN_STATUSES.includes(contract.status) ? await hasWorkStarted(contract) : false;
+    const milestones = await prisma.milestone.findMany({
+        where: { contractId: contract.id },
+        orderBy: { sequence: 'asc' },
+    });
 
-    res.status(200).json({ success: true, contract: { ...contract, workStarted } });
+    res.status(200).json({ success: true, contract: { ...contract, workStarted, milestones } });
 });
 
 // @route   PATCH /api/contracts/:id/complete
@@ -201,6 +286,17 @@ export const completeContract = asyncHandler(async (req, res) => {
     }
 
     const updatedContract = await prisma.$transaction(async (tx) => {
+        // Kilid sırası: Contract -> mərhələlər. Escrow-da pulu olan mərhələ varsa bitirmə rədd olunur,
+        // qalan PENDING mərhələlər CANCELLED olur.
+        await lockContract(tx, contract.id);
+
+        const fresh = await tx.contract.findUnique({ where: { id: contract.id }, select: { status: true } });
+        if (!OPEN_STATUSES.includes(fresh.status)) {
+            throw new AppError('Only ACTIVE or DELIVERED contracts can be completed', 400);
+        }
+
+        await settleMilestonesOnComplete(tx, contract.id);
+
         // Müqavilə uğurla bitirsə, gözləyən ləğv təklifi mənasını itirir
         const updated = await tx.contract.update({
             where: { id: req.params.id },
