@@ -68,13 +68,27 @@ const useIssueSocket = (contractId) => {
             }),
         );
 
-        // Digər tərəf təhvil verdi, bitirdi, ləğv etdi və ya dəyişiklik istədi: müqavilə və siyahılar yenilənir
+        // Digər tərəf təhvil verdi, bitirdi, ləğv etdi və ya dəyişiklik istədi: müqavilə və siyahılar yenilənir.
+        // Ləğv zamanı escrow geri qaytarılır, ona görə pul kisəsi də yenilənir
         socket.on('contract:updated', () =>
             dispatch(
                 issuesApi.util.invalidateTags([
                     { type: 'Contract', id: contractId },
                     { type: 'Contract', id: 'LIST' },
                     'Job',
+                    'Wallet',
+                ]),
+            ),
+        );
+
+        // Mərhələ maliyyələşdi, təhvil verildi, təsdiqləndi və ya dəyişiklik istəndi:
+        // müqavilə (milestones daxil) və pul kisəsi yenilənir. Escrow tab-ı və Board eyni soketi bölüşür.
+        socket.on('milestone:updated', () =>
+            dispatch(
+                issuesApi.util.invalidateTags([
+                    { type: 'Contract', id: contractId },
+                    { type: 'Contract', id: 'LIST' },
+                    'Wallet',
                 ]),
             ),
         );

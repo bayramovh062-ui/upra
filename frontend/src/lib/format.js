@@ -11,6 +11,10 @@ export const formatMoney = (value) => {
     return moneyFormatter.format(num);
 };
 
+// Backend pulu USD sentlə tam ədəd saxlayır (2550 = $25.50). Ekranda dollara çevrilir.
+export const formatCents = (cents) =>
+    cents === null || cents === undefined || Number.isNaN(Number(cents)) ? '—' : moneyFormatter.format(Number(cents) / 100);
+
 export const formatDate = (value) => {
     if (!value) return '—';
     return new Date(value).toLocaleDateString('en-GB', {

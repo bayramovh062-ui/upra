@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Avatar, Button, Card, EmptyState, ErrorState, Icon, PageHeader, Skeleton, StatusBadge } from '../components/ui';
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
+import { summarizeMilestones } from '../features/escrow/escrow';
 import { cn } from '../lib/cn';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatCents, formatDate, formatMoney } from '../lib/format';
 
 const TABS = [
     { key: 'ALL', label: 'All' },
@@ -87,6 +88,8 @@ const ContractsPage = () => {
                 <div className="flex flex-col gap-4">
                     {visible.map((c) => {
                         const other = isClient ? c.freelancer : c.client;
+                        const ms = summarizeMilestones(c.milestones ?? [], !isClient);
+                        const hasMilestones = (c.milestones ?? []).length > 0;
                         return (
                             <Card key={c.id} className="flex flex-col gap-4 p-5 sm:p-6">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -109,7 +112,7 @@ const ContractsPage = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-3 rounded-xl bg-surface p-4 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-3 rounded-xl bg-surface p-4 sm:grid-cols-3">
                                     <div className="flex items-center gap-3">
                                         <Avatar name={other?.fullName} />
                                         <div className="min-w-0">
@@ -123,9 +126,32 @@ const ContractsPage = () => {
                                         <p className="text-caption uppercase tracking-wider text-secondary">Started</p>
                                         <p className="text-body-md-medium text-on-surface">{formatDate(c.createdAt)}</p>
                                     </div>
+                                    {hasMilestones && (
+                                        <div>
+                                            <p className="text-caption uppercase tracking-wider text-secondary">Escrow</p>
+                                            <p className="text-body-md-medium text-on-surface">
+                                                {ms.paid} / {ms.total} paid
+                                                <span className="tabular ml-2 text-secondary">
+                                                    {ms.lockedCents > 0
+                                                        ? `${formatCents(ms.lockedCents)} in escrow`
+                                                        : ms.unfundedCents > 0
+                                                          ? `${formatCents(ms.unfundedCents)} unfunded`
+                                                          : ''}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-2">
+                                    {c.status === 'ACTIVE' || c.status === 'DELIVERED' ? (
+                                        <Link to={`/contracts/${c.id}?tab=escrow`}>
+                                            <Button variant="secondary">
+                                                <Icon name="account_balance" className="text-[16px]" />
+                                                Escrow
+                                            </Button>
+                                        </Link>
+                                    ) : null}
                                     <Link to={`/contracts/${c.id}`}>
                                         <Button>
                                             Open workspace

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
@@ -16,6 +16,8 @@ import {
     Textarea,
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
+import EscrowPanel from '../features/escrow/EscrowPanel';
+import { summarizeMilestones } from '../features/escrow/escrow';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useAcceptCancellationMutation,
@@ -28,7 +30,8 @@ import {
     useRequestCancellationMutation,
     useWithdrawCancellationMutation,
 } from '../features/contracts/contractsApi';
-import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
+import { cn } from '../lib/cn';
+import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
     const { id } = useParams();
@@ -37,6 +40,10 @@ const ContractDetailPage = () => {
     const [action, setAction] = useState(null);
     const [requestOpen, setRequestOpen] = useState(false); // ləğv təklifi pəncərəsi (səbəb yazılır)
     const [reason, setReason] = useState('');
+    // Tab URL-də saxlanılır (?tab=escrow): link paylaşılanda və səhifə yenilənəndə qalır
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab = searchParams.get('tab') === 'escrow' ? 'escrow' : 'board';
+    const selectTab = (key) => setSearchParams(key === 'board' ? {} : { tab: key }, { replace: true });
 
     const { data, isLoading, isError, error, refetch } = useGetContractQuery(id);
     // Lövhə ilə eyni cache-dən oxunur (əlavə sorğu yaratmır). Bitirmə/təhvil xəbərdarlığı üçün lazımdır
@@ -92,6 +99,23 @@ const ContractDetailPage = () => {
     const unfinishedText =
         unfinished > 0 ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. ` : '';
 
+    // Escrow: mərhələlərdən hesablanır (ayrıca saxlanılmır)
+    const milestones = contract.milestones ?? [];
+    const { lockedCents } = summarizeMilestones(milestones, isFreelancer);
+    const unfundedCount = milestones.filter((m) => m.status === 'PENDING').length;
+    // Client üçün yoxlama gözləyən, frilanser üçün təhvil gözləyən mərhələlər
+    const escrowAttention = open
+        ? milestones.filter((m) => (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)).length
+        : 0;
+    const refundText =
+        lockedCents > 0 ? ` ${formatCents(lockedCents)} held in escrow is refunded to the client's wallet.` : '';
+    // Backend: pulu escrow-da olan mərhələ varsa müqaviləni bitirmək olmur
+    const completeBlocked = lockedCents > 0;
+    const unfundedText =
+        unfundedCount > 0
+            ? ` ${unfundedCount} unfunded milestone${unfundedCount === 1 ? '' : 's'} will be cancelled.`
+            : '';
+
     // Hər əməliyyat üçün: backend çağırışı, uğur mesajı və təsdiq pəncərəsinin mətni
     const ACTIONS = {
         complete: {
@@ -100,7 +124,7 @@ const ContractDetailPage = () => {
             title: 'Mark contract as completed?',
             confirmText: 'Complete',
             variant: 'primary',
-            message: `${unfinishedText}The contract and its job will be marked as completed. This cannot be undone.`,
+            message: `${unfinishedText}The contract and its job will be marked as completed.${unfundedText} This cannot be undone.`,
         },
         cancel: {
             run: cancelContract,
@@ -108,7 +132,7 @@ const ContractDetailPage = () => {
             title: 'Cancel this contract?',
             confirmText: 'Cancel contract',
             variant: 'danger',
-            message: 'Work has not started yet, so you can cancel right away. The contract and its job will be cancelled. This cannot be undone.',
+            message: `Work has not started yet, so you can cancel right away. The contract and its job will be cancelled.${refundText} This cannot be undone.`,
         },
         acceptCancel: {
             run: acceptCancellation,
@@ -116,7 +140,7 @@ const ContractDetailPage = () => {
             title: 'Agree to cancel this contract?',
             confirmText: 'Agree and cancel',
             variant: 'danger',
-            message: 'The contract and its job will be cancelled. This cannot be undone.',
+            message: `The contract and its job will be cancelled.${refundText} Milestones that are already paid stay paid. This cannot be undone.`,
         },
         declineCancel: {
             run: declineCancellation,
@@ -218,7 +242,15 @@ const ContractDetailPage = () => {
                                 Request changes
                             </Button>
                         )}
-                        <Button onClick={() => setAction('complete')}>
+                        <Button
+                            onClick={() => setAction('complete')}
+                            disabled={completeBlocked}
+                            title={
+                                completeBlocked
+                                    ? 'Approve the milestones in escrow first, or cancel the contract'
+                                    : undefined
+                            }
+                        >
                             <Icon name="task_alt" className="text-[18px]" />
                             {delivered ? 'Accept & complete' : 'Mark as completed'}
                         </Button>
@@ -273,6 +305,13 @@ const ContractDetailPage = () => {
                 </div>
             )}
 
+            {isClient && open && completeBlocked && (
+                <p className="mb-6 flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
+                    <Icon name="lock" className="text-[18px]" />
+                    {formatCents(lockedCents)} is still in escrow. Approve those milestones before completing the contract.
+                </p>
+            )}
+
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="p-5">
                     <p className="text-caption uppercase tracking-wider text-secondary">Contract value</p>
@@ -304,7 +343,41 @@ const ContractDetailPage = () => {
                 </Card>
             </div>
 
-            <KanbanBoard contract={contract} readOnly={!active} />
+            <div className="mb-6 inline-flex gap-1 rounded-xl bg-surface-container-low p-1" role="tablist">
+                {[
+                    { key: 'board', label: 'Board', icon: 'view_kanban' },
+                    { key: 'escrow', label: 'Escrow', icon: 'account_balance' },
+                ].map((t) => (
+                    <button
+                        key={t.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === t.key}
+                        onClick={() => selectTab(t.key)}
+                        className={cn(
+                            'inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-label-md transition-all',
+                            tab === t.key
+                                ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
+                                : 'text-on-surface-variant hover:text-on-surface',
+                        )}
+                    >
+                        <Icon name={t.icon} className="text-[18px]" />
+                        {t.label}
+                        {t.key === 'escrow' && escrowAttention > 0 && (
+                            <span className="rounded-full bg-primary-container px-1.5 text-caption font-semibold text-on-primary">
+                                {escrowAttention}
+                            </span>
+                        )}
+                    </button>
+                ))}
+            </div>
+
+            {/* Board gizlənəndə də mount qalır: soket bağlantısı (issue, milestone hadisələri) kəsilmir */}
+            <div className={tab === 'board' ? undefined : 'hidden'}>
+                <KanbanBoard contract={contract} readOnly={!active} />
+            </div>
+
+            {tab === 'escrow' && <EscrowPanel contract={contract} isClient={isClient} isFreelancer={isFreelancer} />}
 
             <ConfirmDialog
                 open={!!action}

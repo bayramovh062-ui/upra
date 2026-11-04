@@ -5,7 +5,6 @@ import {
     Avatar,
     Button,
     Card,
-    ConfirmDialog,
     EmptyState,
     ErrorState,
     Icon,
@@ -15,6 +14,7 @@ import {
 import { useGetJobQuery } from '../features/jobs/jobsApi';
 import { useGetJobProposalsQuery } from '../features/proposals/proposalsApi';
 import { useCreateContractMutation } from '../features/contracts/contractsApi';
+import MilestonePlanModal from '../features/escrow/MilestonePlanModal';
 import { cn } from '../lib/cn';
 import { formatMoney, getErrorMessage, timeAgo } from '../lib/format';
 
@@ -149,10 +149,11 @@ const JobProposalsPage = () => {
     const proposals = propQ.data?.proposals ?? [];
     const canAccept = job.status === 'OPEN';
 
-    const handleAccept = async () => {
+    // milestones: mərhələ planı (dollarla) və ya undefined = tək "Full delivery" mərhələsi
+    const handleAccept = async (milestones) => {
         try {
-            await createContract({ proposalId: selected.id }).unwrap();
-            toast.success('Contract started. A project board was created.');
+            await createContract({ proposalId: selected.id, milestones }).unwrap();
+            toast.success('Contract started. Fund the first milestone in the Escrow tab.');
             setSelected(null);
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not accept the proposal'));
@@ -201,17 +202,18 @@ const JobProposalsPage = () => {
                 </div>
             )}
 
-            <ConfirmDialog
-                open={!!selected}
-                onClose={() => setSelected(null)}
-                onConfirm={handleAccept}
-                loading={accepting}
-                title="Accept proposal & start contract?"
-                message={`You are about to hire ${selected?.freelancer?.fullName} for ${formatMoney(
-                    selected?.bidAmount,
-                )}. ${others > 0 ? `The other ${others} pending proposal(s) will be rejected. ` : ''}A project board will be created automatically.`}
-                confirmText="Confirm & create board"
-            />
+            {/* key: hər təklif üçün plan sıfırdan başlayır */}
+            {selected && (
+                <MilestonePlanModal
+                    key={selected.id}
+                    open
+                    onClose={() => setSelected(null)}
+                    onConfirm={handleAccept}
+                    loading={accepting}
+                    proposal={selected}
+                    otherPending={others}
+                />
+            )}
         </>
     );
 };
