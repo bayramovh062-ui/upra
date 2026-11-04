@@ -34,7 +34,7 @@ describe('Delivery flow, dashboard stats and public profile', () => {
 
         job1 = await createJob(client.token, { title: 'Delivery flow test job' });
         const proposal = await createProposal(freelancer.token, job1.id);
-        contract1 = await createContract(client.token, proposal.id);
+        contract1 = await createContract(client.token, proposal.id, freelancer.token);
     });
 
     afterAll(async () => {
@@ -152,7 +152,7 @@ describe('Delivery flow, dashboard stats and public profile', () => {
         it('does not let either party cancel a DELIVERED contract alone, only by agreement', async () => {
             const job = await createJob(client.token, { title: 'Delivered then cancelled job' });
             const proposal = await createProposal(freelancer.token, job.id);
-            const contract = await createContract(client.token, proposal.id);
+            const contract = await createContract(client.token, proposal.id, freelancer.token);
 
             await patchContract(contract.id, 'deliver', freelancer.token);
 
@@ -287,7 +287,7 @@ describe('DELETE /api/auth/me', () => {
         jobZ = await createJob(busyClient.token, { title: 'Job Z still open' });
         await createProposal(delFree.token, jobZ.id);
         const proposalY = await createProposal(busyFree.token, jobY.id);
-        busyContract = await createContract(busyClient.token, proposalY.id);
+        busyContract = await createContract(busyClient.token, proposalY.id, busyFree.token);
     });
 
     afterAll(async () => {

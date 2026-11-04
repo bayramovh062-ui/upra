@@ -74,6 +74,12 @@ describe('Issue & Kanban Board Integration Tests', () => {
             });
 
         contractId = contractRes.body.contract.id;
+
+        // Frilanser təklifi qəbul edir: müqavilə ACTIVE olur və lövhə yazıla bilən olur
+        const acceptRes = await request(app)
+            .patch(`/api/contracts/${contractId}/accept`)
+            .set('Authorization', `Bearer ${freelancerToken}`);
+        if (acceptRes.status !== 200) throw new Error(`acceptContract failed: ${JSON.stringify(acceptRes.body)}`);
     });
 
     afterAll(async () => {

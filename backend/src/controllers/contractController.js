@@ -172,7 +172,8 @@ export const createContract = asyncHandler(async (req, res) => {
                 proposalId: proposal.id,
                 clientId: req.user.id,
                 freelancerId: proposal.freelancerId,
-                status: 'ACTIVE',
+                // Təklif göndərilir: frilanser qəbul edənə qədər müqavilə aktiv deyil
+                status: 'PENDING_ACCEPTANCE',
                 board: {
                     create: {},
                 },
@@ -190,18 +191,11 @@ export const createContract = asyncHandler(async (req, res) => {
             })),
         });
 
+        // Təklif client tərəfindən qəbul olunub. Digər təkliflər yalnız frilanser
+        // müqaviləni qəbul edəndə rədd olunur (acceptContract).
         await tx.proposal.update({
             where: { id: proposal.id },
             data: { status: 'ACCEPTED' },
-        });
-
-        await tx.proposal.updateMany({
-            where: {
-                jobPostId: proposal.jobPostId,
-                id: { not: proposal.id },
-                status: 'PENDING',
-            },
-            data: { status: 'REJECTED' },
         });
 
         return newContract;
@@ -213,6 +207,123 @@ export const createContract = asyncHandler(async (req, res) => {
     });
 
     res.status(201).json({ success: true, contract: { ...contract, milestones } });
+});
+
+// @route   PATCH /api/contracts/:id/accept
+// @access  Private (müqavilənin FREELANCER-i)
+// Client təklifi göndərib (PENDING_ACCEPTANCE). Frilanser şərtləri qəbul edəndə müqavilə ACTIVE olur,
+// iş IN_PROGRESS qalır və rəqib təkliflər yalnız bu anda rədd olunur.
+export const acceptContract = asyncHandler(async (req, res) => {
+    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
+
+    if (!contract) {
+        throw new AppError('Contract not found', 404);
+    }
+
+    if (contract.freelancerId !== req.user.id) {
+        throw new AppError('Only the freelancer of this contract can accept the offer', 403);
+    }
+
+    const updated = await prisma.$transaction(
+        async (tx) => {
+            await lockContract(tx, contract.id);
+
+            const result = await tx.contract.updateMany({
+                where: { id: contract.id, status: 'PENDING_ACCEPTANCE' },
+                data: { status: 'ACTIVE', freelancerAcceptedAt: new Date() },
+            });
+
+            if (result.count === 0) {
+                throw new AppError('This contract offer is no longer pending', 400);
+            }
+
+            await tx.proposal.updateMany({
+                where: {
+                    jobPostId: contract.jobPostId,
+                    id: { not: contract.proposalId },
+                    status: 'PENDING',
+                },
+                data: { status: 'REJECTED' },
+            });
+
+            await tx.jobPost.updateMany({
+                where: { id: contract.jobPostId, status: 'OPEN' },
+                data: { status: 'IN_PROGRESS' },
+            });
+
+            return tx.contract.findUnique({
+                where: { id: contract.id },
+                include: { milestones: { orderBy: { sequence: 'asc' } } },
+            });
+        },
+        { maxWait: 10_000, timeout: 20_000 }
+    );
+
+    emitUpdated(updated);
+
+    res.status(200).json({ success: true, contract: updated });
+});
+
+// @route   PATCH /api/contracts/:id/decline
+// @access  Private (müqavilənin FREELANCER-i)
+// Frilanser təklifi rədd edir: müqavilə DECLINED olur, təklif bağlanır və iş yenidən OPEN olur.
+export const declineContract = asyncHandler(async (req, res) => {
+    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
+
+    if (!contract) {
+        throw new AppError('Contract not found', 404);
+    }
+
+    if (contract.freelancerId !== req.user.id) {
+        throw new AppError('Only the freelancer of this contract can decline the offer', 403);
+    }
+
+    const updated = await prisma.$transaction(
+        async (tx) => {
+            await lockContract(tx, contract.id);
+
+            const result = await tx.contract.updateMany({
+                where: { id: contract.id, status: 'PENDING_ACCEPTANCE' },
+                data: { status: 'DECLINED', freelancerDeclinedAt: new Date() },
+            });
+
+            if (result.count === 0) {
+                throw new AppError('This contract offer is no longer pending', 400);
+            }
+
+            // Təklif bağlanır: client başqa frilanser seçə bilər
+            await tx.proposal.updateMany({
+                where: { id: contract.proposalId, status: 'ACCEPTED' },
+                data: { status: 'REJECTED' },
+            });
+
+            // İş təklif zamanı IN_PROGRESS edilmişdi; başqa aktiv müqavilə yoxdursa yenidən açılır
+            const otherOpenContracts = await tx.contract.count({
+                where: {
+                    jobPostId: contract.jobPostId,
+                    id: { not: contract.id },
+                    status: { in: OPEN_STATUSES },
+                },
+            });
+
+            if (otherOpenContracts === 0) {
+                await tx.jobPost.updateMany({
+                    where: { id: contract.jobPostId, status: 'IN_PROGRESS' },
+                    data: { status: 'OPEN' },
+                });
+            }
+
+            return tx.contract.findUnique({
+                where: { id: contract.id },
+                include: { milestones: { orderBy: { sequence: 'asc' } } },
+            });
+        },
+        { maxWait: 10_000, timeout: 20_000 }
+    );
+
+    emitUpdated(updated);
+
+    res.status(200).json({ success: true, contract: updated });
 });
 
 // @route   GET /api/contracts/my

@@ -14,6 +14,8 @@ import {
     withdrawCancellation,
     deliverContract,
     reopenContract,
+    acceptContract,
+    declineContract,
 } from '../controllers/contractController.js';
 import { getContractMilestones } from '../controllers/milestoneController.js';
 
@@ -25,6 +27,11 @@ router.post('/', restrictTo('CLIENT'), validate(createContractSchema), createCon
 router.get('/my', getMyContracts);
 router.get('/:id', getContractById);
 router.get('/:id/milestones', getContractMilestones);
+
+// Təklif axını: client təklif göndərir (PENDING_ACCEPTANCE), frilanser qəbul edir (ACTIVE) və ya rədd edir (DECLINED)
+router.patch('/:id/accept', restrictTo('FREELANCER'), acceptContract);
+router.patch('/:id/decline', restrictTo('FREELANCER'), declineContract);
+
 router.patch('/:id/complete', restrictTo('CLIENT'), completeContract);
 router.patch('/:id/deliver', restrictTo('FREELANCER'), deliverContract);
 router.patch('/:id/reopen', restrictTo('CLIENT'), reopenContract);

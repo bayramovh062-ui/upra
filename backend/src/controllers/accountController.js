@@ -20,14 +20,15 @@ export const deleteAccount = asyncHandler(async (req, res) => {
 
     const activeContracts = await prisma.contract.count({
         where: {
-            status: { in: ['ACTIVE', 'DELIVERED'] },
+            // PENDING_ACCEPTANCE də bloklayır: frilanser cavab verməmiş hesab silinməsin
+            status: { in: ['PENDING_ACCEPTANCE', 'ACTIVE', 'DELIVERED'] },
             OR: [{ clientId: user.id }, { freelancerId: user.id }],
         },
     });
 
     if (activeContracts > 0) {
         throw new AppError(
-            'You have active contracts. Complete or cancel them before deleting your account.',
+            'You have pending offers or active contracts. Respond to the offers and complete or cancel the contracts before deleting your account.',
             400
         );
     }

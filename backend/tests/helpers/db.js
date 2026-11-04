@@ -83,10 +83,20 @@ export const createProposal = async (token, jobPostId, overrides = {}) => {
     return res.body.proposal;
 };
 
-export const createContract = async (clientToken, proposalId) => {
+// Contract yaradır. freelancerToken verilərsə, təklif dərhal frilanser tərəfindən qəbul edilir
+// (müqavilə ACTIVE olur) — beləliklə mövcud testlər əvvəlki davranışı qoruyur.
+export const createContract = async (clientToken, proposalId, freelancerToken) => {
     const res = await request(app).post('/api/contracts').set(auth(clientToken)).send({ proposalId });
     if (res.status !== 201) throw new Error(`createContract failed: ${JSON.stringify(res.body)}`);
-    return res.body.contract;
+
+    if (!freelancerToken) return res.body.contract;
+
+    const acceptRes = await request(app)
+        .patch(`/api/contracts/${res.body.contract.id}/accept`)
+        .set(auth(freelancerToken));
+    if (acceptRes.status !== 200) throw new Error(`acceptContract failed: ${JSON.stringify(acceptRes.body)}`);
+
+    return acceptRes.body.contract;
 };
 
 export { app, prisma };

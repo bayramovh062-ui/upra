@@ -29,10 +29,12 @@ enum ProposalStatus {
 }
 
 enum ContractStatus {
+  PENDING_ACCEPTANCE // client təklifi qəbul edib, frilanserin razılığı gözlənilir
   ACTIVE
   DELIVERED // frilanser işi təhvil verib, client baxır (lövhə read-only)
   COMPLETED
   CANCELLED
+  DECLINED // frilanser təklifi rədd edib; iş yenidən OPEN olur
 }
 
 enum IssueStatus {
@@ -210,6 +212,10 @@ model Contract {
   cancelRequestedById String?
   cancelRequestedAt   DateTime?
   cancelReason        String?
+
+  // Frilanserin müqavilə şərtlərini qəbul/rədd etmə anı (PENDING_ACCEPTANCE → ACTIVE/DECLINED)
+  freelancerAcceptedAt DateTime?
+  freelancerDeclinedAt DateTime?
 
   board      Board? // 1 contract = 1 board
   milestones Milestone[]

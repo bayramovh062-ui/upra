@@ -94,6 +94,7 @@ describe('POST /api/contracts — milestone plan', () => {
         ]);
 
         expect(res.status).toBe(201);
+        expect(res.body.contract.status).toBe('PENDING_ACCEPTANCE');
         expect(res.body.contract.milestones).toHaveLength(2);
         expect(res.body.contract.milestones.map((m) => m.sequence)).toEqual([1, 2]);
         expect(res.body.contract.milestones.map((m) => m.title)).toEqual(['Design', 'Development']);

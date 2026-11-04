@@ -80,7 +80,14 @@ describe('Phase 2B: wallet, milestones, escrow ledger', () => {
             .set(auth(pair.c.token))
             .send({ proposalId: proposal.id, milestones });
         if (res.status !== 201) throw new Error(`makeContract failed: ${JSON.stringify(res.body)}`);
-        return res.body.contract;
+
+        // Client təklif göndərir, frilanser qəbul edir: müqavilə ACTIVE olur
+        const acceptRes = await request(app)
+            .patch(`/api/contracts/${res.body.contract.id}/accept`)
+            .set(auth(pair.f.token));
+        if (acceptRes.status !== 200) throw new Error(`acceptContract failed: ${JSON.stringify(acceptRes.body)}`);
+
+        return acceptRes.body.contract;
     };
 
     const post = (token, url, body) => request(app).post(url).set(auth(token)).send(body);

@@ -35,7 +35,7 @@ describe('Contracts and issues: permissions, response shape, delete, cancel', ()
 
         job = await createJob(client.token, { title: 'Contract and issue extra test job' });
         const proposal = await createProposal(freelancer.token, job.id);
-        contract = await createContract(client.token, proposal.id);
+        contract = await createContract(client.token, proposal.id, freelancer.token);
     });
 
     afterAll(async () => {

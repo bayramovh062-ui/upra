@@ -241,7 +241,7 @@ describe('Jobs and proposals: filters, edge cases and flows', () => {
 
     describe('Accepting a proposal', () => {
         it('exposes the contract id on the accepted proposal and locks it', async () => {
-            const contract = await createContract(client.token, free1PremiumProposal.id);
+            const contract = await createContract(client.token, free1PremiumProposal.id, free1.token);
 
             const mine = await request(app).get('/api/proposals/my').set(auth(free1.token));
             const accepted = mine.body.proposals.find((p) => p.id === free1PremiumProposal.id);

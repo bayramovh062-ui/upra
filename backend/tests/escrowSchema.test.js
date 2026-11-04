@@ -25,7 +25,7 @@ describe('Phase 2A: escrow, milestone and wallet database schema', () => {
 
         const job = await createJob(client.token, { title: 'Escrow schema test job' });
         const proposal = await createProposal(free.token, job.id);
-        contract = await createContract(client.token, proposal.id);
+        contract = await createContract(client.token, proposal.id, free.token);
 
         // Contract yaranarkən 1-ci mərhələ avtomatik yarana bilər. Bu fayl sətrin sequence-lərini
         // özü idarə etdiyi üçün təmiz vəziyyətə qaytarırıq (hələ ledger yazısı yoxdur, silmək mümkündür)

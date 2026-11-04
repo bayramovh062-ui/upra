@@ -91,7 +91,7 @@ describe('Contract Module Integration Tests', () => {
     });
 
     describe('POST /api/contracts (Transaction Check)', () => {
-        it('should allow CLIENT to create contract and execute transaction updates', async () => {
+        it('should create a pending offer and activate it when the FREELANCER accepts', async () => {
             const res = await request(app)
                 .post('/api/contracts')
                 .set('Authorization', `Bearer ${clientToken}`)
@@ -101,13 +101,29 @@ describe('Contract Module Integration Tests', () => {
 
             expect(res.status).toBe(201);
             expect(res.body.success).toBe(true);
-            expect(res.body.contract.status).toBe('ACTIVE');
+            // Client təklif göndərir: müqavilə frilanser qəbul edənə qədər aktiv deyil
+            expect(res.body.contract.status).toBe('PENDING_ACCEPTANCE');
 
             contractId = res.body.contract.id;
 
-            // Tranzaksiyanın nəticələrini yoxlayırıq:
+            // Təklif mərhələsi: seçilmiş təklif ACCEPTED, digəri hələ PENDING, iş kilidlənib
             const p1 = await prisma.proposal.findUnique({ where: { id: proposal1Id } });
             expect(p1.status).toBe('ACCEPTED');
+
+            const p2Before = await prisma.proposal.findUnique({ where: { id: proposal2Id } });
+            expect(p2Before.status).toBe('PENDING');
+
+            const jobBefore = await prisma.jobPost.findUnique({ where: { id: jobPostId } });
+            expect(jobBefore.status).toBe('IN_PROGRESS');
+
+            // Frilanser qəbul edir: müqavilə ACTIVE olur, rəqib təklif yalnız indi rədd olunur
+            const accept = await request(app)
+                .patch(`/api/contracts/${contractId}/accept`)
+                .set('Authorization', `Bearer ${freelancer1Token}`);
+
+            expect(accept.status).toBe(200);
+            expect(accept.body.contract.status).toBe('ACTIVE');
+            expect(accept.body.contract.freelancerAcceptedAt).toBeTruthy();
 
             const p2 = await prisma.proposal.findUnique({ where: { id: proposal2Id } });
             expect(p2.status).toBe('REJECTED');
