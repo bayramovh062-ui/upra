@@ -4,9 +4,14 @@ import { Button, Card, CardHeader, EmptyState, ErrorState, Icon, Skeleton, Statu
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
 import { useGetMyJobsQuery } from '../features/jobs/jobsApi';
 import { useGetMyProposalsQuery } from '../features/proposals/proposalsApi';
-import { formatMoney, timeAgo } from '../lib/format';
+import { summarizeMilestones } from '../features/escrow/escrow';
+import TransactionList from '../features/wallet/TransactionList';
+import WalletCard from '../features/wallet/WalletCard';
+import { useGetWalletQuery } from '../features/wallet/walletApi';
+import { formatCents, formatMoney, timeAgo } from '../lib/format';
 
-const StatCard = ({ label, icon, value, loading }) => (
+// small: pul məbləğləri üçün (böyük rəqəm əvvəlinə sığmır)
+const StatCard = ({ label, icon, value, loading, small }) => (
     <div className="rounded-xl border border-line bg-surface-container-lowest p-4 shadow-sm transition-shadow hover:shadow-md">
         <div className="flex items-center justify-between">
             <span className="text-label-md text-secondary">{label}</span>
@@ -15,9 +20,9 @@ const StatCard = ({ label, icon, value, loading }) => (
             </span>
         </div>
         {loading ? (
-            <Skeleton className="mt-4 h-9 w-16" />
+            <Skeleton className={small ? 'mt-4 h-8 w-28' : 'mt-4 h-9 w-16'} />
         ) : (
-            <p className="tabular mt-4 text-display-lg text-on-surface">{value}</p>
+            <p className={`tabular mt-4 text-on-surface ${small ? 'text-headline-lg' : 'text-display-lg'}`}>{value}</p>
         )}
     </div>
 );
@@ -44,6 +49,8 @@ const DashboardPage = () => {
     const jobsQ = useGetMyJobsQuery(undefined, { skip: !isClient });
     const proposalsQ = useGetMyProposalsQuery(undefined, { skip: isClient });
     const contractsQ = useGetMyContractsQuery();
+    // Eyni sorğu WalletCard da edir (RTK Query təkrar sorğu göndərmir). Burada yalnız əməliyyatlar lazdır
+    const walletQ = useGetWalletQuery();
 
     const jobs = jobsQ.data?.jobs ?? [];
     const proposals = proposalsQ.data?.proposals ?? [];
@@ -53,6 +60,31 @@ const DashboardPage = () => {
     const countContracts = (status) =>
         contracts.filter((c) => c.status === status || (status === 'ACTIVE' && c.status === 'DELIVERED')).length;
     const openJobs = jobs.filter((j) => j.status === 'OPEN');
+
+    // Escrow xülasəsi bütün müqavilələrin mərhələlərindən hesablanır (frilanser üçün komissiyadan sonra)
+    const escrow = contracts.reduce(
+        (acc, c) => {
+            const milestones = c.milestones ?? [];
+            const s = summarizeMilestones(milestones, !isClient);
+            acc.lockedCents += s.lockedCents;
+            acc.releasedCents += s.releasedCents;
+            acc.inReview += milestones.filter((m) => m.status === 'IN_REVIEW').length;
+            return acc;
+        },
+        { lockedCents: 0, releasedCents: 0, inReview: 0 },
+    );
+
+    const escrowStats = isClient
+        ? [
+              { label: 'Locked in escrow', icon: 'lock', value: formatCents(escrow.lockedCents) },
+              { label: 'Awaiting your review', icon: 'rate_review', value: escrow.inReview, plain: true },
+              { label: 'Paid to freelancers', icon: 'payments', value: formatCents(escrow.releasedCents) },
+          ]
+        : [
+              { label: 'Total earned', icon: 'payments', value: formatCents(escrow.releasedCents) },
+              { label: 'Waiting in escrow', icon: 'lock', value: formatCents(escrow.lockedCents) },
+              { label: 'Awaiting client review', icon: 'hourglass_top', value: escrow.inReview, plain: true },
+          ];
 
     const loading = contractsQ.isLoading || (isClient ? jobsQ.isLoading : proposalsQ.isLoading);
     const failed = contractsQ.isError || (isClient ? jobsQ.isError : proposalsQ.isError);
@@ -85,6 +117,7 @@ const DashboardPage = () => {
 
     const retry = () => {
         contractsQ.refetch();
+        walletQ.refetch();
         (isClient ? jobsQ : proposalsQ).refetch();
     };
 
@@ -124,6 +157,32 @@ const DashboardPage = () => {
                         {stats.map((stat) => (
                             <StatCard key={stat.label} loading={loading} {...stat} />
                         ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                        {escrowStats.map(({ plain, ...stat }) => (
+                            <StatCard key={stat.label} loading={contractsQ.isLoading} small={!plain} {...stat} />
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+                        <div className="lg:col-span-7">
+                            <WalletCard isClient={isClient} escrowCents={isClient ? undefined : escrow.lockedCents} />
+                        </div>
+                        <Card className="lg:col-span-5">
+                            <CardHeader title="Recent transactions" />
+                            <div className="px-3 pb-4">
+                                {walletQ.isLoading ? (
+                                    <Skeleton className="mx-2 h-32" />
+                                ) : walletQ.isError ? (
+                                    <p className="px-2 py-6 text-center text-body-md text-secondary">
+                                        Could not load transactions.
+                                    </p>
+                                ) : (
+                                    <TransactionList transactions={(walletQ.data?.transactions ?? []).slice(0, 8)} />
+                                )}
+                            </div>
+                        </Card>
                     </div>
 
                     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

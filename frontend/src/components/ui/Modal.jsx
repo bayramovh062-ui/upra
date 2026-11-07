@@ -26,7 +26,9 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'relative w-full max-w-md rounded-xl border border-line bg-white shadow-xl',
+                    'relative w-full rounded-xl border border-line bg-white shadow-xl',
+                    // cn() Tailwind siniflərini birləşdirmir: ölçü className-də verilibsə default max-w-md qoyulmur
+                    !className?.includes('max-w-') && 'max-w-md',
                     className
                 )}
             >
