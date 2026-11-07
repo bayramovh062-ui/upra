@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
@@ -36,12 +36,14 @@ import {
     useWithdrawCancellationMutation,
 } from '../features/contracts/contractsApi';
 import { canRespondToOffer, isPendingOffer } from '../features/contracts/contractOffer';
+import { useOpenConversationMutation } from '../features/chat/chatApi';
 import { cn } from '../lib/cn';
 import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
     const { id } = useParams();
     const user = useSelector((state) => state.auth.user);
+    const navigate = useNavigate();
     // 'complete' | 'cancel' | 'acceptCancel' | 'declineCancel' | 'withdrawCancel' | 'acceptOffer' | 'declineOffer' | null
     const [action, setAction] = useState(null);
     const [requestOpen, setRequestOpen] = useState(false); // ləğv təklifi pəncərəsi (səbəb yazılır)
@@ -63,6 +65,7 @@ const ContractDetailPage = () => {
     const [withdrawCancellation, { isLoading: withdrawing }] = useWithdrawCancellationMutation();
     const [acceptContract, { isLoading: acceptingOffer }] = useAcceptContractMutation();
     const [declineContract, { isLoading: decliningOffer }] = useDeclineContractMutation();
+    const [openConversation, { isLoading: openingChat }] = useOpenConversationMutation();
     // Başlıqdakı qısayol düymələr: aktiv mərhələyə bağlı işləyir (Escrow tabındakı ilə eyni əməliyyatlar)
     const [msAction, setMsAction] = useState(null); // { type: 'submit' | 'approve' | 'changes', milestone }
     const [submitMilestone, { isLoading: submittingMs }] = useSubmitMilestoneMutation();
@@ -261,6 +264,17 @@ const ContractDetailPage = () => {
         }
     };
 
+    // Qarshi terefle daimi sohbeti achir (backend her client/freelancer cütü üçün bir conversation saxlayir)
+    const handleMessage = async () => {
+        if (!other?.id) return;
+        try {
+            const res = await openConversation(other.id).unwrap();
+            navigate(`/messages/${res.conversation.id}`);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not open the conversation'));
+        }
+    };
+
     return (
         <>
             <Link
@@ -283,6 +297,13 @@ const ContractDetailPage = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                {other?.id && (
+                    <Button variant="secondary" onClick={handleMessage} loading={openingChat}>
+                        <Icon name="chat" className="text-[18px]" />
+                        Message
+                    </Button>
+                )}
+
                 {/* Ləğv düyməsi hər iki tərəf üçündür; gözləyən təklif varsa, əvəzinə aşağıdakı bannerdə düymələr olur */}
                 {(isClient || isFreelancer) && open && !pendingCancel && (
                     <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>

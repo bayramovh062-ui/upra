@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLogout } from '../../features/auth/useLogout';
+import NotificationBell from '../../features/notifications/NotificationBell';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 
@@ -33,7 +34,10 @@ const Topbar = ({ onMenuClick }) => {
                     </Link>
                 </div>
 
-                <div className="relative">
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <NotificationBell />
+
+                    <div className="relative">
                     <button
                         type="button"
                         onClick={() => setMenuOpen((v) => !v)}
@@ -86,6 +90,7 @@ const Topbar = ({ onMenuClick }) => {
                             </div>
                         </>
                     )}
+                    </div>
                 </div>
             </div>
         </header>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Avatar,
@@ -14,11 +14,12 @@ import {
 import { useGetJobQuery } from '../features/jobs/jobsApi';
 import { useGetJobProposalsQuery } from '../features/proposals/proposalsApi';
 import { useCreateContractMutation } from '../features/contracts/contractsApi';
+import { useOpenConversationMutation } from '../features/chat/chatApi';
 import MilestonePlanModal from '../features/escrow/MilestonePlanModal';
 import { cn } from '../lib/cn';
 import { formatMoney, getErrorMessage, timeAgo } from '../lib/format';
 
-const ProposalCard = ({ proposal, budget, canAccept, onAccept }) => {
+const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
     const [expanded, setExpanded] = useState(false);
     const f = proposal.freelancer;
     const diff = Number(proposal.bidAmount) - Number(budget);
@@ -88,14 +89,20 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept }) => {
                 )}
             </div>
 
-            {proposal.status === 'PENDING' && canAccept && (
-                <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
+                {f?.id && (
+                    <Button variant="secondary" onClick={() => onMessage(proposal)}>
+                        <Icon name="chat" className="text-[18px]" />
+                        Message
+                    </Button>
+                )}
+                {proposal.status === 'PENDING' && canAccept && (
                     <Button onClick={() => onAccept(proposal)}>
                         <Icon name="send" className="text-[18px]" />
                         Send contract offer
                     </Button>
-                </div>
-            )}
+                )}
+            </div>
         </Card>
     );
 };
@@ -107,6 +114,8 @@ const JobProposalsPage = () => {
     const jobQ = useGetJobQuery(id);
     const propQ = useGetJobProposalsQuery(id);
     const [createContract, { isLoading: accepting }] = useCreateContractMutation();
+    const [openConversation] = useOpenConversationMutation();
+    const navigate = useNavigate();
 
     if (jobQ.isLoading || propQ.isLoading) {
         return (
@@ -162,6 +171,18 @@ const JobProposalsPage = () => {
 
     const others = proposals.filter((p) => p.status === 'PENDING' && p.id !== selected?.id).length;
 
+    // Freelancer ile daimi sohbeti achir ve mesajlar sehifesine kechir
+    const handleMessage = async (proposal) => {
+        const otherId = proposal.freelancer?.id;
+        if (!otherId) return;
+        try {
+            const res = await openConversation(otherId).unwrap();
+            navigate(`/messages/${res.conversation.id}`);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not open the conversation'));
+        }
+    };
+
     return (
         <>
             <Link
@@ -197,6 +218,7 @@ const JobProposalsPage = () => {
                             budget={job.budget}
                             canAccept={canAccept}
                             onAccept={setSelected}
+                            onMessage={handleMessage}
                         />
                     ))}
                 </div>

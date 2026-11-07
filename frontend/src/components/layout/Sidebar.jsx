@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { useGetUnreadMessagesQuery } from '../../features/chat/chatApi';
 import { cn } from '../../lib/cn';
 import { NAV_ITEMS } from '../../lib/navigation';
 import Icon from '../ui/Icon';
@@ -8,6 +9,8 @@ import Icon from '../ui/Icon';
 const Sidebar = ({ open, onClose }) => {
     const role = useSelector((state) => state.auth.user?.role);
     const items = NAV_ITEMS[role] || [];
+    const { data: unreadData } = useGetUnreadMessagesQuery();
+    const unreadMessages = unreadData?.unreadCount ?? 0;
 
     return (
         <>
@@ -45,6 +48,11 @@ const Sidebar = ({ open, onClose }) => {
                         >
                             <Icon name={item.icon} />
                             {item.label}
+                            {item.to === '/messages' && unreadMessages > 0 && (
+                                <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-container px-1 text-[10px] font-bold leading-none text-on-primary">
+                                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                                </span>
+                            )}
                         </NavLink>
                     ))}
                 </nav>

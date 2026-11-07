@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import useNotificationSocket from '../../features/notifications/useNotificationSocket';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
 // Giriş etmiş istifadəçilər üçün qabıq: sabit üst panel + sidebar + səhifə məzmunu
 const AppLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    // Şəxsi soket: giriş etmiş istifadəçi üçün yeni bildirişlər canlı gəlir (AppLayout yalnız giriş etmişlərdə var)
+    useNotificationSocket();
 
     return (
         <div className="min-h-screen bg-background">

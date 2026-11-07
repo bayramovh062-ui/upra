@@ -5,6 +5,7 @@ export const NAV_ITEMS = {
         { to: '/client/dashboard', label: 'Dashboard', icon: 'dashboard' },
         { to: '/client/jobs', label: 'My jobs', icon: 'work' },
         { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
+        { to: '/messages', label: 'Messages', icon: 'chat' },
         { to: '/settings', label: 'Settings', icon: 'settings' },
     ],
     FREELANCER: [
@@ -12,6 +13,7 @@ export const NAV_ITEMS = {
         { to: '/jobs', label: 'Find work', icon: 'search' },
         { to: '/freelancer/proposals', label: 'My proposals', icon: 'description' },
         { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
+        { to: '/messages', label: 'Messages', icon: 'chat' },
         { to: '/settings', label: 'Settings', icon: 'settings' },
     ],
 };

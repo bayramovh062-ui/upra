@@ -27,6 +27,8 @@ import MyProposalsPage from './pages/MyProposalsPage';
 import ContractsPage from './pages/ContractsPage';
 import ContractDetailPage from './pages/ContractDetailPage';
 import UserProfilePage from './pages/UserProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
+import MessagesPage from './pages/MessagesPage';
 
 function App() {
     return (
@@ -57,6 +59,9 @@ function App() {
                             <Route path="/contracts" element={<ContractsPage />} />
                             <Route path="/contracts/:id" element={<ContractDetailPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/notifications" element={<NotificationsPage />} />
+                            <Route path="/messages" element={<MessagesPage />} />
+                            <Route path="/messages/:conversationId" element={<MessagesPage />} />
                             {/* İctimai profil: görünürlük qaydalarını backend tətbiq edir */}
                             <Route path="/users/:id" element={<UserProfilePage />} />
                             {/* Elanlar giriş tələb edir (backend-də GET /jobs/:id protect-dir) */}
