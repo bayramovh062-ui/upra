@@ -16,6 +16,7 @@ const userSelect = {
     availability: true,
     avatarUrl: true,
     deletedAt: true, // Soft delete yoxlaması üçün
+    isSuspended: true, // P3: suspend olunmuş hesab qorunan əməliyyat edə bilməz
     createdAt: true,
 };
 
@@ -44,6 +45,11 @@ export const protect = asyncHandler(async (req, res, next) => {
         throw new AppError('The user associated with the token was not found, or their account has been deleted.', 401);
     }
 
+    // P3: suspend olunmuş istifadəçi mövcud tokenlə də qorunan əməliyyatları yerinə yetirə bilməz.
+    if (user.isSuspended) {
+        throw new AppError('Your account is suspended. Contact support for help.', 403);
+    }
+
     req.user = user;
     next();
 });
@@ -57,7 +63,7 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await prisma.user.findUnique({ where: { id: decoded.id }, select: userSelect });
-        if (user && user.deletedAt === null) req.user = user;
+        if (user && user.deletedAt === null && !user.isSuspended) req.user = user;
     } catch {
         // Etibarsız və ya vaxtı keçmiş token: anonim kimi davam
     }

@@ -3,6 +3,7 @@ import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { publicProfileSelect, withFlatSkills } from '../utils/profile.js';
+import { getReputation } from '../services/reviewService.js';
 
 // @route   DELETE /api/auth/me
 // @access  Private (parol tələb olunur)
@@ -89,7 +90,7 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 
     const isClient = user.role === 'CLIENT';
 
-    const [completedContracts, jobsPosted] = await Promise.all([
+    const [completedContracts, jobsPosted, reputation] = await Promise.all([
         prisma.contract.count({
             where: { status: 'COMPLETED', ...(isClient ? { clientId: user.id } : { freelancerId: user.id }) },
         }),
@@ -97,6 +98,7 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         isClient
             ? prisma.jobPost.count({ where: { clientId: user.id, status: { not: 'DRAFT' } } })
             : Promise.resolve(null),
+        getReputation(user.id),
     ]);
 
     const { deletedAt, ...publicUser } = withFlatSkills(user);
@@ -104,7 +106,12 @@ export const getUserProfile = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         user: publicUser,
-        stats: { completedContracts, jobsPosted },
+        stats: {
+            completedContracts,
+            jobsPosted,
+            avgRating: reputation.avgRating,
+            reviewCount: reputation.reviewCount,
+        },
     });
 });
 

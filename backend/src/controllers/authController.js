@@ -56,6 +56,11 @@ export const login = asyncHandler(async (req, res) => {
         throw new AppError('Invalid email or password', 401);
     }
 
+    // P3: suspend yoxlaması yalnız parol düzgün olduqdan sonra (hesab mövcudluğunu sızdırmamaq üçün).
+    if (user.isSuspended) {
+        throw new AppError('Your account is suspended. Contact support for help.', 403);
+    }
+
     const token = generateToken(user.id, user.role);
 
     res.status(200).json({

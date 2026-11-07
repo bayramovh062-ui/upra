@@ -2,6 +2,7 @@ import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { resolveDispute } from '../services/financialService.js';
+import { notify, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -130,16 +131,47 @@ export const listReports = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, total, count: reports.length, reports });
 });
 
+// @route   GET /api/admin/reports/:id
+// @access  Private (ADMIN)
+export const getReport = asyncHandler(async (req, res) => {
+    const report = await prisma.report.findUnique({
+        where: { id: req.params.id },
+        include: {
+            reporter: { select: { id: true, fullName: true, email: true, role: true } },
+            admin: { select: { id: true, fullName: true, email: true } },
+        },
+    });
+
+    if (!report) throw new AppError('Report not found', 404);
+
+    res.status(200).json({ success: true, report });
+});
+
+// İcazə verilən status keçidləri. CLOSED terminaldır; OPEN-a qaytarmaq mümkün deyil.
+const REPORT_TRANSITIONS = {
+    OPEN: ['REVIEWED', 'CLOSED'],
+    REVIEWED: ['REVIEWED', 'CLOSED'],
+    CLOSED: [],
+};
+
 // @route   PATCH /api/admin/reports/:id
 // @access  Private (ADMIN). Body: { status: REVIEWED|CLOSED, adminNote? }
 export const reviewReport = asyncHandler(async (req, res) => {
-    const existing = await prisma.report.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    const existing = await prisma.report.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, status: true, reporterId: true },
+    });
     if (!existing) throw new AppError('Report not found', 404);
+
+    const nextStatus = req.body.status;
+    if (!REPORT_TRANSITIONS[existing.status].includes(nextStatus)) {
+        throw new AppError(`Report status cannot change from ${existing.status} to ${nextStatus}`, 400);
+    }
 
     const report = await prisma.report.update({
         where: { id: req.params.id },
         data: {
-            status: req.body.status,
+            status: nextStatus,
             adminId: req.user.id,
             adminNote: req.body.adminNote?.trim() || null,
             reviewedAt: new Date(),
@@ -147,5 +179,128 @@ export const reviewReport = asyncHandler(async (req, res) => {
         include: { reporter: { select: { id: true, fullName: true, email: true } } },
     });
 
+    // Yalnız faktiki keçiddə bildiriş göndərilir (eyni statusun təkrar yazılışı spam yaratmır).
+    if (existing.status !== nextStatus) {
+        await notify(existing.reporterId, {
+            type: nextStatus === 'CLOSED' ? N.REPORT_CLOSED : N.REPORT_REVIEWED,
+            title: nextStatus === 'CLOSED' ? 'Your report was closed' : 'Your report was reviewed',
+            body:
+                nextStatus === 'CLOSED'
+                    ? 'An administrator closed your report. Thank you for helping keep the marketplace safe.'
+                    : 'An administrator reviewed your report. It may be updated again if more action is needed.',
+            data: { reportId: report.id, status: nextStatus },
+        });
+    }
+
     res.status(200).json({ success: true, report });
+});
+
+// ================= P3: ADMIN İSTİFADƏÇİ MODERASİYASI =================
+
+const adminUserSelect = {
+    id: true,
+    email: true,
+    fullName: true,
+    role: true,
+    isSuspended: true,
+    suspendedAt: true,
+    suspensionReason: true,
+    createdAt: true,
+    suspendedByAdmin: { select: { id: true, fullName: true } },
+};
+
+const ROLES = ['CLIENT', 'FREELANCER', 'ADMIN'];
+
+// @route   GET /api/admin/users?q&role&suspended=true|false&limit&offset
+// @access  Private (ADMIN)
+export const listUsers = asyncHandler(async (req, res) => {
+    const role = String(req.query.role || '').toUpperCase();
+    const suspended = String(req.query.suspended || '').toLowerCase();
+    const q = String(req.query.q || '').trim();
+
+    const where = {
+        deletedAt: null,
+        ...(ROLES.includes(role) && { role }),
+        ...(suspended === 'true' && { isSuspended: true }),
+        ...(suspended === 'false' && { isSuspended: false }),
+        ...(q && {
+            OR: [
+                { email: { contains: q, mode: 'insensitive' } },
+                { fullName: { contains: q, mode: 'insensitive' } },
+            ],
+        }),
+    };
+
+    const take = parseLimit(req.query.limit);
+    const skip = parseOffset(req.query.offset);
+
+    const [users, total] = await Promise.all([
+        prisma.user.findMany({
+            where,
+            orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+            take,
+            skip,
+            select: adminUserSelect,
+        }),
+        prisma.user.count({ where }),
+    ]);
+
+    res.status(200).json({ success: true, total, count: users.length, users });
+});
+
+// @route   PATCH /api/admin/users/:id/suspension
+// @access  Private (ADMIN). Body: { suspended: boolean, reason? }
+// Qaydalar: admin özünü suspend edə bilməz; ADMIN rolu olan hesab bu endpoint ilə moderasiya olunmur.
+export const updateUserSuspension = asyncHandler(async (req, res) => {
+    const target = await prisma.user.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, role: true, isSuspended: true, deletedAt: true },
+    });
+
+    if (!target || target.deletedAt !== null) {
+        throw new AppError('User not found', 404);
+    }
+
+    if (target.id === req.user.id) {
+        throw new AppError('You cannot change your own suspension status', 400);
+    }
+
+    if (target.role === 'ADMIN') {
+        throw new AppError('Admin accounts cannot be suspended through this endpoint', 403);
+    }
+
+    const { suspended } = req.body;
+    const reason = req.body.reason?.trim() || null;
+    const stateChanged = target.isSuspended !== suspended;
+
+    const user = await prisma.user.update({
+        where: { id: target.id },
+        data: suspended
+            ? {
+                  isSuspended: true,
+                  suspendedAt: new Date(),
+                  suspensionReason: reason,
+                  suspendedByAdminId: req.user.id,
+              }
+            : {
+                  isSuspended: false,
+                  suspendedAt: null,
+                  suspensionReason: null,
+                  suspendedByAdminId: null,
+              },
+        select: adminUserSelect,
+    });
+
+    if (stateChanged) {
+        await notify(target.id, {
+            type: suspended ? N.ACCOUNT_SUSPENDED : N.ACCOUNT_REINSTATED,
+            title: suspended ? 'Your account has been suspended' : 'Your account has been reinstated',
+            body: suspended
+                ? `An administrator suspended your account${reason ? `: ${reason}` : '.'} Contact support if you believe this is a mistake.`
+                : 'Your account is active again. You can sign in and continue using the marketplace.',
+            data: { suspended },
+        });
+    }
+
+    res.status(200).json({ success: true, user });
 });

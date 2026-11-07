@@ -432,6 +432,11 @@ export const completeContract = asyncHandler(async (req, res) => {
         throw new AppError('Only the client can complete this contract', 403);
     }
 
+    // P3: təkrar "complete" çağırışı təhlükəsizdir (heç bir pul hərəkəti və yan təsir yoxdur).
+    if (contract.status === 'COMPLETED') {
+        return res.status(200).json({ success: true, contract });
+    }
+
     if (!OPEN_STATUSES.includes(contract.status)) {
         throw new AppError('Only ACTIVE contracts can be completed', 400);
     }

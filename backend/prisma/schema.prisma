@@ -155,6 +155,13 @@ model User {
   profilePublic Boolean      @default(true) // false: başqaları yalnız ad və rolu görür
   deletedAt     DateTime? // Soft delete: doludursa hesab silinib (bazadan silinmir)
 
+  // P3: admin moderasiyası. Suspend olunmuş istifadəçi login edə və qorunan əməliyyatları yerinə yetirə bilməz.
+  isSuspended        Boolean   @default(false)
+  suspendedAt        DateTime?
+  suspensionReason   String?
+  suspendedByAdminId String?
+  suspendedByAdmin   User?     @relation("UserSuspensions", fields: [suspendedByAdminId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -180,6 +187,11 @@ model User {
   disputesResolved     Dispute[]           @relation("DisputesResolved")
   reportsCreated       Report[]            @relation("ReportsCreated")
   reportsReviewed      Report[]            @relation("ReportsReviewed")
+
+  // P3: rəylər (bir müqavilə üzrə hər tərəf bir dəfə yazır)
+  reviewsWritten  Review[] @relation("ReviewsWritten")
+  reviewsReceived Review[] @relation("ReviewsReceived")
+  suspensionsMade User[]   @relation("UserSuspensions")
 }
 
 model JobPost {
@@ -267,6 +279,9 @@ model Contract {
   // P2
   submissions MilestoneSubmission[]
   disputes    Dispute[]
+
+  // P3
+  reviews Review[]
 
   @@index([clientId])
   @@index([freelancerId])
@@ -630,3 +645,29 @@ model Report {
   @@index([targetType, targetId])
   @@index([reporterId])
 }
+
+// ================= P3: RƏYLƏR / REPUTASİYA =================
+// Hər müqavilə üzrə hər tərəf QARŞI TƏRƏF üçün ən çox bir rəy yaza bilər.
+// Rəy yaradıldıqdan sonra dəyişməzdir (immutable): redaktə/silmə endpointi yoxdur.
+// Reputasiya (avgRating/reviewCount) ayrıca sorğu ilə hesablanır; ledger-ə heç bir təsiri yoxdur.
+model Review {
+  id String @id @default(uuid())
+
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  reviewerId String
+  reviewer   User   @relation("ReviewsWritten", fields: [reviewerId], references: [id])
+
+  revieweeId String
+  reviewee   User   @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  rating  Int // 1..5 (CHECK məhdudiyyəti miqrasiyada)
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([contractId, reviewerId])
+  @@index([revieweeId, createdAt])
+}
+

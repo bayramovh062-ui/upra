@@ -29,6 +29,12 @@ export const cleanUpUserIds = async (ids) => {
     await prisma.milestoneSubmission.deleteMany({
         where: { OR: [{ actorId: { in: ids } }, { contract: contractWhere }] },
     });
+    // P3: Review reviewer/reviewee FK-ları RESTRICT-dir; müqavilə silinməzdən əvvəl təmizlənir
+    await prisma.review.deleteMany({
+        where: {
+            OR: [{ reviewerId: { in: ids } }, { revieweeId: { in: ids } }, { contract: contractWhere }],
+        },
+    });
 
     // Maliyyə cədvəlləri RESTRICT-dir: əvvəl ledger, sonra mərhələ və pul kisəsi (yalnız test bazasında)
     await prisma.transaction.deleteMany({
