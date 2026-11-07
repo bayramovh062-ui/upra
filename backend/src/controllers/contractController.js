@@ -28,7 +28,7 @@ const hasWorkStarted = async (contract) => {
             where: { board: { contractId: contract.id }, status: { not: 'TODO' } },
         }),
         prisma.milestone.count({
-            where: { contractId: contract.id, status: { in: ['IN_REVIEW', 'PAID'] } },
+            where: { contractId: contract.id, status: { in: ['IN_REVIEW', 'PAID', 'DISPUTED'] } },
         }),
     ]);
     return moved > 0 || reviewedOrPaid > 0;
@@ -113,13 +113,14 @@ const buildMilestonePlan = (proposal, input) => {
         if (bidCents <= 0 || bidCents > MAX_AMOUNT_CENTS) {
             throw new AppError('This bid amount is too large to be held in escrow', 400);
         }
-        return [{ title: 'Full delivery', amountCents: bidCents, dueDate: null }];
+        return [{ title: 'Full delivery', amountCents: bidCents, dueDate: null, maxRevisions: 2 }];
     }
 
     const plan = input.map((m) => ({
         title: m.title,
         amountCents: Math.round(m.amount * 100),
         dueDate: m.dueDate ?? null,
+        maxRevisions: m.maxRevisions ?? 2,
     }));
 
     if (plan.some((m) => m.amountCents <= 0 || m.amountCents > MAX_AMOUNT_CENTS)) {
@@ -201,6 +202,7 @@ export const createContract = asyncHandler(async (req, res) => {
                 amountCents: m.amountCents,
                 sequence: index + 1,
                 dueDate: m.dueDate,
+                maxRevisions: m.maxRevisions,
                 updatedAt: new Date(),
             })),
         });

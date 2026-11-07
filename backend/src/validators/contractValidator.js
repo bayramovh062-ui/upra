@@ -12,6 +12,13 @@ const milestoneInputSchema = z.object({
         .positive('Milestone amount must be positive')
         .refine(hasMaxTwoDecimals, 'Milestone amount can have at most 2 decimal places'),
     dueDate: z.coerce.date({ error: 'Milestone due date must be a valid date' }).optional(),
+    // P2: dəyişiklik tələbi limiti (0..10). Verilməzsə default 2.
+    maxRevisions: z
+        .number({ error: 'maxRevisions must be a number' })
+        .int('maxRevisions must be a whole number')
+        .min(0, 'maxRevisions cannot be negative')
+        .max(10, 'maxRevisions can be at most 10')
+        .optional(),
 });
 
 export const createContractSchema = z.object({
@@ -30,4 +37,9 @@ export const createContractSchema = z.object({
 // İş başlayandan sonra ləğv təklifi: səbəb ixtiyaridir. Boş sətir "səbəb yoxdur" sayılır.
 export const cancelRequestSchema = z.object({
     reason: z.string().trim().max(500, 'Reason must be at most 500 characters long').optional(),
+});
+
+// P2: dəyişiklik tələbi səbəbi (ixtiyari, geriyə uyğun)
+export const requestChangesSchema = z.object({
+    note: z.string().trim().max(1000, 'Note must be at most 1000 characters long').optional(),
 });

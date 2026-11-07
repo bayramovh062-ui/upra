@@ -12,6 +12,7 @@ datasource db {
 enum Role {
   CLIENT
   FREELANCER
+  ADMIN // yalnız controlled bootstrap script ilə verilir (self-register qadağandır)
 }
 
 enum JobStatus {
@@ -68,15 +69,47 @@ enum Availability {
 
 // Mərhələ (ödəniş mərhələsi + sprint).
 // Real axın (2B): PENDING -> FUNDED -> IN_REVIEW -> PAID; IN_REVIEW -> FUNDED (dəyişiklik istə); ləğvdə -> CANCELLED.
-// APPROVED və DISPUTED enum-da qalır (geriyə uyğunluq), amma 2B-də heç bir əməliyyat onlara keçmir.
+// P2: FUNDED/IN_REVIEW -> DISPUTED (admin həll edir) -> PAID (RELEASE/SPLIT) və ya CANCELLED (REFUND).
+// APPROVED enum-da qalır (geriyə uyğunluq), amma heç bir əməliyyat ona keçmir.
 enum MilestoneStatus {
   PENDING // hələ maliyyələşdirilməyib
   FUNDED // client pulu escrow-a qoyub, iş gedir
   IN_REVIEW // frilanser təhvil verib, client baxır
   APPROVED // istifadə olunmur
-  PAID // ödəniş tranzaksiyası yazılıb (təsdiq və ödəniş eyni addımdır)
-  DISPUTED // istifadə olunmur (mübahisə həlli üçün admin lazımdır)
+  PAID // ödəniş tranzaksiyası yazılıb (təsdiq və ya dispute həlli)
+  DISPUTED // mübahisə açıqdır; pul escrow-da qalır, admin həll edir
   CANCELLED // müqavilə ləğv olunub; maliyyələşmiş idisə pul geri qaytarılıb
+}
+
+// Mərhələ tarixçəsi: təhvil (SUBMITTED) və dəyişiklik tələbi (CHANGES_REQUESTED)
+enum SubmissionType {
+  SUBMITTED
+  CHANGES_REQUESTED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+enum DisputeResolution {
+  RELEASE
+  REFUND
+  SPLIT
+}
+
+enum ReportTargetType {
+  USER
+  CONTRACT
+  MILESTONE
+  JOB
+  MESSAGE
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  CLOSED
 }
 
 // Ledger yazısının növü (əməliyyat)
@@ -140,6 +173,13 @@ model User {
   conversationsAsClient     Conversation[] @relation("ConversationClient")
   conversationsAsFreelancer Conversation[] @relation("ConversationFreelancer")
   messages                  Message[]
+
+  // P2
+  milestoneSubmissions MilestoneSubmission[]
+  disputesOpened       Dispute[]           @relation("DisputesOpened")
+  disputesResolved     Dispute[]           @relation("DisputesResolved")
+  reportsCreated       Report[]            @relation("ReportsCreated")
+  reportsReviewed      Report[]            @relation("ReportsReviewed")
 }
 
 model JobPost {
@@ -223,6 +263,10 @@ model Contract {
 
   board      Board? // 1 contract = 1 board
   milestones Milestone[]
+
+  // P2
+  submissions MilestoneSubmission[]
+  disputes    Dispute[]
 
   @@index([clientId])
   @@index([freelancerId])
@@ -360,17 +404,27 @@ model Milestone {
   dueDate     DateTime?
   status      MilestoneStatus @default(PENDING)
 
+  // P2: dəyişiklik tələbi limiti. revisionCount yalnız qəbul olunmuş tələbdə artır.
+  maxRevisions  Int @default(2)
+  revisionCount Int @default(0)
+
   fundedAt    DateTime?
   submittedAt DateTime?
   approvedAt  DateTime?
   paidAt      DateTime?
   disputedAt  DateTime?
 
+  // P2: dispute həllinin nəticəsi (SPLIT/RELEASE/REFUND). PAID mərhələdə gross-dan fərqlənə bilər.
+  resolvedReleaseCents Int?
+  resolvedRefundCents  Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   issues       Issue[]
   transactions Transaction[]
+  submissions  MilestoneSubmission[]
+  disputes     Dispute[]
 
   @@unique([contractId, sequence])
   @@index([contractId, status])
@@ -484,4 +538,95 @@ model Message {
   createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+// ================= P2: MƏRHƏLƏ TARİXÇƏSİ, MÜBAHİSƏ, ŞİKAYƏT =================
+
+// Hər submit və qəbul olunmuş dəyişiklik tələbi üçün bir yazı. Fayl əlavələri P3-ə qalır.
+model MilestoneSubmission {
+  id String @id @default(uuid())
+
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  type SubmissionType // SUBMITTED | CHANGES_REQUESTED
+
+  actorId String
+  actor   User   @relation(fields: [actorId], references: [id])
+
+  revisionNumber Int      @default(0) // hansı revision təhvil verilib / hansı tələb sayılır
+  note           String?  // dəyişiklik səbəbi (optional)
+
+  createdAt DateTime @default(now())
+
+  @@index([milestoneId, createdAt])
+  @@index([contractId, createdAt])
+}
+
+// Milestone mübahisəsi. Bir mərhələdə eyni anda yalnız BİR OPEN dispute ola bilər
+// (migrasiyada partial unique index ilə də tətbiq olunur).
+model Dispute {
+  id String @id @default(uuid())
+
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  openedById String
+  openedBy   User   @relation("DisputesOpened", fields: [openedById], references: [id])
+
+  reason  String
+  details String?
+
+  status     DisputeStatus      @default(OPEN)
+  resolution DisputeResolution? // RESOLVED olanda mütləq
+
+  // Həll olunmuş məbləğlər (sent). releaseToFreelancerCents + refundToClientCents = gross.
+  releaseToFreelancerCents Int?
+  refundToClientCents      Int?
+
+  adminId  String?
+  admin    User?   @relation("DisputesResolved", fields: [adminId], references: [id])
+  adminNote String?
+
+  openedAt   DateTime @default(now())
+  resolvedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([milestoneId, status])
+  @@index([contractId])
+}
+
+// İstifadəçi şikayəti. targetId polimorfikdir (targetType ilə birlikdə oxunur).
+model Report {
+  id String @id @default(uuid())
+
+  reporterId String
+  reporter   User   @relation("ReportsCreated", fields: [reporterId], references: [id])
+
+  targetType ReportTargetType
+  targetId   String
+
+  reason  String
+  details String?
+
+  status ReportStatus @default(OPEN)
+
+  adminId   String?
+  admin     User?   @relation("ReportsReviewed", fields: [adminId], references: [id])
+  adminNote String?
+
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([reporterId])
 }

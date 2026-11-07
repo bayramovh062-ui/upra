@@ -15,7 +15,7 @@ import {
     acceptContract,
     declineContract,
 } from '../controllers/contractController.js';
-import { getContractMilestones } from '../controllers/milestoneController.js';
+import { getContractMilestones, getContractHistory } from '../controllers/milestoneController.js';
 
 const router = express.Router();
 
@@ -25,6 +25,8 @@ router.post('/', restrictTo('CLIENT'), validate(createContractSchema), createCon
 router.get('/my', getMyContracts);
 router.get('/:id', getContractById);
 router.get('/:id/milestones', getContractMilestones);
+// P2: mərhələ təhvil/dəyişiklik tarixçəsi + mübahisələr (tərəflər)
+router.get('/:id/history', getContractHistory);
 
 // Təklif axını: client təklif göndərir (PENDING_ACCEPTANCE), frilanser qəbul edir (ACTIVE) və ya rədd edir (DECLINED)
 router.patch('/:id/accept', restrictTo('FREELANCER'), acceptContract);

@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:sync": "prisma migrate deploy && prisma generate",
+    "admin:promote": "node ./scripts/promote-admin.js",
     "test": "node ./scripts/run-tests.js"
   },
   "jest": {

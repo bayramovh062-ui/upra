@@ -19,6 +19,17 @@ export const cleanUpUserIds = async (ids) => {
 
     const contractWhere = { OR: [{ clientId: { in: ids } }, { freelancerId: { in: ids } }] };
 
+    // P2 cədvəlləri (Report/Dispute/MilestoneSubmission) user FK-ları RESTRICT ola bilər: əvvəl onları sil
+    await prisma.report.deleteMany({
+        where: { OR: [{ reporterId: { in: ids } }, { adminId: { in: ids } }] },
+    });
+    await prisma.dispute.deleteMany({
+        where: { OR: [{ openedById: { in: ids } }, { contract: contractWhere }] },
+    });
+    await prisma.milestoneSubmission.deleteMany({
+        where: { OR: [{ actorId: { in: ids } }, { contract: contractWhere }] },
+    });
+
     // Maliyyə cədvəlləri RESTRICT-dir: əvvəl ledger, sonra mərhələ və pul kisəsi (yalnız test bazasında)
     await prisma.transaction.deleteMany({
         where: { OR: [{ wallet: { userId: { in: ids } } }, { milestone: { contract: contractWhere } }] },

@@ -6,6 +6,7 @@ import {
     submitMilestone,
     approveMilestone,
     requestChanges,
+    openDispute,
 } from '../services/financialService.js';
 
 const publicWallet = (wallet) => ({
@@ -28,6 +29,35 @@ export const getContractMilestones = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, count: milestones.length, milestones });
 });
 
+// @route   GET /api/contracts/:id/history
+// @access  Private (müqavilənin tərəfləri)
+// P2: təhvil/dəyişiklik tarixçəsi + mübahisələr. Escrow UI bunu bir sorğu ilə oxuyur.
+export const getContractHistory = asyncHandler(async (req, res) => {
+    await verifyContractAccess(req.params.id, req.user.id);
+
+    const [submissions, disputes] = await Promise.all([
+        prisma.milestoneSubmission.findMany({
+            where: { contractId: req.params.id },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            include: {
+                actor: { select: { id: true, fullName: true, role: true } },
+                milestone: { select: { id: true, sequence: true, title: true } },
+            },
+        }),
+        prisma.dispute.findMany({
+            where: { contractId: req.params.id },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            include: {
+                openedBy: { select: { id: true, fullName: true, role: true } },
+                admin: { select: { id: true, fullName: true } },
+                milestone: { select: { id: true, sequence: true, title: true } },
+            },
+        }),
+    ]);
+
+    res.status(200).json({ success: true, submissions, disputes });
+});
+
 // @route   POST /api/milestones/:id/fund        (CLIENT) PENDING -> FUNDED, pul escrow-a keçir
 export const fund = asyncHandler(async (req, res) => {
     const { milestone, wallet } = await fundMilestone(req.params.id, req.user.id);
@@ -48,6 +78,12 @@ export const approve = asyncHandler(async (req, res) => {
 
 // @route   POST /api/milestones/:id/request-changes   (CLIENT) IN_REVIEW -> FUNDED
 export const changes = asyncHandler(async (req, res) => {
-    const milestone = await requestChanges(req.params.id, req.user.id);
+    const milestone = await requestChanges(req.params.id, req.user.id, { note: req.body?.note });
     res.status(200).json({ success: true, milestone });
+});
+
+// @route   POST /api/milestones/:id/dispute     (tərəflər) FUNDED/IN_REVIEW -> DISPUTED
+export const dispute = asyncHandler(async (req, res) => {
+    const created = await openDispute(req.params.id, req.user.id, req.body);
+    res.status(201).json({ success: true, dispute: created });
 });

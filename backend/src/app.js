@@ -16,6 +16,8 @@ import milestoneRoutes from './routes/milestoneRoutes.js';
 import internalRoutes from './routes/internalRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import conversationRoutes from './routes/conversationRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import { AppError } from './utils/AppError.js';
 import { resolveTrustProxy } from './config/proxy.js';
 
@@ -56,6 +58,8 @@ app.use('/api/milestones', milestoneRoutes);
 app.use('/api/internal', internalRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
 app.use('/api', taxonomyRoutes);

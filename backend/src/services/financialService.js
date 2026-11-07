@@ -3,7 +3,7 @@ import prisma from '../config/db.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { emitToContract } from '../socket.js';
-import { notify, formatUsd, NOTIFICATION_TYPES as N } from './notificationService.js';
+import { notify, notifyMany, formatUsd, NOTIFICATION_TYPES as N } from './notificationService.js';
 
 // =====================================================================================
 // Maliyyə servisi (escrow, pul kisəsi, mərhələlər). BÜTÜN pul hərəkəti yalnız buradan keçir.
@@ -30,6 +30,12 @@ const MAX_INT = 2_147_483_647;
 const MAX_ATTEMPTS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_CONTRACT_STATUSES = ['ACTIVE', 'DELIVERED'];
+// Mübahisə yalnız escrow-da pul saxlayan mərhələdə açılır:
+//   FUNDED   - iş başlamayıb / frilanser təhvil verməyib
+//   IN_REVIEW - təhvil verilib, client razı deyil
+const DISPUTABLE_STATUSES = ['FUNDED', 'IN_REVIEW'];
+// Escrow-da pul saxlayan (və pul qapılarında "maliyyələşmiş" sayılan) statuslar
+const ESCROW_HELD_STATUSES = ['FUNDED', 'IN_REVIEW', 'DISPUTED'];
 
 // Komissiya: 10%, tam sentə aşağı yuvarlaqlanır. Qalıq (yuvarlaqlama) frilanserdə qalır.
 // Platformanın ayrıca pul kisəsi yoxdur: komissiya frilanserin balansından çıxılır və platforma gəliri sayılır.
@@ -284,19 +290,29 @@ export const fundMilestone = async (milestoneId, actorId) => {
     return result;
 };
 
-// FUNDED -> IN_REVIEW (freelancer)
+// FUNDED -> IN_REVIEW (freelancer). P2: hər təhvil MilestoneSubmission kimi yazılır.
 export const submitMilestone = async (milestoneId, actorId) => {
     const pre = await loadMilestone(milestoneId);
     if (pre.contract.freelancerId !== actorId) throw new AppError('Only the freelancer can submit a milestone', 403);
 
     const milestone = await runTx(async (tx) => {
-        await lockAndLoad(tx, pre.contractId, milestoneId);
+        const { milestone: current } = await lockAndLoad(tx, pre.contractId, milestoneId);
 
         const updated = await tx.milestone.updateMany({
             where: { id: milestoneId, status: 'FUNDED' },
             data: { status: 'IN_REVIEW', submittedAt: new Date() },
         });
         if (updated.count === 0) throw conflict('Only a funded milestone can be submitted');
+
+        await tx.milestoneSubmission.create({
+            data: {
+                milestoneId,
+                contractId: pre.contractId,
+                type: 'SUBMITTED',
+                actorId,
+                revisionNumber: current.revisionCount,
+            },
+        });
 
         return tx.milestone.findUniqueOrThrow({ where: { id: milestoneId } });
     });
@@ -315,18 +331,41 @@ export const submitMilestone = async (milestoneId, actorId) => {
 };
 
 // IN_REVIEW -> FUNDED (client: "dəyişiklik istəyirəm"). Pul escrow-da qalır.
-export const requestChanges = async (milestoneId, actorId) => {
+// P2: hər qəbul olunmuş tələb revisionCount-u 1 artırır və limiti keçə bilməz.
+export const requestChanges = async (milestoneId, actorId, { note } = {}) => {
     const pre = await loadMilestone(milestoneId);
     if (pre.contract.clientId !== actorId) throw new AppError('Only the client can request changes', 403);
 
     const milestone = await runTx(async (tx) => {
-        await lockAndLoad(tx, pre.contractId, milestoneId);
+        const { milestone: current } = await lockAndLoad(tx, pre.contractId, milestoneId);
 
+        if (current.status !== 'IN_REVIEW') {
+            throw conflict('Only a milestone that is in review can be sent back');
+        }
+        if (current.revisionCount >= current.maxRevisions) {
+            throw new AppError(
+                `Revision limit reached (${current.revisionCount}/${current.maxRevisions}). Approve the work or open a dispute.`,
+                409
+            );
+        }
+
+        const nextRevision = current.revisionCount + 1;
         const updated = await tx.milestone.updateMany({
-            where: { id: milestoneId, status: 'IN_REVIEW' },
-            data: { status: 'FUNDED', submittedAt: null },
+            where: { id: milestoneId, status: 'IN_REVIEW', revisionCount: { lt: current.maxRevisions } },
+            data: { status: 'FUNDED', submittedAt: null, revisionCount: { increment: 1 } },
         });
         if (updated.count === 0) throw conflict('Only a milestone that is in review can be sent back');
+
+        await tx.milestoneSubmission.create({
+            data: {
+                milestoneId,
+                contractId: pre.contractId,
+                type: 'CHANGES_REQUESTED',
+                actorId,
+                revisionNumber: nextRevision,
+                note: note?.trim() || null,
+            },
+        });
 
         return tx.milestone.findUniqueOrThrow({ where: { id: milestoneId } });
     });
@@ -336,12 +375,282 @@ export const requestChanges = async (milestoneId, actorId) => {
     await notify(pre.contract.freelancerId, {
         type: N.CHANGES_REQUESTED,
         title: 'Changes requested',
-        body: `The client asked for changes on ${milestoneLabel(pre, milestone)}. The money stays in escrow; submit again when ready.`,
+        body: `The client asked for changes on ${milestoneLabel(pre, milestone)}. The money stays in escrow; submit again when ready.${
+            note?.trim() ? ` Reason: ${note.trim()}` : ''
+        }`,
         link: escrowLink(pre.contractId),
         data: { contractId: pre.contractId, milestoneId },
     });
 
     return milestone;
+};
+
+// ---------- mübahisə (P2) ----------
+
+// Escrow-da pul saxlayan mərhələ üzrə tərəflərdən biri mübahisə aça bilər.
+// Milestone DISPUTED olur, pul escrow-da qalır; submit/approve/request-changes və auto-approve dayanır.
+export const openDispute = async (milestoneId, actorId, { reason, details } = {}) => {
+    const pre = await loadMilestone(milestoneId);
+    const isParty = actorId === pre.contract.clientId || actorId === pre.contract.freelancerId;
+    if (!isParty) throw new AppError('Only contract parties can open a dispute', 403);
+    if (!reason?.trim()) throw new AppError('A reason is required to open a dispute', 400);
+
+    const dispute = await runTx(async (tx) => {
+        await lockContract(tx, pre.contractId);
+
+        const contract = await tx.contract.findUnique({
+            where: { id: pre.contractId },
+            select: { id: true, status: true, clientId: true, freelancerId: true },
+        });
+        if (!contract || !ACTIVE_CONTRACT_STATUSES.includes(contract.status)) {
+            throw new AppError('Contract is not active', 400);
+        }
+
+        const milestone = await tx.milestone.findUnique({ where: { id: milestoneId } });
+        if (!milestone) throw new AppError('Milestone not found', 404);
+        if (!DISPUTABLE_STATUSES.includes(milestone.status)) {
+            throw conflict('Only a funded milestone held in escrow can be disputed');
+        }
+
+        const open = await tx.dispute.count({ where: { milestoneId, status: 'OPEN' } });
+        if (open > 0) throw conflict('A dispute is already open for this milestone');
+
+        const updated = await tx.milestone.updateMany({
+            where: { id: milestoneId, status: milestone.status },
+            data: { status: 'DISPUTED', disputedAt: new Date() },
+        });
+        if (updated.count === 0) throw conflict('This milestone changed while the dispute was being opened');
+
+        return tx.dispute.create({
+            data: {
+                milestoneId,
+                contractId: pre.contractId,
+                openedById: actorId,
+                reason: reason.trim(),
+                details: details?.trim() || null,
+            },
+            include: {
+                milestone: true,
+                openedBy: { select: { id: true, fullName: true, role: true } },
+            },
+        });
+    });
+
+    notifyMilestone(pre.contractId, dispute.milestone);
+    emitToContract(pre.contractId, 'dispute:updated', {
+        id: dispute.id,
+        milestoneId,
+        contractId: pre.contractId,
+        status: 'OPEN',
+    });
+
+    const otherPartyId = actorId === pre.contract.clientId ? pre.contract.freelancerId : pre.contract.clientId;
+    await notify(otherPartyId, {
+        type: N.DISPUTE_OPENED,
+        title: 'Dispute opened',
+        body: `A dispute was opened on ${milestoneLabel(pre, dispute.milestone)}. Escrowed money is frozen until an admin resolves it.`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId, disputeId: dispute.id },
+    });
+
+    // Adminlər də xəbərdar olur (admin yoxdursa heç kimə yazılmır)
+    const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', deletedAt: null },
+        select: { id: true },
+    });
+    await notifyMany(
+        admins.map((a) => a.id),
+        {
+            type: N.DISPUTE_OPENED,
+            title: 'Dispute needs review',
+            body: `${milestoneLabel(pre, dispute.milestone)} is disputed: ${reason.trim()}`,
+            link: `/admin/disputes/${dispute.id}`,
+            data: { contractId: pre.contractId, milestoneId, disputeId: dispute.id },
+        }
+    );
+
+    return dispute;
+};
+
+// Admin OPEN mübahisəni RELEASE | REFUND | SPLIT ilə həll edir.
+// Pul qaydaları approveMilestone ilə eynidir: gross escrow-dan BİR DƏFƏ çıxır,
+// komissiya yalnız frilanserə buraxılan hissədən (release) tutulur.
+//
+//   RELEASE: release=gross, refund=0    -> PAID
+//   REFUND:  release=0,     refund=gross -> CANCELLED (komissiya yoxdur)
+//   SPLIT:   release+refund=gross        -> PAID (qismən ödəniş + qismən geri qaytarma)
+export const resolveDispute = async (
+    disputeId,
+    adminId,
+    { resolution, releaseCents, refundCents, adminNote } = {}
+) => {
+    const pre = await prisma.dispute.findUnique({
+        where: { id: disputeId },
+        include: {
+            milestone: { include: { contract: { select: { clientId: true, freelancerId: true } } } },
+        },
+    });
+    if (!pre) throw new AppError('Dispute not found', 404);
+    if (pre.status !== 'OPEN') throw conflict('This dispute is already resolved');
+
+    const gross = pre.milestone.amountCents;
+    let release;
+    let refund;
+
+    if (resolution === 'RELEASE') {
+        release = gross;
+        refund = 0;
+    } else if (resolution === 'REFUND') {
+        release = 0;
+        refund = gross;
+    } else if (resolution === 'SPLIT') {
+        release = releaseCents;
+        refund = refundCents;
+        if (!Number.isInteger(release) || !Number.isInteger(refund) || release < 0 || refund < 0) {
+            throw new AppError('Split amounts must be non-negative whole cents', 400);
+        }
+        if (release + refund !== gross) {
+            throw new AppError(`releaseCents + refundCents must equal the escrowed amount (${gross} cents)`, 400);
+        }
+    } else {
+        throw new AppError('Resolution must be RELEASE, REFUND or SPLIT', 400);
+    }
+
+    const commission = calcCommission(release);
+    const net = release - commission;
+
+    const clientWallet = await ensureWallet(pre.milestone.contract.clientId);
+    const freelancerWallet = release > 0 ? await ensureWallet(pre.milestone.contract.freelancerId) : null;
+    const reference = randomUUID();
+
+    const result = await runTx(async (tx) => {
+        const { milestone } = await lockAndLoad(tx, pre.contractId, pre.milestoneId);
+        if (milestone.status !== 'DISPUTED') throw conflict('This milestone is not disputed');
+
+        const now = new Date();
+        // İdempotentlik qapısı: yalnız hələ OPEN olan dispute bağlanır
+        const claimed = await tx.dispute.updateMany({
+            where: { id: disputeId, status: 'OPEN' },
+            data: {
+                status: 'RESOLVED',
+                resolution,
+                releaseToFreelancerCents: release,
+                refundToClientCents: refund,
+                adminId,
+                adminNote: adminNote?.trim() || null,
+                resolvedAt: now,
+            },
+        });
+        if (claimed.count === 0) throw conflict('This dispute is already resolved');
+
+        const terminal = resolution === 'REFUND' ? 'CANCELLED' : 'PAID';
+        const updated = await tx.milestone.updateMany({
+            where: { id: pre.milestoneId, status: 'DISPUTED' },
+            data: {
+                status: terminal,
+                resolvedReleaseCents: release,
+                resolvedRefundCents: refund,
+                ...(terminal === 'PAID' ? { approvedAt: now, paidAt: now } : {}),
+            },
+        });
+        if (updated.count === 0) throw conflict('This milestone changed while the dispute was being resolved');
+
+        const changes = [
+            {
+                wallet: clientWallet,
+                where: { lockedCents: { gte: gross } },
+                data: {
+                    lockedCents: { decrement: gross },
+                    ...(refund > 0 ? { availableCents: { increment: refund } } : {}),
+                },
+                error: () => new AppError('Escrow balance is inconsistent. Please contact support.', 500),
+            },
+        ];
+        if (release > 0) {
+            changes.push({
+                wallet: freelancerWallet,
+                where: { availableCents: { lte: MAX_INT - net } },
+                data: { availableCents: { increment: net } },
+                error: () => new AppError('Freelancer wallet balance limit reached', 400),
+            });
+        }
+        await applyWalletChanges(tx, changes);
+
+        const common = {
+            milestoneId: pre.milestoneId,
+            reference,
+            metadata: { disputeId, resolution, adminId },
+        };
+        const rows = [
+            ledgerRow(clientWallet.id, 'ESCROW_RELEASE', 'DEBIT', 'LOCKED', gross, {
+                ...common,
+                description: `Escrow released: dispute resolved (milestone ${milestone.sequence})`,
+            }),
+        ];
+        if (refund > 0) {
+            rows.push(
+                ledgerRow(clientWallet.id, 'REFUND', 'CREDIT', 'AVAILABLE', refund, {
+                    ...common,
+                    description: `Refund to client: dispute resolved (milestone ${milestone.sequence})`,
+                })
+            );
+        }
+        if (release > 0) {
+            rows.push(
+                ledgerRow(freelancerWallet.id, 'MILESTONE_PAYMENT', 'CREDIT', 'AVAILABLE', release, {
+                    ...common,
+                    description: `Payment to freelancer: dispute resolved (milestone ${milestone.sequence})`,
+                })
+            );
+        }
+        // amountCents > 0 CHECK: komissiya 0 olarsa yazı yaradılmır
+        if (commission > 0) {
+            rows.push(
+                ledgerRow(freelancerWallet.id, 'COMMISSION', 'DEBIT', 'AVAILABLE', commission, {
+                    ...common,
+                    description: `Platform commission (10%) on released amount: dispute (milestone ${milestone.sequence})`,
+                })
+            );
+        }
+        await writeLedger(tx, rows);
+
+        return {
+            milestone: await tx.milestone.findUniqueOrThrow({ where: { id: pre.milestoneId } }),
+            dispute: await tx.dispute.findUniqueOrThrow({ where: { id: disputeId } }),
+            payout: {
+                grossCents: gross,
+                releaseCents: release,
+                refundCents: refund,
+                commissionCents: commission,
+                netCents: net,
+            },
+        };
+    });
+
+    notifyMilestone(pre.contractId, result.milestone);
+    emitToContract(pre.contractId, 'dispute:updated', {
+        id: disputeId,
+        milestoneId: pre.milestoneId,
+        contractId: pre.contractId,
+        status: 'RESOLVED',
+        resolution,
+    });
+
+    const contract = await prisma.contract.findUnique({
+        where: { id: pre.contractId },
+        select: { clientId: true, freelancerId: true },
+    });
+    await notifyMany([contract.clientId, contract.freelancerId], {
+        type: N.DISPUTE_RESOLVED,
+        title: 'Dispute resolved',
+        body: `An admin resolved the dispute on milestone ${result.milestone.sequence} "${result.milestone.title}": ${formatUsd(
+            release
+        )} released to the freelancer and ${formatUsd(refund)} refunded to the client.`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId: pre.milestoneId, disputeId, resolution },
+    });
+
+    return result;
 };
 
 // IN_REVIEW -> PAID. Təsdiq və ödəniş eyni addımdır (APPROVED ara statusu yoxdur).
@@ -458,6 +767,7 @@ export const approveMilestone = async (milestoneId, { actorId, now = new Date() 
 
 // Gözləmə müddəti keçmiş (7 tam gün IN_REVIEW) mərhələləri avtomatik təsdiqləyir.
 // "Nə vaxt təsdiqlənir" qaydası approveMilestone-dadır; bu funksiya yalnız namizədləri tapıb onu çağırır.
+// P2: yalnız IN_REVIEW seçilir; DISPUTED mərhələ heç vaxt avtomatik ödənilmir.
 // Bir neçə instansiya eyni anda işləsə də təhlükəsizdir: ikinci instansiya 409 alır və keçir.
 export const autoApproveDue = async ({ now = new Date(), batchSize = 100 } = {}) => {
     const cutoff = new Date(now.getTime() - AUTO_APPROVE_DAYS * DAY_MS);
@@ -492,16 +802,22 @@ export const autoApproveDue = async ({ now = new Date(), batchSize = 100 } = {})
 
 // applyCancellation-ın tranzaksiyası daxilində çağırılır (Contract kilidi artıq alınıb, client-in pul kisəsi
 // tranzaksiyadan əvvəl ensureWallet ilə yaradılıb).
-//   FUNDED / IN_REVIEW -> CANCELLED + geri qaytarma:  ESCROW_RELEASE DEBIT LOCKED + REFUND CREDIT AVAILABLE
+//   FUNDED / IN_REVIEW / DISPUTED -> CANCELLED + geri qaytarma:  ESCROW_RELEASE DEBIT LOCKED + REFUND CREDIT AVAILABLE
 //   PENDING            -> CANCELLED, ledger yazısı YOXDUR (pul hərəkət etməyib)
 //   PAID               -> toxunulmur (ödənilmiş pul heç vaxt geri qaytarılmır)
+// Açıq mübahisə varsa ləğv bloklanır: dispute həlli ilə eyni escrow-u iki dəfə buraxmamaq üçün.
 export const refundContractEscrow = async (tx, contract) => {
+    const openDisputes = await tx.dispute.count({ where: { contractId: contract.id, status: 'OPEN' } });
+    if (openDisputes > 0) {
+        throw new AppError('Resolve open disputes before cancelling this contract', 409);
+    }
+
     const milestones = await tx.milestone.findMany({
         where: { contractId: contract.id },
         orderBy: { sequence: 'asc' },
     });
 
-    const funded = milestones.filter((m) => m.status === 'FUNDED' || m.status === 'IN_REVIEW');
+    const funded = milestones.filter((m) => ESCROW_HELD_STATUSES.includes(m.status));
     const total = funded.reduce((sum, m) => sum + m.amountCents, 0);
 
     if (funded.length > 0) {
@@ -570,17 +886,18 @@ export const settleMilestonesOnComplete = async (tx, contractId) => {
 };
 
 // Lövhədə işə başlamaq üçün pul escrow-da olmalıdır. issue bir mərhələyə bağlıdırsa həmin mərhələ,
-// bağlı deyilsə (backlog) müqavilədə ən azı bir mərhələ FUNDED/IN_REVIEW olmalıdır.
+// bağlı deyilsə (backlog) müqavilədə ən azı bir mərhələ FUNDED/IN_REVIEW/DISPUTED olmalıdır.
+// DISPUTED da escrow-da pul saxlayır: board kilidi dəyişmir, mübahisə yalnız mərhələ əməliyyatlarını dayandırır.
 export const assertWorkFunded = async (contractId, milestoneId = null) => {
     if (milestoneId) {
         const milestone = await prisma.milestone.findUnique({
             where: { id: milestoneId },
             select: { status: true },
         });
-        if (milestone && ['FUNDED', 'IN_REVIEW', 'PAID'].includes(milestone.status)) return;
+        if (milestone && [...ESCROW_HELD_STATUSES, 'PAID'].includes(milestone.status)) return;
     } else {
         const funded = await prisma.milestone.count({
-            where: { contractId, status: { in: ['FUNDED', 'IN_REVIEW'] } },
+            where: { contractId, status: { in: ESCROW_HELD_STATUSES } },
         });
         if (funded > 0) return;
     }
