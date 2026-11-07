@@ -17,7 +17,12 @@ import {
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
 import EscrowPanel from '../features/escrow/EscrowPanel';
-import { summarizeMilestones } from '../features/escrow/escrow';
+import { calcCommissionCents, summarizeMilestones } from '../features/escrow/escrow';
+import {
+    useApproveMilestoneMutation,
+    useRequestMilestoneChangesMutation,
+    useSubmitMilestoneMutation,
+} from '../features/escrow/escrowApi';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useAcceptCancellationMutation,
@@ -58,6 +63,11 @@ const ContractDetailPage = () => {
     const [withdrawCancellation, { isLoading: withdrawing }] = useWithdrawCancellationMutation();
     const [acceptContract, { isLoading: acceptingOffer }] = useAcceptContractMutation();
     const [declineContract, { isLoading: decliningOffer }] = useDeclineContractMutation();
+    // Başlıqdakı qısayol düymələr: aktiv mərhələyə bağlı işləyir (Escrow tabındakı ilə eyni əməliyyatlar)
+    const [msAction, setMsAction] = useState(null); // { type: 'submit' | 'approve' | 'changes', milestone }
+    const [submitMilestone, { isLoading: submittingMs }] = useSubmitMilestoneMutation();
+    const [approveMilestone, { isLoading: approvingMs }] = useApproveMilestoneMutation();
+    const [requestChanges, { isLoading: requestingMs }] = useRequestMilestoneChangesMutation();
 
     if (isLoading) {
         return (
@@ -119,6 +129,48 @@ const ContractDetailPage = () => {
         lockedCents > 0 ? ` ${formatCents(lockedCents)} held in escrow is refunded to the client's wallet.` : '';
     // Backend: bütün mərhələlər PAID olmayana qədər müqaviləni bitirmək olmur
     const completeBlocked = !allPaid;
+    // Aktiv mərhələlər: frilanser FUNDED-i təhvil verir, client IN_REVIEW-u təsdiqləyir və ya geri qaytarır
+    const fundedMilestone = milestones.find((m) => m.status === 'FUNDED');
+    const reviewMilestone = milestones.find((m) => m.status === 'IN_REVIEW');
+    const MS_ACTIONS = {
+        submit: { run: submitMilestone, success: 'Milestone submitted for review' },
+        approve: { run: approveMilestone, success: 'Milestone approved and paid' },
+        changes: { run: requestChanges, success: 'Changes requested' },
+    };
+    const msDialog = msAction
+        ? {
+              submit: {
+                  title: 'Submit for review?',
+                  confirmText: 'Submit for review',
+                  variant: 'primary',
+                  message: 'The client will review this milestone. If they do not respond, it is approved automatically after 7 days.',
+              },
+              approve: {
+                  title: 'Approve and pay?',
+                  confirmText: 'Approve & pay',
+                  variant: 'primary',
+                  message: `${formatCents(msAction.milestone.amountCents)} is released to the freelancer. A 10% platform fee (${formatCents(calcCommissionCents(msAction.milestone.amountCents))}) is taken from the freelancer's payout. This cannot be undone.`,
+              },
+              changes: {
+                  title: 'Request changes?',
+                  confirmText: 'Request changes',
+                  variant: 'secondary',
+                  message: 'The milestone goes back to the freelancer. The money stays in escrow.',
+              },
+          }[msAction.type]
+        : null;
+
+    const handleMsConfirm = async () => {
+        const { type, milestone } = msAction;
+        try {
+            await MS_ACTIONS[type].run({ id: milestone.id, contractId: contract.id }).unwrap();
+            toast.success(MS_ACTIONS[type].success);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Action failed'));
+        } finally {
+            setMsAction(null);
+        }
+    };
 
     // Hər əməliyyat üçün: backend çağırışı, uğur mesajı və təsdiq pəncərəsinin mətni
     const ACTIONS = {
@@ -236,6 +288,27 @@ const ContractDetailPage = () => {
                     <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>
                         {contract.workStarted ? 'Request cancellation' : 'Cancel contract'}
                     </Button>
+                )}
+
+                {/* Qısayollar: aktiv mərhələyə bağlıdır, tam siyahı Escrow tabındadır */}
+                {isFreelancer && open && fundedMilestone && (
+                    <Button onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}>
+                        <Icon name="outbox" className="text-[18px]" />
+                        Submit for review
+                    </Button>
+                )}
+
+                {isClient && open && reviewMilestone && (
+                    <>
+                        <Button variant="secondary" onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}>
+                            <Icon name="undo" className="text-[18px]" />
+                            Request changes
+                        </Button>
+                        <Button onClick={() => setMsAction({ type: 'approve', milestone: reviewMilestone })}>
+                            <Icon name="task_alt" className="text-[18px]" />
+                            Approve &amp; pay
+                        </Button>
+                    </>
                 )}
 
                 {isClient && open && (
@@ -410,6 +483,17 @@ const ContractDetailPage = () => {
                 title={current?.title}
                 message={current?.message}
                 confirmText={current?.confirmText}
+            />
+
+            <ConfirmDialog
+                open={!!msAction}
+                onClose={() => setMsAction(null)}
+                onConfirm={handleMsConfirm}
+                loading={submittingMs || approvingMs || requestingMs}
+                variant={msDialog?.variant}
+                title={msDialog?.title}
+                message={msDialog?.message}
+                confirmText={msDialog?.confirmText}
             />
 
             <Modal
