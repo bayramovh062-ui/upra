@@ -10,6 +10,7 @@ import {
     refundContractEscrow,
     settleMilestonesOnComplete,
 } from '../services/financialService.js';
+import { notify, otherParty, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
 // DELIVERED enum-da qalır (geriyə uyğunluq), amma artıq heç bir əməliyyat ona keçmir:
 // təhvil milestone səviyyəsindədir (submit / request-changes / approve).
@@ -51,6 +52,18 @@ const assertOpen = (contract, message = 'Only ACTIVE contracts can be cancelled'
         throw new AppError(message, 400);
     }
 };
+
+// Bildirişlərdə işin adını göstərmək üçün (xeta olsa başlıq boş qalır, əsas əməliyyat pozulmur)
+const jobTitleOf = async (jobPostId) => {
+    try {
+        const job = await prisma.jobPost.findUnique({ where: { id: jobPostId }, select: { title: true } });
+        return job?.title ?? 'your job';
+    } catch {
+        return 'your job';
+    }
+};
+
+const contractLink = (contract) => `/contracts/${contract.id}`;
 
 const emitUpdated = (contract) =>
     emitToContract(contract.id, 'contract:updated', {
@@ -207,6 +220,14 @@ export const createContract = asyncHandler(async (req, res) => {
         orderBy: { sequence: 'asc' },
     });
 
+    await notify(contract.freelancerId, {
+        type: N.CONTRACT_OFFERED,
+        title: 'New contract offer',
+        body: `${req.user.fullName} offered you a contract for "${proposal.jobPost.title}". Review and accept it to start.`,
+        link: contractLink(contract),
+        data: { contractId: contract.id },
+    });
+
     res.status(201).json({ success: true, contract: { ...contract, milestones } });
 });
 
@@ -261,6 +282,14 @@ export const acceptContract = asyncHandler(async (req, res) => {
     );
 
     emitUpdated(updated);
+
+    await notify(contract.clientId, {
+        type: N.CONTRACT_ACCEPTED,
+        title: 'Contract offer accepted',
+        body: `${req.user.fullName} accepted your offer for "${await jobTitleOf(contract.jobPostId)}". Fund the first milestone to start the work.`,
+        link: `${contractLink(contract)}?tab=escrow`,
+        data: { contractId: contract.id },
+    });
 
     res.status(200).json({ success: true, contract: updated });
 });
@@ -323,6 +352,14 @@ export const declineContract = asyncHandler(async (req, res) => {
     );
 
     emitUpdated(updated);
+
+    await notify(contract.clientId, {
+        type: N.CONTRACT_DECLINED,
+        title: 'Contract offer declined',
+        body: `${req.user.fullName} declined your offer for "${await jobTitleOf(contract.jobPostId)}". The job is open again.`,
+        link: '/client/jobs',
+        data: { contractId: contract.id },
+    });
 
     res.status(200).json({ success: true, contract: updated });
 });
@@ -424,6 +461,14 @@ export const completeContract = asyncHandler(async (req, res) => {
 
     emitUpdated(updatedContract);
 
+    await notify(updatedContract.freelancerId, {
+        type: N.CONTRACT_COMPLETED,
+        title: 'Contract completed',
+        body: `${req.user.fullName} marked "${await jobTitleOf(updatedContract.jobPostId)}" as completed. All milestones are paid.`,
+        link: contractLink(updatedContract),
+        data: { contractId: updatedContract.id },
+    });
+
     res.status(200).json({ success: true, contract: updatedContract });
 });
 
@@ -444,6 +489,14 @@ export const cancelContract = asyncHandler(async (req, res) => {
     const cancelled = await applyCancellation(contract, CLEAR_CANCEL_REQUEST);
 
     emitUpdated(cancelled);
+
+    await notify(otherParty(contract, req.user.id), {
+        type: N.CONTRACT_CANCELLED,
+        title: 'Contract cancelled',
+        body: `${req.user.fullName} cancelled "${await jobTitleOf(contract.jobPostId)}" before the work started. Any escrowed money was refunded.`,
+        link: contractLink(contract),
+        data: { contractId: contract.id },
+    });
 
     res.status(200).json({ success: true, contract: cancelled });
 });
@@ -476,6 +529,14 @@ export const requestCancellation = asyncHandler(async (req, res) => {
 
     emitUpdated(updated);
 
+    await notify(otherParty(contract, req.user.id), {
+        type: N.CANCEL_REQUESTED,
+        title: 'Cancellation requested',
+        body: `${req.user.fullName} asked to cancel "${await jobTitleOf(contract.jobPostId)}".${req.body?.reason ? ` Reason: ${req.body.reason}` : ''} Your answer is needed.`,
+        link: contractLink(contract),
+        data: { contractId: contract.id },
+    });
+
     res.status(200).json({ success: true, contract: updated });
 });
 
@@ -495,6 +556,14 @@ export const acceptCancellation = asyncHandler(async (req, res) => {
     const cancelled = await applyCancellation(contract);
 
     emitUpdated(cancelled);
+
+    await notify(contract.cancelRequestedById, {
+        type: N.CONTRACT_CANCELLED,
+        title: 'Cancellation accepted',
+        body: `${req.user.fullName} agreed to cancel "${await jobTitleOf(contract.jobPostId)}". Escrowed money was refunded to the client.`,
+        link: contractLink(contract),
+        data: { contractId: contract.id },
+    });
 
     res.status(200).json({ success: true, contract: cancelled });
 });
@@ -533,6 +602,26 @@ const resolveRequest = (who) =>
         const updated = await prisma.contract.findUnique({ where: { id: contract.id } });
 
         emitUpdated(updated);
+
+        // Decline: göndərənə xəbər; withdraw: qarşı tərəfə xəbər
+        const title = await jobTitleOf(contract.jobPostId);
+        if (who === 'other') {
+            await notify(contract.cancelRequestedById, {
+                type: N.CANCEL_DECLINED,
+                title: 'Cancellation declined',
+                body: `${req.user.fullName} declined to cancel "${title}". The contract continues.`,
+                link: contractLink(contract),
+                data: { contractId: contract.id },
+            });
+        } else {
+            await notify(otherParty(contract, req.user.id), {
+                type: N.CANCEL_WITHDRAWN,
+                title: 'Cancellation request withdrawn',
+                body: `${req.user.fullName} withdrew the cancellation request for "${title}". The contract continues.`,
+                link: contractLink(contract),
+                data: { contractId: contract.id },
+            });
+        }
 
         res.status(200).json({ success: true, contract: updated });
     });

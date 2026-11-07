@@ -1,6 +1,7 @@
 import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import { notify, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
 // @route   POST /api/proposals
 // @access  Private (FREELANCER)
@@ -39,6 +40,14 @@ export const createProposal = asyncHandler(async (req, res) => {
             bidAmount,
             freelancerId: req.user.id,
         },
+    });
+
+    await notify(jobPost.clientId, {
+        type: N.PROPOSAL_RECEIVED,
+        title: 'New proposal received',
+        body: `${req.user.fullName} sent a proposal for "${jobPost.title}".`,
+        link: `/client/jobs/${jobPost.id}/proposals`,
+        data: { jobPostId: jobPost.id, proposalId: proposal.id },
     });
 
     res.status(201).json({ success: true, proposal });

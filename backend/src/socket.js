@@ -32,6 +32,11 @@ export const initSocket = (httpServer) => {
     });
 
     io.on('connection', (socket) => {
+        // Şəxsi otaq: bildirişlər yalnız token sahibinə gedir (id JWT-dən gəlir, client göndərməz)
+        if (socket.user?.id) {
+            socket.join(`user:${socket.user.id}`);
+        }
+
         // Contract Otağına Qoşulma (İcazə yoxlanılır)
         socket.on('join_contract', async (contractId) => {
             try {
@@ -53,6 +58,13 @@ export const initSocket = (httpServer) => {
     });
 
     return io;
+};
+
+// Konkret istifadəçiyə (onun bütün açıq tab/cihazlarına) real-vaxt hadisəsi göndərir
+export const emitToUser = (userId, event, data) => {
+    if (io) {
+        io.to(`user:${userId}`).emit(event, data);
+    }
 };
 
 // Controllers daxilindən real-vaxt bildirişi göndərmək üçün köməkçi funksiya

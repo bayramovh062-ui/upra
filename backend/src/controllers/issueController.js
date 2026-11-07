@@ -8,8 +8,23 @@ import {
 } from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
 import { assertWorkFunded } from '../services/financialService.js';
+import { notify, otherParty, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
 const MIN_POSITION_GAP = 0.001;
+
+const excerpt = (text, max = 120) => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
+
+// Təyinat bildirişi: özünü təyin edənə göndərilmir
+const notifyAssigned = (contract, issue, assigneeId, actor) => {
+    if (!assigneeId || assigneeId === actor.id) return null;
+    return notify(assigneeId, {
+        type: N.ISSUE_ASSIGNED,
+        title: 'Task assigned to you',
+        body: `${actor.fullName} assigned you "${issue.title}".`,
+        link: `/contracts/${contract.id}`,
+        data: { contractId: contract.id, issueId: issue.id },
+    });
+};
 
 // @route   GET /api/contracts/:contractId/issues
 // @access  Private (Contract Client & Freelancer)
@@ -83,6 +98,8 @@ export const createIssue = asyncHandler(async (req, res) => {
 
     emitToContract(contractId, 'issue:created', issue);
 
+    await notifyAssigned(contract, issue, issue.assigneeId, req.user);
+
     res.status(201).json({ success: true, issue });
 });
 
@@ -118,6 +135,11 @@ export const updateIssue = asyncHandler(async (req, res) => {
     });
 
     emitToContract(contract.id, 'issue:updated', updatedIssue);
+
+    // Yalnız təyinat dəyişəndə: eyni kişiyə təkrar bildiriş gəlmir
+    if (req.body.assigneeId && req.body.assigneeId !== issue.assigneeId) {
+        await notifyAssigned(contract, updatedIssue, req.body.assigneeId, req.user);
+    }
 
     res.status(200).json({ success: true, issue: updatedIssue });
 });
@@ -225,6 +247,14 @@ export const addIssueComment = asyncHandler(async (req, res) => {
     });
 
     emitToContract(contract.id, 'comment:created', comment);
+
+    await notify(otherParty(contract, req.user.id), {
+        type: N.COMMENT_ADDED,
+        title: 'New comment on a task',
+        body: `${req.user.fullName} commented on "${issue.title}": ${excerpt(body)}`,
+        link: `/contracts/${contract.id}`,
+        data: { contractId: contract.id, issueId: issue.id, commentId: comment.id },
+    });
 
     res.status(201).json({ success: true, comment });
 });

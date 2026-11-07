@@ -3,6 +3,7 @@ import prisma from '../config/db.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 import { emitToContract } from '../socket.js';
+import { notify, formatUsd, NOTIFICATION_TYPES as N } from './notificationService.js';
 
 // =====================================================================================
 // Maliyyə servisi (escrow, pul kisəsi, mərhələlər). BÜTÜN pul hərəkəti yalnız buradan keçir.
@@ -98,7 +99,11 @@ const writeLedger = (tx, rows) => tx.transaction.createMany({ data: rows });
 const loadMilestone = async (milestoneId) => {
     const milestone = await prisma.milestone.findUnique({
         where: { id: milestoneId },
-        include: { contract: { select: { id: true, clientId: true, freelancerId: true } } },
+        include: {
+            contract: {
+                select: { id: true, clientId: true, freelancerId: true, jobPost: { select: { title: true } } },
+            },
+        },
     });
     if (!milestone) throw new AppError('Milestone not found', 404);
     return milestone;
@@ -127,6 +132,11 @@ const conflict = (message) => new AppError(message, 409);
 
 const notifyMilestone = (contractId, milestone) =>
     emitToContract(contractId, 'milestone:updated', { id: milestone.id, status: milestone.status, contractId });
+
+// Əməliyyat bitdikdən sonra şəxsi bildiriş (xeta olsa yalnız loglanır, əməliyyat pozulmur)
+const milestoneLabel = (pre, milestone) =>
+    `milestone ${milestone.sequence} "${milestone.title}" of "${pre.contract.jobPost?.title ?? 'your contract'}"`;
+const escrowLink = (contractId) => `/contracts/${contractId}?tab=escrow`;
 
 // ---------- pul kisəsi: top-up, withdraw, xülasə ----------
 
@@ -262,6 +272,15 @@ export const fundMilestone = async (milestoneId, actorId) => {
     });
 
     notifyMilestone(pre.contractId, result.milestone);
+
+    await notify(pre.contract.freelancerId, {
+        type: N.MILESTONE_FUNDED,
+        title: 'Milestone funded',
+        body: `${formatUsd(result.milestone.amountCents)} is now in escrow for ${milestoneLabel(pre, result.milestone)}. You can start working.`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId: milestoneId },
+    });
+
     return result;
 };
 
@@ -283,6 +302,15 @@ export const submitMilestone = async (milestoneId, actorId) => {
     });
 
     notifyMilestone(pre.contractId, milestone);
+
+    await notify(pre.contract.clientId, {
+        type: N.MILESTONE_SUBMITTED,
+        title: 'Milestone submitted for review',
+        body: `The freelancer submitted ${milestoneLabel(pre, milestone)}. Approve it, or request changes. It is approved automatically after ${AUTO_APPROVE_DAYS} days.`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId },
+    });
+
     return milestone;
 };
 
@@ -304,6 +332,15 @@ export const requestChanges = async (milestoneId, actorId) => {
     });
 
     notifyMilestone(pre.contractId, milestone);
+
+    await notify(pre.contract.freelancerId, {
+        type: N.CHANGES_REQUESTED,
+        title: 'Changes requested',
+        body: `The client asked for changes on ${milestoneLabel(pre, milestone)}. The money stays in escrow; submit again when ready.`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId },
+    });
+
     return milestone;
 };
 
@@ -397,6 +434,25 @@ export const approveMilestone = async (milestoneId, { actorId, now = new Date() 
     });
 
     notifyMilestone(pre.contractId, result.milestone);
+
+    const { grossCents, commissionCents, netCents } = result.payout;
+    await notify(pre.contract.freelancerId, {
+        type: isSystem ? N.MILESTONE_AUTO_APPROVED : N.MILESTONE_PAID,
+        title: isSystem ? 'Milestone approved automatically' : 'Milestone approved and paid',
+        body: `${formatUsd(netCents)} was added to your wallet for ${milestoneLabel(pre, result.milestone)} (${formatUsd(grossCents)} minus ${formatUsd(commissionCents)} platform fee).`,
+        link: escrowLink(pre.contractId),
+        data: { contractId: pre.contractId, milestoneId },
+    });
+    if (isSystem) {
+        await notify(pre.contract.clientId, {
+            type: N.MILESTONE_AUTO_APPROVED,
+            title: 'Milestone approved automatically',
+            body: `${milestoneLabel(pre, result.milestone)} was in review for ${AUTO_APPROVE_DAYS} days and was approved automatically. ${formatUsd(grossCents)} was released from escrow.`,
+            link: escrowLink(pre.contractId),
+            data: { contractId: pre.contractId, milestoneId },
+        });
+    }
+
     return result;
 };
 

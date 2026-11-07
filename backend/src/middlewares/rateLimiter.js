@@ -237,3 +237,22 @@ export const topUpLimiter = rateLimit({
         );
     },
 });
+
+// ================= ÇAT MESAJLARI =================
+// İstifadəçi başına dəqiqədə 30 mesaj: normal yazışmayı pozmur, spam axınının qarşısını alır. Açar: protect-dən sonra istifadəçi.
+export const messageLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: pick(30, 300),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : ipKey(req)),
+    handler: (req, res, next, options) => {
+        const retryAfterMs = Math.max(0, (req.rateLimit?.resetTime?.getTime() ?? Date.now()) - Date.now());
+        res.status(options.statusCode).json(
+            tooMany(
+                `You are sending messages too fast. Please try again in ${minutesText(retryAfterMs)}.`,
+                Math.ceil(retryAfterMs / 1000)
+            )
+        );
+    },
+});
