@@ -41,6 +41,9 @@ app.use(express.json());
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
 // Routes
+// Sağlamlıq yoxlaması: DB-yə toxunmur (Neon compute-u oyatmasın), Render/uptime pinger üçün
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/proposals', proposalRoutes);
