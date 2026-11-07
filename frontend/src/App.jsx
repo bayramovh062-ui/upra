@@ -29,6 +29,8 @@ import ContractDetailPage from './pages/ContractDetailPage';
 import UserProfilePage from './pages/UserProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import MessagesPage from './pages/MessagesPage';
+import AdminDisputesPage from './pages/admin/AdminDisputesPage';
+import AdminReportsPage from './pages/admin/AdminReportsPage';
 
 function App() {
     return (
@@ -81,6 +83,12 @@ function App() {
                             <Route element={<ProtectedRoute allowedRoles={['FREELANCER']} />}>
                                 <Route path="/freelancer/dashboard" element={<DashboardPage />} />
                                 <Route path="/freelancer/proposals" element={<MyProposalsPage />} />
+                            </Route>
+
+                            {/* Yalnız ADMIN */}
+                            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                                <Route path="/admin/disputes" element={<AdminDisputesPage />} />
+                                <Route path="/admin/reports" element={<AdminReportsPage />} />
                             </Route>
                         </Route>
                     </Route>

@@ -16,8 +16,17 @@ export const NAV_ITEMS = {
         { to: '/messages', label: 'Messages', icon: 'chat' },
         { to: '/settings', label: 'Settings', icon: 'settings' },
     ],
+    ADMIN: [
+        { to: '/admin/disputes', label: 'Disputes', icon: 'gavel' },
+        { to: '/admin/reports', label: 'Reports', icon: 'flag' },
+        { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
+        { to: '/messages', label: 'Messages', icon: 'chat' },
+        { to: '/settings', label: 'Settings', icon: 'settings' },
+    ],
 };
 
 // Rola görə əsas səhifə (login-dən sonra və /dashboard üçün)
-export const getDashboardPath = (role) =>
-    role === 'FREELANCER' ? '/freelancer/dashboard' : '/client/dashboard';
+export const getDashboardPath = (role) => {
+    if (role === 'ADMIN') return '/admin/disputes';
+    return role === 'FREELANCER' ? '/freelancer/dashboard' : '/client/dashboard';
+};

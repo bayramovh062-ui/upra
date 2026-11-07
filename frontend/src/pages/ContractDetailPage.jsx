@@ -11,18 +11,21 @@ import {
     ErrorState,
     Icon,
     Modal,
+    Select,
     Skeleton,
     StatusBadge,
     Textarea,
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
 import EscrowPanel from '../features/escrow/EscrowPanel';
-import { calcCommissionCents, summarizeMilestones } from '../features/escrow/escrow';
+import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from '../features/escrow/escrow';
 import {
     useApproveMilestoneMutation,
+    useGetContractHistoryQuery,
     useRequestMilestoneChangesMutation,
     useSubmitMilestoneMutation,
 } from '../features/escrow/escrowApi';
+import { useCreateReportMutation } from '../features/reports/reportsApi';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
 import {
     useAcceptCancellationMutation,
@@ -71,6 +74,13 @@ const ContractDetailPage = () => {
     const [submitMilestone, { isLoading: submittingMs }] = useSubmitMilestoneMutation();
     const [approveMilestone, { isLoading: approvingMs }] = useApproveMilestoneMutation();
     const [requestChanges, { isLoading: requestingMs }] = useRequestMilestoneChangesMutation();
+    // P2: mübahisə vəziyyəti (tərəflər üçün) və şikayət pəncərəsi
+    const historyQ = useGetContractHistoryQuery(id);
+    const [reportOpen, setReportOpen] = useState(false);
+    const [reportTarget, setReportTarget] = useState('CONTRACT');
+    const [reportReason, setReportReason] = useState('');
+    const [reportDetails, setReportDetails] = useState('');
+    const [createReport, { isLoading: reporting }] = useCreateReportMutation();
 
     if (isLoading) {
         return (
@@ -120,14 +130,29 @@ const ContractDetailPage = () => {
     const milestones = contract.milestones ?? [];
     const { lockedCents, paid: paidCount, total: milestoneTotal } = summarizeMilestones(milestones, isFreelancer);
     // Pul qapısı 1: escrow-da pul olmadan lövhədə iş başlamır (backend də yoxlayır)
-    const boardLocked = active && !milestones.some((m) => m.status === 'FUNDED' || m.status === 'IN_REVIEW');
+    // DISPUTED da pulu escrow-da saxlayır, ona görə lövhə kilidi dəyişmir
+    const boardLocked =
+        active && !milestones.some((m) => ['FUNDED', 'IN_REVIEW', 'DISPUTED'].includes(m.status));
     // Pul qapısı 2: bütün mərhələlər ödənilmədən müqavilə bitmir
     const live = milestones.filter((m) => m.status !== 'CANCELLED');
     const allPaid = live.length > 0 && live.every((m) => m.status === 'PAID');
-    // Client üçün yoxlama gözləyən, frilanser üçün təhvil gözləyən mərhələlər
+    // Client üçün yoxlama gözləyən, frilanser üçün təhvil gözləyən mərhələlər; açıq mübahisə hər ikisi üçün diqqət tələb edir
     const escrowAttention = open
-        ? milestones.filter((m) => (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)).length
+        ? milestones.filter(
+              (m) =>
+                  m.status === 'DISPUTED' ||
+                  (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)
+          ).length
         : 0;
+    // Açıq mübahisələr: pul donub, submit/approve/auto-approve dayanıb
+    const openDisputes = (historyQ.data?.disputes ?? []).filter((d) => d.status === 'OPEN');
+    // Şikayət hədəfi: bu müqavilə, qarşı tərəf və ya orijinal iş
+    const reportTargets = [
+        { key: 'CONTRACT', label: 'This contract', id: contract.id },
+        ...(other?.id ? [{ key: 'USER', label: `${other.fullName} (the other party)`, id: other.id }] : []),
+        ...(contract.jobPostId ? [{ key: 'JOB', label: 'The original job post', id: contract.jobPostId }] : []),
+    ];
+    const reportTargetId = reportTargets.find((t) => t.key === reportTarget)?.id;
     const refundText =
         lockedCents > 0 ? ` ${formatCents(lockedCents)} held in escrow is refunded to the client's wallet.` : '';
     // Backend: bütün mərhələlər PAID olmayana qədər müqaviləni bitirmək olmur
@@ -275,6 +300,30 @@ const ContractDetailPage = () => {
         }
     };
 
+    // P2: şikayət (report). Hədəf mövcudluğu/icazə backend-də yoxlanılır.
+    const closeReport = () => {
+        setReportOpen(false);
+        setReportTarget('CONTRACT');
+        setReportReason('');
+        setReportDetails('');
+    };
+
+    const handleSendReport = async () => {
+        if (!reportTargetId) return;
+        try {
+            await createReport({
+                targetType: reportTarget,
+                targetId: reportTargetId,
+                reason: reportReason.trim(),
+                details: reportDetails.trim() || undefined,
+            }).unwrap();
+            toast.success('Report sent. An admin will review it.');
+            closeReport();
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not send the report'));
+        }
+    };
+
     return (
         <>
             <Link
@@ -321,10 +370,24 @@ const ContractDetailPage = () => {
 
                 {isClient && open && reviewMilestone && (
                     <>
-                        <Button variant="secondary" onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}>
-                            <Icon name="undo" className="text-[18px]" />
-                            Request changes
-                        </Button>
+                        {hasReachedRevisionLimit(reviewMilestone) ? (
+                            <Button
+                                variant="secondary"
+                                disabled
+                                title="Revision limit reached. Approve the work or open a dispute."
+                            >
+                                <Icon name="undo" className="text-[18px]" />
+                                Revision limit reached
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="secondary"
+                                onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}
+                            >
+                                <Icon name="undo" className="text-[18px]" />
+                                Request changes
+                            </Button>
+                        )}
                         <Button onClick={() => setMsAction({ type: 'approve', milestone: reviewMilestone })}>
                             <Icon name="task_alt" className="text-[18px]" />
                             Approve &amp; pay
@@ -340,6 +403,18 @@ const ContractDetailPage = () => {
                     >
                         <Icon name="task_alt" className="text-[18px]" />
                         Complete contract
+                    </Button>
+                )}
+
+                {/* P2: şikayət — hər iki tərəf üçün */}
+                {(isClient || isFreelancer) && (
+                    <Button
+                        variant="ghost"
+                        onClick={() => setReportOpen(true)}
+                        title="Report this contract, the other party or the job"
+                    >
+                        <Icon name="flag" className="text-[18px]" />
+                        Report
                     </Button>
                 )}
                 </div>
@@ -362,6 +437,31 @@ const ContractDetailPage = () => {
                             </Button>
                             <Button onClick={() => setAction('acceptOffer')}>Accept offer</Button>
                         </div>
+                    )}
+                </div>
+            )}
+
+            {openDisputes.length > 0 && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-error-container p-4 text-body-md text-on-surface">
+                    <div className="min-w-0">
+                        <p className="flex items-center gap-2 font-semibold">
+                            <Icon name="gavel" className="text-[18px]" />
+                            {openDisputes.length === 1
+                                ? 'A dispute is open on this contract'
+                                : `${openDisputes.length} disputes are open on this contract`}
+                        </p>
+                        <p className="mt-1 break-words">
+                            The escrowed money is frozen. Submit, approve, request-changes and automatic approval are
+                            paused until an admin resolves the dispute.
+                        </p>
+                        {openDisputes[0]?.reason && (
+                            <p className="mt-1 break-words text-secondary">Reason: {openDisputes[0].reason}</p>
+                        )}
+                    </div>
+                    {tab !== 'escrow' && (
+                        <Button size="sm" variant="secondary" onClick={() => selectTab('escrow')}>
+                            View in Escrow
+                        </Button>
                     )}
                 </div>
             )}
@@ -542,6 +642,55 @@ const ContractDetailPage = () => {
                     maxLength={500}
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
+                />
+            </Modal>
+
+            {/* P2: şikayət pəncərəsi */}
+            <Modal
+                open={reportOpen}
+                onClose={closeReport}
+                title="Send a report"
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={closeReport} disabled={reporting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={handleSendReport}
+                            loading={reporting}
+                            disabled={reportReason.trim().length < 5 || !reportTargetId}
+                        >
+                            Send report
+                        </Button>
+                    </>
+                }
+            >
+                <p className="mb-3 text-body-md text-secondary">
+                    Reports are sent to platform admins. Use this for abuse, fraud or other serious problems.
+                </p>
+                <Select
+                    label="What are you reporting?"
+                    value={reportTarget}
+                    onChange={(e) => setReportTarget(e.target.value)}
+                    options={reportTargets.map((t) => ({ value: t.key, label: t.label }))}
+                />
+                <Textarea
+                    className="mt-3"
+                    label="Reason"
+                    rows={2}
+                    maxLength={500}
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    hint="At least 5 characters."
+                />
+                <Textarea
+                    className="mt-3"
+                    label="Details (optional)"
+                    rows={4}
+                    maxLength={2000}
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
                 />
             </Modal>
         </>

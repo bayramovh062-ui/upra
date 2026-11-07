@@ -8,6 +8,7 @@ const iconFor = (type = '') => {
     if (type === 'ISSUE_ASSIGNED') return 'task_alt';
     if (type === 'COMMENT_ADDED') return 'chat_bubble';
     if (type.startsWith('MILESTONE') || type === 'CHANGES_REQUESTED') return 'account_balance';
+    if (type.startsWith('DISPUTE')) return 'gavel';
     if (type.startsWith('CANCEL') || type === 'CONTRACT_CANCELLED' || type === 'CONTRACT_DECLINED') return 'event_busy';
     if (type.startsWith('CONTRACT')) return 'verified_user';
     return 'notifications';
