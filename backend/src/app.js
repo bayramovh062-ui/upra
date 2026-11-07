@@ -13,6 +13,7 @@ import userRoutes from './routes/userRoutes.js';
 import taxonomyRoutes from './routes/taxonomyRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import milestoneRoutes from './routes/milestoneRoutes.js';
+import internalRoutes from './routes/internalRoutes.js';
 import { AppError } from './utils/AppError.js';
 import { resolveTrustProxy } from './config/proxy.js';
 
@@ -50,6 +51,7 @@ app.use('/api/proposals', proposalRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/milestones', milestoneRoutes);
+app.use('/api/internal', internalRoutes);
 app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
 app.use('/api', taxonomyRoutes);

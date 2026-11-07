@@ -26,9 +26,7 @@ import {
     useCompleteContractMutation,
     useDeclineCancellationMutation,
     useDeclineContractMutation,
-    useDeliverContractMutation,
     useGetContractQuery,
-    useReopenContractMutation,
     useRequestCancellationMutation,
     useWithdrawCancellationMutation,
 } from '../features/contracts/contractsApi';
@@ -39,7 +37,7 @@ import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/fo
 const ContractDetailPage = () => {
     const { id } = useParams();
     const user = useSelector((state) => state.auth.user);
-    // 'complete' | 'cancel' | 'deliver' | 'reopen' | 'acceptCancel' | 'declineCancel' | 'withdrawCancel' | null
+    // 'complete' | 'cancel' | 'acceptCancel' | 'declineCancel' | 'withdrawCancel' | 'acceptOffer' | 'declineOffer' | null
     const [action, setAction] = useState(null);
     const [requestOpen, setRequestOpen] = useState(false); // ləğv təklifi pəncərəsi (səbəb yazılır)
     const [reason, setReason] = useState('');
@@ -54,8 +52,6 @@ const ContractDetailPage = () => {
     const unfinished = (issuesQ.data?.issues ?? []).filter((i) => i.status !== 'DONE').length;
     const [completeContract, { isLoading: completing }] = useCompleteContractMutation();
     const [cancelContract, { isLoading: cancelling }] = useCancelContractMutation();
-    const [deliverContract, { isLoading: delivering }] = useDeliverContractMutation();
-    const [reopenContract, { isLoading: reopening }] = useReopenContractMutation();
     const [requestCancellation, { isLoading: requesting }] = useRequestCancellationMutation();
     const [acceptCancellation, { isLoading: accepting }] = useAcceptCancellationMutation();
     const [declineCancellation, { isLoading: declining }] = useDeclineCancellationMutation();
@@ -95,9 +91,9 @@ const ContractDetailPage = () => {
     const isClient = user?.id === contract.clientId;
     const isFreelancer = user?.id === contract.freelancerId;
     const other = isClient ? contract.freelancer : contract.client;
+    // Təhvil milestone səviyyəsindədir (Escrow tabı); müqavilə yalnız ACTIVE olur
     const active = contract.status === 'ACTIVE';
-    const delivered = contract.status === 'DELIVERED';
-    const open = active || delivered;
+    const open = active;
     // Client təklif göndərib, frilanser hələ cavab verməyib: iş başlamayıb, pul hərəkəti yoxdur
     const pendingOffer = isPendingOffer(contract.status);
     const canRespond = canRespondToOffer(contract, user?.id);
@@ -109,20 +105,20 @@ const ContractDetailPage = () => {
 
     // Escrow: mərhələlərdən hesablanır (ayrıca saxlanılmır)
     const milestones = contract.milestones ?? [];
-    const { lockedCents } = summarizeMilestones(milestones, isFreelancer);
-    const unfundedCount = milestones.filter((m) => m.status === 'PENDING').length;
+    const { lockedCents, paid: paidCount, total: milestoneTotal } = summarizeMilestones(milestones, isFreelancer);
+    // Pul qapısı 1: escrow-da pul olmadan lövhədə iş başlamır (backend də yoxlayır)
+    const boardLocked = active && !milestones.some((m) => m.status === 'FUNDED' || m.status === 'IN_REVIEW');
+    // Pul qapısı 2: bütün mərhələlər ödənilmədən müqavilə bitmir
+    const live = milestones.filter((m) => m.status !== 'CANCELLED');
+    const allPaid = live.length > 0 && live.every((m) => m.status === 'PAID');
     // Client üçün yoxlama gözləyən, frilanser üçün təhvil gözləyən mərhələlər
     const escrowAttention = open
         ? milestones.filter((m) => (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)).length
         : 0;
     const refundText =
         lockedCents > 0 ? ` ${formatCents(lockedCents)} held in escrow is refunded to the client's wallet.` : '';
-    // Backend: pulu escrow-da olan mərhələ varsa müqaviləni bitirmək olmur
-    const completeBlocked = lockedCents > 0;
-    const unfundedText =
-        unfundedCount > 0
-            ? ` ${unfundedCount} unfunded milestone${unfundedCount === 1 ? '' : 's'} will be cancelled.`
-            : '';
+    // Backend: bütün mərhələlər PAID olmayana qədər müqaviləni bitirmək olmur
+    const completeBlocked = !allPaid;
 
     // Hər əməliyyat üçün: backend çağırışı, uğur mesajı və təsdiq pəncərəsinin mətni
     const ACTIONS = {
@@ -132,7 +128,7 @@ const ContractDetailPage = () => {
             title: 'Mark contract as completed?',
             confirmText: 'Complete',
             variant: 'primary',
-            message: `${unfinishedText}The contract and its job will be marked as completed.${unfundedText} This cannot be undone.`,
+            message: `${unfinishedText}All milestones are paid. The contract and its job will be marked as completed. This cannot be undone.`,
         },
         cancel: {
             run: cancelContract,
@@ -165,22 +161,6 @@ const ContractDetailPage = () => {
             confirmText: 'Withdraw request',
             variant: 'primary',
             message: 'The contract stays open and work continues.',
-        },
-        deliver: {
-            run: deliverContract,
-            success: 'Work marked as delivered',
-            title: 'Deliver the work?',
-            confirmText: 'Deliver',
-            variant: 'primary',
-            message: `${unfinishedText}The client will be asked to review your work. The board becomes read-only until they accept it or request changes.`,
-        },
-        reopen: {
-            run: reopenContract,
-            success: 'Changes requested, the contract is active again',
-            title: 'Request changes?',
-            confirmText: 'Request changes',
-            variant: 'primary',
-            message: 'The contract goes back to Active and the freelancer can keep working on the board.',
         },
         acceptOffer: {
             run: acceptContract,
@@ -259,32 +239,13 @@ const ContractDetailPage = () => {
                 )}
 
                 {isClient && open && (
-                    <div className="flex flex-wrap gap-2">
-                        {delivered && (
-                            <Button variant="secondary" onClick={() => setAction('reopen')}>
-                                <Icon name="undo" className="text-[18px]" />
-                                Request changes
-                            </Button>
-                        )}
-                        <Button
-                            onClick={() => setAction('complete')}
-                            disabled={completeBlocked}
-                            title={
-                                completeBlocked
-                                    ? 'Approve the milestones in escrow first, or cancel the contract'
-                                    : undefined
-                            }
-                        >
-                            <Icon name="task_alt" className="text-[18px]" />
-                            {delivered ? 'Accept & complete' : 'Mark as completed'}
-                        </Button>
-                    </div>
-                )}
-
-                {isFreelancer && active && (
-                    <Button onClick={() => setAction('deliver')}>
-                        <Icon name="outbox" className="text-[18px]" />
-                        Mark as delivered
+                    <Button
+                        onClick={() => setAction('complete')}
+                        disabled={completeBlocked}
+                        title={completeBlocked ? 'Fund and approve every milestone first, or cancel the contract' : undefined}
+                    >
+                        <Icon name="task_alt" className="text-[18px]" />
+                        Complete contract
                     </Button>
                 )}
                 </div>
@@ -311,11 +272,19 @@ const ContractDetailPage = () => {
                 </div>
             )}
 
-            {delivered && (
-                <div className="mb-6 rounded-xl border border-line bg-warning-soft p-4 text-body-md text-warning-ink">
-                    {isClient
-                        ? 'The freelancer marked the work as delivered. Review it, then accept it or request changes.'
-                        : 'You delivered the work. Waiting for the client to accept it or request changes.'}
+            {boardLocked && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-warning-soft p-4 text-body-md text-warning-ink">
+                    <p className="flex min-w-0 items-center gap-2">
+                        <Icon name="lock" className="text-[18px]" />
+                        {isClient
+                            ? 'Escrow pending: fund a milestone to unlock the board. Until then cards stay in To do.'
+                            : 'Escrow pending: work starts once the client funds a milestone. You can plan cards in To do meanwhile.'}
+                    </p>
+                    {isClient && tab !== 'escrow' && (
+                        <Button size="sm" variant="secondary" onClick={() => selectTab('escrow')}>
+                            Open Escrow
+                        </Button>
+                    )}
                 </div>
             )}
 
@@ -353,7 +322,7 @@ const ContractDetailPage = () => {
             {isClient && open && completeBlocked && (
                 <p className="mb-6 flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
                     <Icon name="lock" className="text-[18px]" />
-                    {formatCents(lockedCents)} is still in escrow. Approve those milestones before completing the contract.
+                    The contract can be completed once every milestone is paid ({paidCount} of {milestoneTotal} paid so far).
                 </p>
             )}
 
@@ -431,8 +400,6 @@ const ContractDetailPage = () => {
                 loading={
                     completing ||
                     cancelling ||
-                    delivering ||
-                    reopening ||
                     accepting ||
                     declining ||
                     withdrawing ||

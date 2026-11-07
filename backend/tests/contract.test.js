@@ -1,10 +1,11 @@
 import request from 'supertest';
 import app from '../src/app.js';
 import prisma from '../src/config/db.js';
-import { cleanUpUsers } from './helpers/db.js';
+import { cleanUpUsers, payAllMilestones } from './helpers/db.js';
 
 describe('Contract Module Integration Tests', () => {
     let clientToken, freelancer1Token, freelancer2Token;
+    let clientId, freelancer1Id;
     let jobPostId, proposal1Id, proposal2Id, contractId;
 
     const clientUser = {
@@ -47,9 +48,11 @@ describe('Contract Module Integration Tests', () => {
 
         const cRes = await request(app).post('/api/auth/register').send(clientUser);
         clientToken = cRes.body.token;
+        clientId = cRes.body.user.id;
 
         const f1Res = await request(app).post('/api/auth/register').send(freelancer1User);
         freelancer1Token = f1Res.body.token;
+        freelancer1Id = f1Res.body.user.id;
 
         const f2Res = await request(app).post('/api/auth/register').send(freelancer2User);
         freelancer2Token = f2Res.body.token;
@@ -168,7 +171,18 @@ describe('Contract Module Integration Tests', () => {
     });
 
     describe('PATCH /api/contracts/:id/complete', () => {
-        it('should complete the contract and mark job as COMPLETED', async () => {
+        it('should not complete the contract while a milestone is unpaid', async () => {
+            const res = await request(app)
+                .patch(`/api/contracts/${contractId}/complete`)
+                .set('Authorization', `Bearer ${clientToken}`);
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toMatch(/paid/i);
+        });
+
+        it('should complete the contract and mark job as COMPLETED once every milestone is paid', async () => {
+            await payAllMilestones(clientId, freelancer1Id, contractId);
+
             const res = await request(app)
                 .patch(`/api/contracts/${contractId}/complete`)
                 .set('Authorization', `Bearer ${clientToken}`);

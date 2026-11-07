@@ -493,23 +493,42 @@ export const refundContractEscrow = async (tx, contract) => {
     return { refundedCents: total, refundedMilestones: funded.length };
 };
 
-// Müqaviləni bitirməzdən əvvəl: pulu escrow-da olan mərhələ varsa rədd olunur, qalan PENDING mərhələlər ləğv edilir.
+// Müqaviləni bitirməzdən əvvəl: BÜTÜN mərhələlər ödənilmiş (PAID) olmalıdır (ləğv olunmuşlar sayılmır, ən azı biri PAID).
+// Ödənilməmiş mərhələ varsa müqavilə bitirilmir: client ya onları maliyyələşdirib təsdiqləməli, ya da ləğv etməlidir.
 // completeContract-ın tranzaksiyası daxilində çağırılır (Contract kilidi artıq alınıb).
 export const settleMilestonesOnComplete = async (tx, contractId) => {
-    const open = await tx.milestone.count({
-        where: { contractId, status: { in: ['FUNDED', 'IN_REVIEW'] } },
+    const unpaid = await tx.milestone.count({
+        where: { contractId, status: { notIn: ['PAID', 'CANCELLED'] } },
     });
-    if (open > 0) {
+    if (unpaid > 0) {
         throw new AppError(
-            'Some milestones still hold funds in escrow. Approve them or cancel the contract before completing it.',
+            'All milestones must be paid before the contract can be completed. Fund and approve the remaining milestones, or cancel the contract.',
             400
         );
     }
 
-    await tx.milestone.updateMany({
-        where: { contractId, status: 'PENDING' },
-        data: { status: 'CANCELLED' },
-    });
+    const paid = await tx.milestone.count({ where: { contractId, status: 'PAID' } });
+    if (paid === 0) {
+        throw new AppError('A contract with no paid milestone cannot be completed. Cancel it instead.', 400);
+    }
+};
+
+// Lövhədə işə başlamaq üçün pul escrow-da olmalıdır. issue bir mərhələyə bağlıdırsa həmin mərhələ,
+// bağlı deyilsə (backlog) müqavilədə ən azı bir mərhələ FUNDED/IN_REVIEW olmalıdır.
+export const assertWorkFunded = async (contractId, milestoneId = null) => {
+    if (milestoneId) {
+        const milestone = await prisma.milestone.findUnique({
+            where: { id: milestoneId },
+            select: { status: true },
+        });
+        if (milestone && ['FUNDED', 'IN_REVIEW', 'PAID'].includes(milestone.status)) return;
+    } else {
+        const funded = await prisma.milestone.count({
+            where: { contractId, status: { in: ['FUNDED', 'IN_REVIEW'] } },
+        });
+        if (funded > 0) return;
+    }
+    throw new AppError('Work is locked until the client funds a milestone (escrow). Cards stay in To do for now.', 400);
 };
 
 export { lockContract };

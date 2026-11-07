@@ -12,8 +12,6 @@ import {
     acceptCancellation,
     declineCancellation,
     withdrawCancellation,
-    deliverContract,
-    reopenContract,
     acceptContract,
     declineContract,
 } from '../controllers/contractController.js';
@@ -33,8 +31,7 @@ router.patch('/:id/accept', restrictTo('FREELANCER'), acceptContract);
 router.patch('/:id/decline', restrictTo('FREELANCER'), declineContract);
 
 router.patch('/:id/complete', restrictTo('CLIENT'), completeContract);
-router.patch('/:id/deliver', restrictTo('FREELANCER'), deliverContract);
-router.patch('/:id/reopen', restrictTo('CLIENT'), reopenContract);
+// Təhvil və "dəyişiklik istəyirəm" milestone səviyyəsindədir: /api/milestones/:id/submit | request-changes | approve
 
 // Ləğv: iş başlamayıbsa hər iki tərəf birbaşa ləğv edir.
 // Başlayıbsa bir tərəf təklif göndərir, digəri qəbul edir və ya rədd edir (göndərən geri çəkə bilər).

@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../../src/app.js';
 import prisma from '../../src/config/db.js';
+import { topUp, fundMilestone, submitMilestone, approveMilestone } from '../../src/services/financialService.js';
 
 // Verilən e-poçtların sahibi olan istifadəçiləri və onlara bağlı bütün məlumatı FK sırası ilə silir
 export const cleanUpUsers = async (emails) => {
@@ -97,6 +98,37 @@ export const createContract = async (clientToken, proposalId, freelancerToken) =
     if (acceptRes.status !== 200) throw new Error(`acceptContract failed: ${JSON.stringify(acceptRes.body)}`);
 
     return acceptRes.body.contract;
+};
+
+// Pul qapıları (P0): lövhədə işə başlamaq üçün escrow-da pul olmalıdır. Test köməkçiləri xidmət qatından keçir
+// (HTTP rate limiter və DEMO_TOPUP_ENABLED-dən asılı olmasın deyə).
+
+// Müqavilənin ilk PENDING mərhələsini client-in pul kisəsini doldurub maliyyələşdirir (FUNDED). Mərhələni qaytarır.
+export const fundContract = async (clientId, contractId) => {
+    const milestone = await prisma.milestone.findFirst({
+        where: { contractId, status: 'PENDING' },
+        orderBy: { sequence: 'asc' },
+    });
+    if (!milestone) throw new Error('fundContract: no PENDING milestone');
+    await topUp(clientId, milestone.amountCents);
+    await fundMilestone(milestone.id, clientId);
+    return milestone;
+};
+
+// Bütün mərhələləri ardıcıl maliyyələşdirir, təhvil verir və təsdiqləyir (hamısı PAID olur)
+export const payAllMilestones = async (clientId, freelancerId, contractId) => {
+    const milestones = await prisma.milestone.findMany({ where: { contractId }, orderBy: { sequence: 'asc' } });
+    for (const milestone of milestones) {
+        const current = await prisma.milestone.findUnique({ where: { id: milestone.id } });
+        if (current.status === 'PENDING') {
+            await topUp(clientId, milestone.amountCents);
+            await fundMilestone(milestone.id, clientId);
+        }
+        if (['PENDING', 'FUNDED'].includes(current.status)) {
+            await submitMilestone(milestone.id, freelancerId);
+        }
+        await approveMilestone(milestone.id, { actorId: clientId });
+    }
 };
 
 export { app, prisma };

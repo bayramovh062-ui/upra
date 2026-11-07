@@ -52,22 +52,10 @@ export const contractsApi = baseApi.injectEndpoints({
             providesTags: (result, error, id) => [{ type: 'Contract', id }],
         }),
 
-        // Yalnız CLIENT, yalnız ACTIVE. İş statusu da backend-də yenilənir
+        // Yalnız CLIENT, yalnız ACTIVE və yalnız bütün mərhələlər PAID olanda (backend 400 qaytarır). İş statusu da yenilənir
         completeContract: builder.mutation({
             query: (id) => ({ url: `/contracts/${id}/complete`, method: 'PATCH' }),
             invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }, 'Job'],
-        }),
-
-        // Yalnız FREELANCER, yalnız ACTIVE → DELIVERED (lövhə read-only olur)
-        deliverContract: builder.mutation({
-            query: (id) => ({ url: `/contracts/${id}/deliver`, method: 'PATCH' }),
-            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
-        }),
-
-        // Yalnız CLIENT, yalnız DELIVERED → ACTIVE ("dəyişiklik istəyirəm")
-        reopenContract: builder.mutation({
-            query: (id) => ({ url: `/contracts/${id}/reopen`, method: 'PATCH' }),
-            invalidatesTags: (result, error, id) => [{ type: 'Contract', id }, { type: 'Contract', id: 'LIST' }],
         }),
 
         // Birbaşa ləğv: yalnız iş hələ başlamayıbsa (contract.workStarted === false), hər iki tərəf edə bilər
@@ -114,6 +102,4 @@ export const {
     useAcceptCancellationMutation,
     useDeclineCancellationMutation,
     useWithdrawCancellationMutation,
-    useDeliverContractMutation,
-    useReopenContractMutation,
 } = contractsApi;

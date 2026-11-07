@@ -9,6 +9,8 @@ import {
     createJob,
     createProposal,
     createContract,
+    fundContract,
+    payAllMilestones,
 } from './helpers/db.js';
 
 const PASSWORD = 'Password123!';
@@ -35,6 +37,8 @@ describe('Delivery flow, dashboard stats and public profile', () => {
         job1 = await createJob(client.token, { title: 'Delivery flow test job' });
         const proposal = await createProposal(freelancer.token, job1.id);
         contract1 = await createContract(client.token, proposal.id, freelancer.token);
+        // Lövhədə işə başlamaq üçün escrow-da pul lazımdır (P0 pul qapısı)
+        await fundContract(client.user.id, contract1.id);
     });
 
     afterAll(async () => {
@@ -42,7 +46,20 @@ describe('Delivery flow, dashboard stats and public profile', () => {
         await prisma.$disconnect();
     });
 
-    describe('deliver / reopen', () => {
+    describe('removed contract-level delivery', () => {
+        it('no longer exposes deliver and reopen (delivery is per milestone now)', async () => {
+            const deliver = await patchContract(contract1.id, 'deliver', freelancer.token);
+            expect(deliver.status).toBe(404);
+
+            const reopen = await patchContract(contract1.id, 'reopen', client.token);
+            expect(reopen.status).toBe(404);
+
+            const stored = await prisma.contract.findUnique({ where: { id: contract1.id } });
+            expect(stored.status).toBe('ACTIVE');
+        });
+    });
+
+    describe.skip('legacy deliver / reopen (removed in P0)', () => {
         it('forbids the client and outsiders from delivering', async () => {
             const byClient = await patchContract(contract1.id, 'deliver', client.token);
             expect(byClient.status).toBe(403);
@@ -134,9 +151,13 @@ describe('Delivery flow, dashboard stats and public profile', () => {
         });
     });
 
-    describe('finishing a delivered contract', () => {
-        it('lets the client complete a DELIVERED contract and marks the job COMPLETED', async () => {
-            await patchContract(contract1.id, 'deliver', freelancer.token);
+    describe('finishing a contract', () => {
+        it('lets the client complete the contract only after every milestone is paid, and marks the job COMPLETED', async () => {
+            const early = await patchContract(contract1.id, 'complete', client.token);
+            expect(early.status).toBe(400);
+            expect(early.body.message).toMatch(/paid/i);
+
+            await payAllMilestones(client.user.id, freelancer.user.id, contract1.id);
 
             const res = await patchContract(contract1.id, 'complete', client.token);
             expect(res.status).toBe(200);
@@ -145,18 +166,28 @@ describe('Delivery flow, dashboard stats and public profile', () => {
             const job = await prisma.jobPost.findUnique({ where: { id: job1.id } });
             expect(job.status).toBe('COMPLETED');
 
-            const late = await patchContract(contract1.id, 'deliver', freelancer.token);
-            expect(late.status).toBe(400);
+            const again = await patchContract(contract1.id, 'complete', client.token);
+            expect(again.status).toBe(400);
         });
 
-        it('does not let either party cancel a DELIVERED contract alone, only by agreement', async () => {
-            const job = await createJob(client.token, { title: 'Delivered then cancelled job' });
+        it('does not let either party cancel a contract with started work alone, only by agreement', async () => {
+            const job = await createJob(client.token, { title: 'Started then cancelled job' });
             const proposal = await createProposal(freelancer.token, job.id);
             const contract = await createContract(client.token, proposal.id, freelancer.token);
 
-            await patchContract(contract.id, 'deliver', freelancer.token);
+            // İş başlayıb: pul escrow-dadır və kart TODO-dan çıxıb
+            await fundContract(client.user.id, contract.id);
+            const issue = await request(app)
+                .post(`/api/contracts/${contract.id}/issues`)
+                .set(auth(client.token))
+                .send({ title: 'Started work card' });
+            const move = await request(app)
+                .patch(`/api/issues/${issue.body.issue.id}/move`)
+                .set(auth(freelancer.token))
+                .send({ status: 'IN_PROGRESS', position: 1000 });
+            expect(move.status).toBe(200);
 
-            // Təhvil verilib = iş başlayıb: tək ləğv olmur
+            // İş başlayıb: tək ləğv olmur
             const direct = await patchContract(contract.id, 'cancel', client.token);
             expect(direct.status).toBe(400);
 
@@ -323,16 +354,6 @@ describe('DELETE /api/auth/me', () => {
         expect(me.status).toBe(200);
     });
 
-    it('is also blocked while the contract is DELIVERED', async () => {
-        const deliver = await request(app)
-            .patch(`/api/contracts/${busyContract.id}/deliver`)
-            .set(auth(busyFree.token));
-        expect(deliver.status).toBe(200);
-
-        const res = await del(busyFree.token, { password: PASSWORD });
-        expect(res.status).toBe(400);
-    });
-
     it('anonymizes a client, cancels open jobs, rejects pending proposals and frees the e-mail', async () => {
         const res = await del(delClient.token, { password: PASSWORD });
         expect(res.status).toBe(200);
@@ -376,6 +397,8 @@ describe('DELETE /api/auth/me', () => {
     });
 
     it('keeps the contract history after a party deletes their account', async () => {
+        await payAllMilestones(busyClient.user.id, busyFree.user.id, busyContract.id);
+
         const complete = await request(app)
             .patch(`/api/contracts/${busyContract.id}/complete`)
             .set(auth(busyClient.token));

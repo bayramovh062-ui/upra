@@ -786,14 +786,19 @@ describe('Phase 2B: wallet, milestones, escrow ledger', () => {
     // ---------- müqaviləni bitirmə ----------
 
     describe('completing a contract', () => {
-        it('is blocked while a milestone holds funds, then cancels the remaining PENDING milestones', async () => {
+        it('is blocked until EVERY milestone is paid (funded, in review or still pending ones all block it)', async () => {
             const pair = await newPair();
             const contract = await makeContract(pair, [
                 { title: 'One', amount: 20 },
                 { title: 'Two', amount: 20 },
             ]);
             const [m1, m2] = contract.milestones;
-            await topup(pair.c.token, 2000);
+            await topup(pair.c.token, 4000);
+
+            // Heç bir mərhələ maliyyələşməyib: PENDING də bitirməyə icazə vermir
+            const noneFunded = await patch(pair.c.token, `/api/contracts/${contract.id}/complete`);
+            expect(noneFunded.status).toBe(400);
+
             await fund(pair.c.token, m1.id);
 
             const blocked = await patch(pair.c.token, `/api/contracts/${contract.id}/complete`);
@@ -806,13 +811,22 @@ describe('Phase 2B: wallet, milestones, escrow ledger', () => {
             expect(stillBlocked.status).toBe(400); // IN_REVIEW də pulu saxlayır
 
             await approve(pair.c.token, m1.id);
+
+            // m1 PAID, m2 hələ PENDING: müqavilə hələ bitmir
+            const stillPending = await patch(pair.c.token, `/api/contracts/${contract.id}/complete`);
+            expect(stillPending.status).toBe(400);
+            expect(stillPending.body.message).toMatch(/paid/i);
+            expect((await milestoneRow(m2.id)).status).toBe('PENDING');
+
+            await fund(pair.c.token, m2.id);
+            await submit(pair.f.token, m2.id);
+            await approve(pair.c.token, m2.id);
             const done = await patch(pair.c.token, `/api/contracts/${contract.id}/complete`);
 
             expect(done.status).toBe(200);
             expect(done.body.contract.status).toBe('COMPLETED');
             expect((await milestoneRow(m1.id)).status).toBe('PAID');
-            expect((await milestoneRow(m2.id)).status).toBe('CANCELLED');
-            expect(await prisma.transaction.count({ where: { milestoneId: m2.id } })).toBe(0);
+            expect((await milestoneRow(m2.id)).status).toBe('PAID');
             await reconcileWallet(pair.c.user.id);
             await reconcileWallet(pair.f.user.id);
         });

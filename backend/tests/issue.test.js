@@ -1,11 +1,11 @@
 import request from 'supertest';
 import app from '../src/app.js';
 import prisma from '../src/config/db.js';
-import { cleanUpUsers } from './helpers/db.js';
+import { cleanUpUsers, fundContract } from './helpers/db.js';
 
 describe('Issue & Kanban Board Integration Tests', () => {
     let clientToken, freelancerToken, outsiderToken;
-    let freelancerId;
+    let clientId, freelancerId;
     let contractId, issueId;
 
     const clientUser = {
@@ -40,6 +40,7 @@ describe('Issue & Kanban Board Integration Tests', () => {
 
         const cRes = await request(app).post('/api/auth/register').send(clientUser);
         clientToken = cRes.body.token;
+        clientId = cRes.body.user.id;
 
         const fRes = await request(app).post('/api/auth/register').send(freelancerUser);
         freelancerToken = fRes.body.token;
@@ -80,6 +81,9 @@ describe('Issue & Kanban Board Integration Tests', () => {
             .patch(`/api/contracts/${contractId}/accept`)
             .set('Authorization', `Bearer ${freelancerToken}`);
         if (acceptRes.status !== 200) throw new Error(`acceptContract failed: ${JSON.stringify(acceptRes.body)}`);
+
+        // Lövhədə kartı TODO-dan çıxarmaq üçün escrow-da pul lazımdır (P0 pul qapısı)
+        await fundContract(clientId, contractId);
     });
 
     afterAll(async () => {

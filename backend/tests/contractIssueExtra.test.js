@@ -8,6 +8,7 @@ import {
     createJob,
     createProposal,
     createContract,
+    fundContract,
 } from './helpers/db.js';
 
 const emails = ['cie_client@upra.com', 'cie_free@upra.com', 'cie_outsider@upra.com'];
@@ -36,6 +37,8 @@ describe('Contracts and issues: permissions, response shape, delete, cancel', ()
         job = await createJob(client.token, { title: 'Contract and issue extra test job' });
         const proposal = await createProposal(freelancer.token, job.id);
         contract = await createContract(client.token, proposal.id, freelancer.token);
+        // Kartı TODO-dan çıxarmaq üçün escrow-da pul lazımdır (P0 pul qapısı)
+        await fundContract(client.user.id, contract.id);
     });
 
     afterAll(async () => {

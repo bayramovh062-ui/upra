@@ -11,7 +11,9 @@ import {
     settleMilestonesOnComplete,
 } from '../services/financialService.js';
 
-const OPEN_STATUSES = ['ACTIVE', 'DELIVERED'];
+// DELIVERED enum-da qalır (geriyə uyğunluq), amma artıq heç bir əməliyyat ona keçmir:
+// təhvil milestone səviyyəsindədir (submit / request-changes / approve).
+const OPEN_STATUSES = ['ACTIVE'];
 
 // Gözləyən ləğv təklifini təmizləyən sahələr (təklif rədd/geri çəkiləndə və müqavilə bitəndə)
 const CLEAR_CANCEL_REQUEST = { cancelRequestedById: null, cancelRequestedAt: null, cancelReason: null };
@@ -19,7 +21,6 @@ const CLEAR_CANCEL_REQUEST = { cancelRequestedById: null, cancelRequestedAt: nul
 // İş "başlayıb": təhvil verilib və ya lövhədə TODO-dan kənarda (IN_PROGRESS/DONE) tapşırıq var.
 // Başlamamış müqaviləni hər iki tərəf tək ləğv edə bilər, başlamışı yalnız qarşılıqlı razılıqla.
 const hasWorkStarted = async (contract) => {
-    if (contract.status === 'DELIVERED') return true;
     // Mərhələ IN_REVIEW və ya PAID olubsa da iş başlayıb sayılır
     const [moved, reviewedOrPaid] = await Promise.all([
         prisma.issue.count({
@@ -45,7 +46,7 @@ const loadPartyContract = async (contractId, userId) => {
     return contract;
 };
 
-const assertOpen = (contract, message = 'Only ACTIVE or DELIVERED contracts can be cancelled') => {
+const assertOpen = (contract, message = 'Only ACTIVE contracts can be cancelled') => {
     if (!OPEN_STATUSES.includes(contract.status)) {
         throw new AppError(message, 400);
     }
@@ -393,17 +394,16 @@ export const completeContract = asyncHandler(async (req, res) => {
     }
 
     if (!OPEN_STATUSES.includes(contract.status)) {
-        throw new AppError('Only ACTIVE or DELIVERED contracts can be completed', 400);
+        throw new AppError('Only ACTIVE contracts can be completed', 400);
     }
 
     const updatedContract = await prisma.$transaction(async (tx) => {
-        // Kilid sırası: Contract -> mərhələlər. Escrow-da pulu olan mərhələ varsa bitirmə rədd olunur,
-        // qalan PENDING mərhələlər CANCELLED olur.
+        // Kilid sırası: Contract -> mərhələlər. Bitirmə yalnız bütün mərhələlər PAID olanda mümkündür.
         await lockContract(tx, contract.id);
 
         const fresh = await tx.contract.findUnique({ where: { id: contract.id }, select: { status: true } });
         if (!OPEN_STATUSES.includes(fresh.status)) {
-            throw new AppError('Only ACTIVE or DELIVERED contracts can be completed', 400);
+            throw new AppError('Only ACTIVE contracts can be completed', 400);
         }
 
         await settleMilestonesOnComplete(tx, contract.id);
@@ -452,7 +452,7 @@ export const cancelContract = asyncHandler(async (req, res) => {
 // @access  Private (müqavilənin hər iki tərəfi). Body: { reason? }
 export const requestCancellation = asyncHandler(async (req, res) => {
     const contract = await loadPartyContract(req.params.id, req.user.id);
-    assertOpen(contract, 'Only ACTIVE or DELIVERED contracts can be cancelled');
+    assertOpen(contract);
 
     if (!(await hasWorkStarted(contract))) {
         throw new AppError('Work has not started yet. You can cancel the contract directly.', 400);
@@ -542,62 +542,3 @@ export const declineCancellation = resolveRequest('other');
 
 // @route   PATCH /api/contracts/:id/cancel-request/withdraw
 export const withdrawCancellation = resolveRequest('requester');
-
-// @route   PATCH /api/contracts/:id/deliver
-// @access  Private (FREELANCER of the contract)
-export const deliverContract = asyncHandler(async (req, res) => {
-    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
-
-    if (!contract) {
-        throw new AppError('Contract not found', 404);
-    }
-
-    if (contract.freelancerId !== req.user.id) {
-        throw new AppError('Only the freelancer of this contract can mark it as delivered', 403);
-    }
-
-    // Atomik keçid: yalnız ACTIVE olan DELIVERED olur
-    const result = await prisma.contract.updateMany({
-        where: { id: contract.id, status: 'ACTIVE' },
-        data: { status: 'DELIVERED' },
-    });
-
-    if (result.count === 0) {
-        throw new AppError('Only ACTIVE contracts can be delivered', 400);
-    }
-
-    const updated = await prisma.contract.findUnique({ where: { id: contract.id } });
-
-    emitUpdated(updated);
-
-    res.status(200).json({ success: true, contract: updated });
-});
-
-// @route   PATCH /api/contracts/:id/reopen
-// @access  Private (CLIENT of the contract): "dəyişiklik istəyirəm"
-export const reopenContract = asyncHandler(async (req, res) => {
-    const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
-
-    if (!contract) {
-        throw new AppError('Contract not found', 404);
-    }
-
-    if (contract.clientId !== req.user.id) {
-        throw new AppError('Only the client can request changes on this contract', 403);
-    }
-
-    const result = await prisma.contract.updateMany({
-        where: { id: contract.id, status: 'DELIVERED' },
-        data: { status: 'ACTIVE' },
-    });
-
-    if (result.count === 0) {
-        throw new AppError('Only DELIVERED contracts can be reopened', 400);
-    }
-
-    const updated = await prisma.contract.findUnique({ where: { id: contract.id } });
-
-    emitUpdated(updated);
-
-    res.status(200).json({ success: true, contract: updated });
-});

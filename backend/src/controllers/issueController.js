@@ -7,6 +7,7 @@ import {
     assertContractActive, // Import olundu
 } from '../utils/contractAccess.js';
 import { emitToContract } from '../socket.js';
+import { assertWorkFunded } from '../services/financialService.js';
 
 const MIN_POSITION_GAP = 0.001;
 
@@ -139,6 +140,11 @@ export const moveIssue = asyncHandler(async (req, res) => {
 
     // Yoxlama: Müqavilə ACTIVE-dirmi?
     assertContractActive(contract);
+
+    // Pul qapısı: escrow-da pul olmadan iş başlaya bilməz (TODO-ya qaytarmaq hər zaman mümkündür)
+    if (status !== 'TODO') {
+        await assertWorkFunded(contract.id, issue.milestoneId);
+    }
 
     let movedIssue = await prisma.issue.update({
         where: { id: req.params.id },
