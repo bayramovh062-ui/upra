@@ -9,13 +9,30 @@ const sizes = {
     xl: 'h-20 w-20 text-headline-md',
 };
 
-// Yalnız http(s) ünvanları şəkil kimi göstərilir (javascript:, data: və s. yox)
-const isSafeImageUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+const apiOrigin = () => {
+    const base = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    try {
+        return new URL(base, window.location.origin).origin;
+    } catch {
+        return window.location.origin;
+    }
+};
 
-// src verilsə şəkil göstərilir; yüklənməsə (səhv URL) baş hərflərə qayıdır
+const resolveSrc = (value) => {
+    if (typeof value !== 'string') return null;
+    const src = value.trim();
+    if (!src) return null;
+    if (/^https?:\/\//i.test(src) || src.startsWith('data:') || src.startsWith('blob:')) return src;
+    if (src.startsWith('//')) return `https:${src}`;
+    if (src.startsWith('/')) return `${apiOrigin()}${src}`; // e.g. /api/uploads/local/... from Plan 3 local storage
+    return null;
+};
+
+// src verilsə şəkil göstərilir; yüklənməsə/silinibsə (səhv URL) baş hərflərə qayıdır
 const Avatar = ({ name, src, size = 'md', className }) => {
     const [failedSrc, setFailedSrc] = useState(null);
-    const showImage = isSafeImageUrl(src) && failedSrc !== src;
+    const resolved = resolveSrc(src);
+    const showImage = resolved && failedSrc !== src;
 
     return (
         <span
@@ -28,7 +45,7 @@ const Avatar = ({ name, src, size = 'md', className }) => {
         >
             {showImage ? (
                 <img
-                    src={src}
+                    src={resolved}
                     alt={name ? `${name} avatar` : 'Avatar'}
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
@@ -42,3 +59,4 @@ const Avatar = ({ name, src, size = 'md', className }) => {
 };
 
 export default Avatar;
+

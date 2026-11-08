@@ -1,6 +1,5 @@
 import { baseApi } from '../../lib/baseApi';
-
-const withForm = (formData) => ({ body: formData, formData: true });
+import { updateUser } from '../auth/authSlice';
 
 export const attachmentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -11,6 +10,18 @@ export const attachmentsApi = baseApi.injectEndpoints({
         return { url: '/attachments/avatar', method: 'POST', body: fd };
       },
       invalidatesTags: ['Auth'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data } = await queryFulfilled;
+          const avatarUrl = data?.avatarUrl;
+          if (avatarUrl) {
+            const current = getState().auth.user;
+            if (current) dispatch(updateUser({ ...current, avatarUrl }));
+          }
+        } catch {
+          // error surfaced by caller
+        }
+      },
     }),
     uploadMilestoneFiles: builder.mutation({
       query: ({ milestoneId, files }) => {

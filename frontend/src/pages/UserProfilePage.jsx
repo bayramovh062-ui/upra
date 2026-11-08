@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, EmptyState, ErrorState, Icon, Skeleton } from '../components/ui';
+import AvatarModal from '../components/AvatarModal';
 import { useGetUserProfileQuery } from '../features/users/usersApi';
 import { formatDate, formatMoney } from '../lib/format';
 import { availabilityLabel, availabilityTone } from '../lib/labels';
@@ -54,6 +56,7 @@ const UserProfilePage = () => {
     const { id } = useParams();
     const me = useSelector((state) => state.auth.user);
     const { data, isLoading, isError, error, refetch } = useGetUserProfileQuery(id);
+    const [avatarOpen, setAvatarOpen] = useState(false);
 
     if (isLoading) return <ProfileSkeleton />;
 
@@ -117,7 +120,14 @@ const UserProfilePage = () => {
             <Card className="mb-6 p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-start gap-4">
-                        <Avatar name={user.fullName} src={user.avatarUrl} size="xl" />
+                        <button type="button" onClick={() => setAvatarOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label="View profile photo">
+                            <Avatar name={user.fullName} src={user.avatarUrl} size="xl" />
+                            {user.avatarUrl && (
+                                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
+                                    <Icon name="zoom_in" />
+                                </span>
+                            )}
+                        </button>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="break-words text-headline-lg text-on-surface">{user.fullName}</h1>
@@ -218,6 +228,8 @@ const UserProfilePage = () => {
                     </Link>
                 </p>
             )}
+
+            <AvatarModal open={avatarOpen} onClose={() => setAvatarOpen(false)} src={user.avatarUrl} name={user.fullName} />
         </div>
     );
 };

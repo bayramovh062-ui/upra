@@ -19,6 +19,7 @@ import {
     Select,
     Textarea,
 } from '../components/ui';
+import AvatarModal from '../components/AvatarModal';
 import {
     useDeleteAccountMutation,
     useUpdateMeMutation,
@@ -48,6 +49,7 @@ const ProfileForm = ({ user }) => {
     const [updateMe, { isLoading }] = useUpdateMeMutation();
     const [uploadAvatar, { isLoading: uploadingAvatar }] = useUploadAvatarMutation();
     const fileRef = useRef(null);
+    const [avatarModalOpen, setAvatarModalOpen] = useState(false);
     const {
         register,
         handleSubmit,
@@ -83,7 +85,11 @@ const ProfileForm = ({ user }) => {
         e.target.value = '';
         if (!file) return;
         try {
-            await uploadAvatar(file).unwrap();
+            const res = await uploadAvatar(file).unwrap();
+            const url = res?.avatarUrl;
+            if (url) {
+                reset({ ...control._formValues, avatarUrl: url }, { keepDirtyValues: true, keepDefaultValues: true });
+            }
             toast.success('Avatar uploaded');
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not upload avatar'));
@@ -96,7 +102,14 @@ const ProfileForm = ({ user }) => {
             <CardBody>
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                        <Avatar name={fullName} src={errors.avatarUrl ? null : avatarPreview} size="xl" />
+                        <button type="button" onClick={() => setAvatarModalOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label="View profile photo">
+                            <Avatar name={fullName} src={errors.avatarUrl ? null : avatarPreview} size="xl" />
+                            {avatarPreview && (
+                                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
+                                    <Icon name="zoom_in" />
+                                </span>
+                            )}
+                        </button>
                         <div className="flex flex-wrap items-center gap-3 text-body-md text-secondary">
                             <Badge>{user.role === 'CLIENT' ? 'Client' : 'Freelancer'}</Badge>
                             {user.createdAt && <span>Member since {formatDate(user.createdAt)}</span>}
@@ -135,6 +148,18 @@ const ProfileForm = ({ user }) => {
                     </div>
                     <SaveButton loading={isLoading} disabled={!isDirty} />
                 </form>
+
+                <AvatarModal
+                    open={avatarModalOpen}
+                    onClose={() => setAvatarModalOpen(false)}
+                    src={errors.avatarUrl ? null : avatarPreview}
+                    name={fullName}
+                    editable={Boolean(avatarPreview)}
+                    onSave={() => {
+                        toast('Framing preview applied locally. Saving a cropped avatar requires a backend crop endpoint.', { icon: 'ℹ️' });
+                        setAvatarModalOpen(false);
+                    }}
+                />
             </CardBody>
         </Card>
     );
