@@ -55,6 +55,13 @@ export const attachmentsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (_r, _e, { contractId }) => (contractId ? [{ type: 'Issue', id: `C-${contractId}` }] : ['Issue']),
     }),
+    uploadReportFiles: builder.mutation({
+      query: ({ reportId, files }) => {
+        const fd = new FormData();
+        [...files].forEach((f) => fd.append('files', f));
+        return { url: `/attachments/reports/${reportId}/files`, method: 'POST', body: fd };
+      },
+    }),
   }),
 });
 
@@ -64,4 +71,5 @@ export const {
   useUploadDisputeFilesMutation,
   useUploadIssueFilesMutation,
   useUploadCommentFilesMutation,
+  useUploadReportFilesMutation,
 } = attachmentsApi;

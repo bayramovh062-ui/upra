@@ -15,6 +15,7 @@ import {
 import { formatCents, formatDate, getErrorMessage } from '../../lib/format';
 import { cn } from '../../lib/cn';
 import { useGetAdminDisputesQuery, useResolveAdminDisputeMutation } from '../../features/admin/adminApi';
+import { AttachmentList } from '../../features/attachments/AttachmentComponents';
 
 const TABS = [
     { key: 'OPEN', label: 'Open' },
@@ -200,6 +201,8 @@ const DisputeCard = ({ dispute, onResolve }) => {
                 Client: {dispute.contract?.client?.fullName || '—'} · Freelancer:{' '}
                 {dispute.contract?.freelancer?.fullName || '—'}
             </p>
+
+            <AttachmentList attachments={dispute.attachments} label="Evidence" compact />
 
             {isOpen ? (
                 <div className="flex justify-end">

@@ -17,15 +17,18 @@ import { getErrorMessage, timeAgo } from '../../lib/format';
 import { commentSchema, issueSchema } from '../../validations/issueSchema';
 import { assigneeOptions, PRIORITY_OPTIONS } from './IssueFormModal';
 import { useAddCommentMutation, useDeleteIssueMutation, useUpdateIssueMutation } from './issuesApi';
+import { useUploadCommentFilesMutation } from '../attachments/attachmentsApi';
 import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
 const STATUS_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done' };
 
 const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [commentFiles, setCommentFiles] = useState([]);
     const [deleteIssue, { isLoading: deleting }] = useDeleteIssueMutation();
     const [updateIssue, { isLoading: saving }] = useUpdateIssueMutation();
     const [addComment, { isLoading: commenting }] = useAddCommentMutation();
+    const [uploadCommentFiles, { isLoading: uploadingCommentFiles }] = useUploadCommentFilesMutation();
 
     const form = useForm({
         resolver: zodResolver(issueSchema),
@@ -57,7 +60,16 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
 
     const onComment = async ({ body }) => {
         try {
-            await addComment({ id: issue.id, contractId: contract.id, body }).unwrap();
+            const res = await addComment({ id: issue.id, contractId: contract.id, body }).unwrap();
+            const commentId = res?.comment?.id;
+            if (commentFiles.length && commentId) {
+                try {
+                    await uploadCommentFiles({ commentId, files: commentFiles, contractId: contract.id }).unwrap();
+                } catch (uploadErr) {
+                    toast.error(getErrorMessage(uploadErr, 'Comment posted, but file upload failed'));
+                }
+            }
+            setCommentFiles([]);
             commentForm.reset({ body: '' });
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not add the comment'));
@@ -153,8 +165,18 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                             error={commentForm.formState.errors.body?.message}
                             {...commentForm.register('body')}
                         />
+                        <FilePicker
+                            purpose="ISSUE_COMMENT"
+                            target={{}}
+                            contractId={contract.id}
+                            files={commentFiles}
+                            onFilesChange={setCommentFiles}
+                            showUploadButton={false}
+                            label="Attach to comment"
+                            compact
+                        />
                         <div className="flex items-center justify-end gap-2">
-                            <Button type="submit" size="sm" loading={commenting}>
+                            <Button type="submit" size="sm" loading={commenting || uploadingCommentFiles}>
                                 Comment
                             </Button>
                         </div>

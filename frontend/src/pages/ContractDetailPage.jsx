@@ -26,7 +26,9 @@ import {
     useSubmitMilestoneMutation,
 } from '../features/escrow/escrowApi';
 import { useCreateReportMutation } from '../features/reports/reportsApi';
+import { useUploadReportFilesMutation } from '../features/attachments/attachmentsApi';
 import { useGetIssuesQuery } from '../features/issues/issuesApi';
+import { FilePicker } from '../features/attachments/AttachmentComponents';
 import {
     useAcceptCancellationMutation,
     useAcceptContractMutation,
@@ -80,7 +82,9 @@ const ContractDetailPage = () => {
     const [reportTarget, setReportTarget] = useState('CONTRACT');
     const [reportReason, setReportReason] = useState('');
     const [reportDetails, setReportDetails] = useState('');
+    const [reportFiles, setReportFiles] = useState([]);
     const [createReport, { isLoading: reporting }] = useCreateReportMutation();
+    const [uploadReportFiles, { isLoading: uploadingReportFiles }] = useUploadReportFilesMutation();
 
     if (isLoading) {
         return (
@@ -306,18 +310,29 @@ const ContractDetailPage = () => {
         setReportTarget('CONTRACT');
         setReportReason('');
         setReportDetails('');
+        setReportFiles([]);
     };
 
     const handleSendReport = async () => {
         if (!reportTargetId) return;
         try {
-            await createReport({
+            const res = await createReport({
                 targetType: reportTarget,
                 targetId: reportTargetId,
                 reason: reportReason.trim(),
                 details: reportDetails.trim() || undefined,
             }).unwrap();
-            toast.success('Report sent. An admin will review it.');
+            if (reportFiles.length && res?.report?.id) {
+                try {
+                    await uploadReportFiles({ reportId: res.report.id, files: reportFiles }).unwrap();
+                    toast.success('Report and evidence sent. An admin will review it.');
+                } catch (uploadErr) {
+                    toast.success('Report sent, but evidence upload failed. You can keep the files and contact support if needed.');
+                    console.error(uploadErr);
+                }
+            } else {
+                toast.success('Report sent. An admin will review it.');
+            }
             closeReport();
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not send the report'));
@@ -658,7 +673,7 @@ const ContractDetailPage = () => {
                         <Button
                             variant="danger"
                             onClick={handleSendReport}
-                            loading={reporting}
+                            loading={reporting || uploadingReportFiles}
                             disabled={reportReason.trim().length < 5 || !reportTargetId}
                         >
                             Send report
@@ -692,6 +707,18 @@ const ContractDetailPage = () => {
                     value={reportDetails}
                     onChange={(e) => setReportDetails(e.target.value)}
                 />
+                <div className="mt-3">
+                    <p className="mb-1.5 block text-label-md text-on-surface">Evidence files (optional)</p>
+                    <FilePicker
+                        purpose="REPORT_EVIDENCE"
+                        target={{}}
+                        files={reportFiles}
+                        onFilesChange={setReportFiles}
+                        showUploadButton={false}
+                        label="Choose evidence files"
+                    />
+                    <p className="mt-1 text-caption text-secondary">Files are uploaded after the report is created.</p>
+                </div>
             </Modal>
         </>
     );

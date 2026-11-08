@@ -5,6 +5,7 @@ import { Badge, Button, Card, EmptyState, ErrorState, Icon, Modal, PageHeader, S
 import { formatDate, getErrorMessage, timeAgo } from '../../lib/format';
 import { cn } from '../../lib/cn';
 import { useGetAdminReportsQuery, useReviewAdminReportMutation } from '../../features/admin/adminApi';
+import { AttachmentList } from '../../features/attachments/AttachmentComponents';
 
 const TABS = [
     { key: 'OPEN', label: 'Open' },
@@ -134,6 +135,8 @@ const ReportCard = ({ report, onReview }) => {
                     {report.details}
                 </p>
             )}
+
+            <AttachmentList attachments={report.attachments} label="Evidence" compact />
 
             <p className="break-all text-caption text-secondary">
                 Target ID: {report.targetId}

@@ -369,12 +369,14 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                             </>
                                         )}
 
-                                        {isFreelancer && m.status === 'FUNDED' && (
+                                        {isFreelancer && (m.status === 'FUNDED' || m.status === 'IN_REVIEW') && (
                                             <div className="flex w-full flex-col gap-2">
-                                                <Button size="sm" className="w-fit" onClick={() => setPending({ type: 'submit', milestone: m })}>
-                                                    <Icon name="outbox" className="text-[16px]" />
-                                                    Submit milestone
-                                                </Button>
+                                                {m.status === 'FUNDED' && (
+                                                    <Button size="sm" className="w-fit" onClick={() => setPending({ type: 'submit', milestone: m })}>
+                                                        <Icon name="outbox" className="text-[16px]" />
+                                                        Submit milestone
+                                                    </Button>
+                                                )}
                                                 <FilePicker purpose="MILESTONE_SUBMIT" target={{ milestoneId: m.id }} contractId={contract.id} label="Upload delivery files" />
                                             </div>
                                         )}
