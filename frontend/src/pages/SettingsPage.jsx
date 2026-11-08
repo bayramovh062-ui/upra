@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
@@ -24,6 +24,7 @@ import {
     useUpdateMeMutation,
     useUpdatePasswordMutation,
 } from '../features/auth/authApi';
+import { useUploadAvatarMutation } from '../features/attachments/attachmentsApi';
 import { useLogout } from '../features/auth/useLogout';
 import SkillPicker from '../features/taxonomy/SkillPicker';
 import { cn } from '../lib/cn';
@@ -42,9 +43,11 @@ const SaveButton = ({ loading, disabled, children = 'Save changes' }) => (
     </div>
 );
 
-// Şəxsi məlumat: ad, avatar, məkan, saat qurşağı (hər iki rol)
+// Şəxsi məlumat: ad, avatar (Plan P3 fayl yükləmə + URL fallback), məkan, saat qurşağı (hər iki rol)
 const ProfileForm = ({ user }) => {
     const [updateMe, { isLoading }] = useUpdateMeMutation();
+    const [uploadAvatar, { isLoading: uploadingAvatar }] = useUploadAvatarMutation();
+    const fileRef = useRef(null);
     const {
         register,
         handleSubmit,
@@ -75,6 +78,18 @@ const ProfileForm = ({ user }) => {
         }
     };
 
+    const onAvatarFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        try {
+            await uploadAvatar(file).unwrap();
+            toast.success('Avatar uploaded');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not upload avatar'));
+        }
+    };
+
     return (
         <Card>
             <CardHeader title="Personal information" />
@@ -85,15 +100,20 @@ const ProfileForm = ({ user }) => {
                         <div className="flex flex-wrap items-center gap-3 text-body-md text-secondary">
                             <Badge>{user.role === 'CLIENT' ? 'Client' : 'Freelancer'}</Badge>
                             {user.createdAt && <span>Member since {formatDate(user.createdAt)}</span>}
+                            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={onAvatarFile} />
+                            <Button type="button" variant="secondary" size="sm" loading={uploadingAvatar} onClick={() => fileRef.current?.click()}>
+                                <Icon name="upload" className="text-[16px]" />
+                                Upload photo
+                            </Button>
                         </div>
                     </div>
                     <Input label="Full name" error={errors.fullName?.message} {...register('fullName')} />
                     <Input label="Email" value={user.email ?? ''} disabled readOnly hint="Email cannot be changed" />
                     <Input
-                        label="Avatar URL"
+                        label="Avatar URL (optional)"
                         type="url"
                         placeholder="https://example.com/photo.jpg"
-                        hint="Link to a square image (JPG, PNG or WebP). Leave empty to show your initials."
+                        hint="Use Upload photo (stored securely) or paste an image URL. Leave empty to show your initials."
                         error={errors.avatarUrl?.message}
                         {...register('avatarUrl')}
                     />
