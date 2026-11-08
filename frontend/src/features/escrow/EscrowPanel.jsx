@@ -13,6 +13,7 @@ import {
     useSubmitMilestoneMutation,
 } from './escrowApi';
 import { MilestoneBadge, calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from './escrow';
+import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
 const AUTO_APPROVE_DAYS = 7; // backend: AUTO_APPROVE_DAYS
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -74,6 +75,7 @@ const SubmissionHistory = ({ submissions }) => {
                         </span>{' '}
                         · revision {s.revisionNumber} · {s.actor?.fullName || 'Unknown'} · {formatDate(s.createdAt)}
                         {s.note && <p className="mt-0.5 break-words text-on-surface-variant">{s.note}</p>}
+                        <AttachmentList attachments={s.attachments} compact />
                     </li>
                 ))}
             </ul>
@@ -81,7 +83,7 @@ const SubmissionHistory = ({ submissions }) => {
     );
 };
 
-const DisputeBox = ({ dispute }) => {
+const DisputeBox = ({ dispute, contractId, canUpload }) => {
     const isOpen = dispute.status === 'OPEN';
 
     return (
@@ -104,6 +106,12 @@ const DisputeBox = ({ dispute }) => {
                     {dispute.adminNote ? ` · ${dispute.adminNote}` : ''}
                 </p>
             )}
+            <AttachmentList attachments={dispute.attachments} compact />
+            {isOpen && canUpload && (
+                <div className="mt-2">
+                    <FilePicker purpose="DISPUTE_EVIDENCE" target={{ disputeId: dispute.id }} contractId={contractId} label="Upload evidence" />
+                </div>
+            )}
         </div>
     );
 };
@@ -120,6 +128,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
     const historyQ = useGetContractHistoryQuery(contract.id);
     const submissions = historyQ.data?.submissions ?? [];
     const disputes = historyQ.data?.disputes ?? [];
+    const milestoneFiles = historyQ.data?.milestoneFiles ?? [];
 
     const submissionsByMilestone = submissions.reduce((acc, s) => {
         (acc[s.milestoneId] ||= []).push(s);
@@ -127,6 +136,10 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
     }, {});
     const disputesByMilestone = disputes.reduce((acc, d) => {
         (acc[d.milestoneId] ||= []).push(d);
+        return acc;
+    }, {});
+    const filesByMilestone = milestoneFiles.reduce((acc, f) => {
+        if (f.milestoneId) (acc[f.milestoneId] ||= []).push(f);
         return acc;
     }, {});
 
@@ -290,9 +303,9 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                 )}
 
                                 {activeDispute ? (
-                                    <DisputeBox dispute={activeDispute} />
+                                    <DisputeBox dispute={activeDispute} contractId={contract.id} canUpload={open && (isClient || isFreelancer)} />
                                 ) : (
-                                    latestResolved && <DisputeBox dispute={latestResolved} />
+                                    latestResolved && <DisputeBox dispute={latestResolved} contractId={contract.id} />
                                 )}
 
                                 {m.status === 'PAID' && (
@@ -357,10 +370,13 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                         )}
 
                                         {isFreelancer && m.status === 'FUNDED' && (
-                                            <Button size="sm" onClick={() => setPending({ type: 'submit', milestone: m })}>
-                                                <Icon name="outbox" className="text-[16px]" />
-                                                Submit milestone
-                                            </Button>
+                                            <div className="flex w-full flex-col gap-2">
+                                                <Button size="sm" className="w-fit" onClick={() => setPending({ type: 'submit', milestone: m })}>
+                                                    <Icon name="outbox" className="text-[16px]" />
+                                                    Submit milestone
+                                                </Button>
+                                                <FilePicker purpose="MILESTONE_SUBMIT" target={{ milestoneId: m.id }} contractId={contract.id} label="Upload delivery files" />
+                                            </div>
                                         )}
 
                                         {(isClient || isFreelancer) &&
@@ -390,6 +406,13 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                         {isFreelancer && m.status === 'IN_REVIEW' && (
                                             <span className="text-caption text-secondary">Waiting for the client to review.</span>
                                         )}
+                                    </div>
+                                )}
+
+                                {(filesByMilestone[m.id]?.length > 0) && (
+                                    <div>
+                                        <p className="text-caption font-semibold text-secondary">Delivery files</p>
+                                        <AttachmentList attachments={filesByMilestone[m.id]} compact />
                                     </div>
                                 )}
 

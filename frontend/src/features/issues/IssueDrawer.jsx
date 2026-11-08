@@ -17,6 +17,7 @@ import { getErrorMessage, timeAgo } from '../../lib/format';
 import { commentSchema, issueSchema } from '../../validations/issueSchema';
 import { assigneeOptions, PRIORITY_OPTIONS } from './IssueFormModal';
 import { useAddCommentMutation, useDeleteIssueMutation, useUpdateIssueMutation } from './issuesApi';
+import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
 const STATUS_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done' };
 
@@ -112,6 +113,17 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 )}
             </form>
 
+            {!readOnly && (
+                <div className="rounded-xl border border-dashed border-line p-3">
+                    <p className="mb-2 text-label-md text-secondary">Attachments</p>
+                    <AttachmentList attachments={issue.attachments} />
+                    <div className="mt-2">
+                        <FilePicker purpose="ISSUE" target={{ issueId: issue.id }} contractId={contract.id} label="Upload issue files" />
+                    </div>
+                </div>
+            )}
+            {readOnly && <AttachmentList attachments={issue.attachments} />}
+
             <div>
                 <h3 className="mb-3 text-title-md text-on-surface">Comments ({comments.length})</h3>
                 <div className="flex flex-col gap-3">
@@ -127,6 +139,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                                 <p className="mt-0.5 whitespace-pre-line break-words text-body-md text-on-surface">
                                     {c.body}
                                 </p>
+                                <AttachmentList attachments={c.attachments} compact />
                             </div>
                         </div>
                     ))}
@@ -140,7 +153,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                             error={commentForm.formState.errors.body?.message}
                             {...commentForm.register('body')}
                         />
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-end gap-2">
                             <Button type="submit" size="sm" loading={commenting}>
                                 Comment
                             </Button>
