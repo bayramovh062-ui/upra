@@ -31,18 +31,18 @@ export const getContractMilestones = asyncHandler(async (req, res) => {
 
 // @route   GET /api/contracts/:id/history
 // @access  Private (müqavilənin tərəfləri)
-// P2: təhvil/dəyişiklik tarixçəsi + mübahisələr. Escrow UI bunu bir sorğu ilə oxuyur.
+// P2: təhvil/dəyişiklik tarixçəsi + mübahisələr. Plan P3: attachments (submission, dispute, milestone delivery files).
 export const getContractHistory = asyncHandler(async (req, res) => {
     await verifyContractAccess(req.params.id, req.user.id);
 
-    const [submissions, disputes] = await Promise.all([
+    const [submissions, disputes, milestoneFiles] = await Promise.all([
         prisma.milestoneSubmission.findMany({
             where: { contractId: req.params.id },
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: {
                 actor: { select: { id: true, fullName: true, role: true } },
                 milestone: { select: { id: true, sequence: true, title: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.dispute.findMany({
@@ -52,12 +52,17 @@ export const getContractHistory = asyncHandler(async (req, res) => {
                 openedBy: { select: { id: true, fullName: true, role: true } },
                 admin: { select: { id: true, fullName: true } },
                 milestone: { select: { id: true, sequence: true, title: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
+        }),
+        prisma.attachment.findMany({
+            where: { contractId: req.params.id, purpose: 'MILESTONE_SUBMIT' },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true },
         }),
     ]);
 
-    res.status(200).json({ success: true, submissions, disputes });
+    res.status(200).json({ success: true, submissions, disputes, milestoneFiles });
 });
 
 // @route   POST /api/milestones/:id/fund        (CLIENT) PENDING -> FUNDED, pul escrow-a keçir
