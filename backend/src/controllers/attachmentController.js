@@ -27,14 +27,17 @@ const saveMany = async (files, purpose, uploadedById, links) => {
 export const uploadAvatar = asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('Avatar file is required', 400);
   const stored = await storeFile(req.file, { purpose: 'AVATAR' });
+  // Return an absolute URL so the frontend can render it reliably in dev (Vite origin) and prod.
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const avatarUrl = stored.url.startsWith('http') ? stored.url : `${origin}${stored.url}`;
   const [attachment] = await prisma.$transaction([
     prisma.attachment.create({
       data: toAttachmentRecord(req.file, stored, { purpose: 'AVATAR', uploadedById: req.user.id, links: { userId: req.user.id } }),
       select: ATTACHMENT_SELECT,
     }),
-    prisma.user.update({ where: { id: req.user.id }, data: { avatarUrl: stored.url }, select: { id: true } }),
+    prisma.user.update({ where: { id: req.user.id }, data: { avatarUrl }, select: { id: true } }),
   ]);
-  res.status(201).json({ success: true, attachment, avatarUrl: stored.url });
+  res.status(201).json({ success: true, attachment, avatarUrl });
 });
 
 export const uploadMilestoneFiles = asyncHandler(async (req, res) => {

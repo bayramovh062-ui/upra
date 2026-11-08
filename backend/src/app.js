@@ -38,7 +38,7 @@ if (trustProxy !== false) {
 }
 
 // Middlewares
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 // CLIENT_URL təyin olunubsa yalnız həmin ünvan(lar)a icazə verilir (vergüllə bir neçə ola bilər).
 // Təyin olunmayıbsa (lokal inkişaf) hamıya açıqdır.
 app.use(
