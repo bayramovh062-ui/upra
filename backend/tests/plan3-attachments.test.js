@@ -113,4 +113,30 @@ describe('Plan P3 file uploads', () => {
     const outsiderView = await request(app).get(`/api/admin/disputes/${disputeId}`).set(auth(outsider.token));
     expect(outsiderView.status).toBe(403);
   });
+
+  it('allows report evidence upload after report creation', async () => {
+    const contract = await createContractWithMilestones({
+      clientToken: pair.c.token,
+      freelancerToken: pair.f.token,
+      milestones: [{ title: 'Report context', amount: 30 }],
+      title: 'Report upload',
+    });
+
+    const created = await request(app)
+      .post('/api/reports')
+      .set(auth(pair.c.token))
+      .send({ targetType: 'CONTRACT', targetId: contract.id, reason: 'Evidence needed for moderation', details: 'Screenshots/logs' });
+    expect(created.status).toBe(201);
+
+    const up = await request(app)
+      .post(`/api/attachments/reports/${created.body.report.id}/files`)
+      .set(auth(pair.c.token))
+      .attach('files', Buffer.from('evidence'), { filename: 'report.txt', contentType: 'text/plain' });
+    expect(up.status).toBe(201);
+    expect(up.body.attachments[0]).toMatchObject({ purpose: 'REPORT_EVIDENCE', reportId: created.body.report.id });
+
+    const adminView = await request(app).get(`/api/admin/reports/${created.body.report.id}`).set(auth(admin.token));
+    expect(adminView.status).toBe(200);
+    expect(adminView.body.report.attachments?.length).toBeGreaterThan(0);
+  });
 });

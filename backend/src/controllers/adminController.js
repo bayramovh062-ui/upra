@@ -50,6 +50,7 @@ export const listDisputes = asyncHandler(async (req, res) => {
                     },
                 },
                 openedBy: { select: { id: true, fullName: true, role: true } },
+                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.dispute.count({ where }),
@@ -132,6 +133,7 @@ export const listReports = asyncHandler(async (req, res) => {
             include: {
                 reporter: { select: { id: true, fullName: true, email: true, role: true } },
                 admin: { select: { id: true, fullName: true } },
+                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.report.count({ where }),
@@ -148,6 +150,7 @@ export const getReport = asyncHandler(async (req, res) => {
         include: {
             reporter: { select: { id: true, fullName: true, email: true, role: true } },
             admin: { select: { id: true, fullName: true, email: true } },
+            attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
         },
     });
 

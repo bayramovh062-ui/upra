@@ -9,6 +9,7 @@ import {
   assertCanAttachToDispute,
   assertCanAttachToIssue,
   assertCanAttachToMilestoneSubmission,
+  assertCanAttachToReport,
   findAttachment,
 } from '../services/attachmentService.js';
 
@@ -74,6 +75,14 @@ export const uploadCommentFiles = asyncHandler(async (req, res) => {
     contractId: contract.id,
     issueId: comment.issueId,
     issueCommentId: comment.id,
+  });
+  res.status(201).json({ success: true, attachments });
+});
+
+export const uploadReportFiles = asyncHandler(async (req, res) => {
+  const report = await assertCanAttachToReport(req.params.id, req.user);
+  const attachments = await saveMany(req.files || (req.file ? [req.file] : []), 'REPORT_EVIDENCE', req.user.id, {
+    reportId: report.id,
   });
   res.status(201).json({ success: true, attachments });
 });

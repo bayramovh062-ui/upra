@@ -8,6 +8,7 @@ import {
   uploadDisputeFiles,
   uploadIssueFiles,
   uploadMilestoneFiles,
+  uploadReportFiles,
 } from '../controllers/attachmentController.js';
 
 const router = express.Router();
@@ -26,6 +27,9 @@ router.post('/disputes/:id/files', multiFiles('DISPUTE_EVIDENCE', 'files'), uplo
 // Issue / comment attachments (contract parties, active contract)
 router.post('/issues/:id/files', multiFiles('ISSUE', 'files'), uploadIssueFiles);
 router.post('/issue-comments/:id/files', multiFiles('ISSUE_COMMENT', 'files'), uploadCommentFiles);
+
+// Report evidence (reporter)
+router.post('/reports/:id/files', multiFiles('REPORT_EVIDENCE', 'files'), uploadReportFiles);
 
 // Attachment metadata (access controlled)
 router.get('/:id', getAttachment);

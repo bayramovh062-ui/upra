@@ -68,7 +68,7 @@ export const assertCanAttachToMilestoneSubmission = async (milestoneId, user) =>
   if (!milestone) throw new AppError('Milestone not found', 404);
   if (milestone.contract.freelancerId !== user.id) throw new AppError('Only the freelancer can upload submission files', 403);
   if (!['ACTIVE', 'DELIVERED'].includes(milestone.contract.status)) throw new AppError('Contract is not active', 400);
-  if (milestone.status !== 'FUNDED') throw new AppError('Only a funded milestone can receive submission files', 409);
+  if (!['FUNDED', 'IN_REVIEW'].includes(milestone.status)) throw new AppError('Only a funded or in-review milestone can receive delivery files', 409);
   return milestone;
 };
 
@@ -106,3 +106,13 @@ export const assertCanAttachToComment = async (commentId, user) => {
   if (c.status !== 'ACTIVE') throw new AppError('Contract is not active', 400);
   return { comment, contract: c };
 };
+
+export const assertCanAttachToReport = async (reportId, user) => {
+  const report = await prisma.report.findUnique({ where: { id: reportId }, select: { id: true, reporterId: true, status: true } });
+  if (!report) throw new AppError('Report not found', 404);
+  if (report.reporterId !== user.id) throw new AppError('Only the reporter can upload report evidence', 403);
+  if (report.status === 'CLOSED') throw new AppError('Closed reports cannot receive new evidence', 409);
+  return report;
+};
+
+
