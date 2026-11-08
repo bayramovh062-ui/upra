@@ -85,10 +85,19 @@ export const getDispute = asyncHandler(async (req, res) => {
     const submissions = await prisma.milestoneSubmission.findMany({
         where: { milestoneId: dispute.milestoneId },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        include: { actor: { select: { id: true, fullName: true, role: true } } },
+        include: {
+            actor: { select: { id: true, fullName: true, role: true } },
+            attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        },
     });
 
-    res.status(200).json({ success: true, dispute, submissions });
+    const evidence = await prisma.attachment.findMany({
+        where: { disputeId: dispute.id },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true },
+    });
+
+    res.status(200).json({ success: true, dispute: { ...dispute, attachments: evidence }, submissions });
 });
 
 // @route   PATCH /api/admin/disputes/:id/resolve

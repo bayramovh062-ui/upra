@@ -162,36 +162,42 @@ model User {
   suspendedByAdminId String?
   suspendedByAdmin   User?     @relation("UserSuspensions", fields: [suspendedByAdminId], references: [id], onDelete: SetNull)
 
+  @@index([suspendedByAdminId])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Əlaqələr
-  jobPosts              JobPost[]
-  proposals             Proposal[]
-  contractsAsClient     Contract[]     @relation("ClientContracts")
-  contractsAsFreelancer Contract[]     @relation("FreelancerContracts")
-  createdIssues         Issue[]        @relation("CreatedIssues")
-  assignedIssues        Issue[]        @relation("AssignedIssues")
-  comments              IssueComment[]
-  skills                UserSkill[]
-  savedJobs             SavedJob[]
-  wallet                Wallet?
-  notifications         Notification[]
+  jobPosts                  JobPost[]
+  proposals                 Proposal[]
+  contractsAsClient         Contract[]     @relation("ClientContracts")
+  contractsAsFreelancer     Contract[]     @relation("FreelancerContracts")
+  createdIssues             Issue[]        @relation("CreatedIssues")
+  assignedIssues            Issue[]        @relation("AssignedIssues")
+  comments                  IssueComment[]
+  skills                    UserSkill[]
+  savedJobs                 SavedJob[]
+  wallet                    Wallet?
+  notifications             Notification[]
   conversationsAsClient     Conversation[] @relation("ConversationClient")
   conversationsAsFreelancer Conversation[] @relation("ConversationFreelancer")
   messages                  Message[]
 
   // P2
   milestoneSubmissions MilestoneSubmission[]
-  disputesOpened       Dispute[]           @relation("DisputesOpened")
-  disputesResolved     Dispute[]           @relation("DisputesResolved")
-  reportsCreated       Report[]            @relation("ReportsCreated")
-  reportsReviewed      Report[]            @relation("ReportsReviewed")
+  disputesOpened       Dispute[]             @relation("DisputesOpened")
+  disputesResolved     Dispute[]             @relation("DisputesResolved")
+  reportsCreated       Report[]              @relation("ReportsCreated")
+  reportsReviewed      Report[]              @relation("ReportsReviewed")
 
   // P3: rəylər (bir müqavilə üzrə hər tərəf bir dəfə yazır)
   reviewsWritten  Review[] @relation("ReviewsWritten")
   reviewsReceived Review[] @relation("ReviewsReceived")
   suspensionsMade User[]   @relation("UserSuspensions")
+
+  // Plan P3: file uploads
+  uploadedAttachments Attachment[] @relation("UploadedAttachments")
+  attachmentSubjects  Attachment[]
 }
 
 model JobPost {
@@ -281,7 +287,8 @@ model Contract {
   disputes    Dispute[]
 
   // P3
-  reviews Review[]
+  reviews     Review[]
+  attachments Attachment[]
 
   @@index([clientId])
   @@index([freelancerId])
@@ -324,7 +331,8 @@ model Issue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  comments IssueComment[]
+  comments    IssueComment[]
+  attachments Attachment[]
 
   @@index([boardId, status, position])
   @@index([assigneeId])
@@ -341,7 +349,8 @@ model IssueComment {
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
 
-  createdAt DateTime @default(now())
+  createdAt   DateTime     @default(now())
+  attachments Attachment[]
 
   @@index([issueId, createdAt])
 }
@@ -440,6 +449,7 @@ model Milestone {
   transactions Transaction[]
   submissions  MilestoneSubmission[]
   disputes     Dispute[]
+  attachments  Attachment[]
 
   @@unique([contractId, sequence])
   @@index([contractId, status])
@@ -572,8 +582,10 @@ model MilestoneSubmission {
   actorId String
   actor   User   @relation(fields: [actorId], references: [id])
 
-  revisionNumber Int      @default(0) // hansı revision təhvil verilib / hansı tələb sayılır
-  note           String?  // dəyişiklik səbəbi (optional)
+  revisionNumber Int     @default(0) // hansı revision təhvil verilib / hansı tələb sayılır
+  note           String? // dəyişiklik səbəbi (optional)
+
+  attachments Attachment[]
 
   createdAt DateTime @default(now())
 
@@ -605,13 +617,15 @@ model Dispute {
   releaseToFreelancerCents Int?
   refundToClientCents      Int?
 
-  adminId  String?
-  admin    User?   @relation("DisputesResolved", fields: [adminId], references: [id])
+  adminId   String?
+  admin     User?   @relation("DisputesResolved", fields: [adminId], references: [id])
   adminNote String?
 
-  openedAt   DateTime @default(now())
+  attachments Attachment[]
+
+  openedAt   DateTime  @default(now())
   resolvedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([status, createdAt])
   @@index([milestoneId, status])
@@ -637,9 +651,11 @@ model Report {
   admin     User?   @relation("ReportsReviewed", fields: [adminId], references: [id])
   adminNote String?
 
+  attachments Attachment[]
+
   reviewedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([status, createdAt])
   @@index([targetType, targetId])
@@ -671,3 +687,54 @@ model Review {
   @@index([revieweeId, createdAt])
 }
 
+enum AttachmentPurpose {
+  AVATAR
+  MILESTONE_SUBMIT
+  DISPUTE_EVIDENCE
+  ISSUE
+  ISSUE_COMMENT
+  REPORT_EVIDENCE
+}
+
+model Attachment {
+  id       String            @id @default(uuid())
+  purpose  AttachmentPurpose
+  url      String
+  filename String
+  mimeType String
+  size     Int
+  provider String            @default("cloudinary")
+
+  uploadedById String
+  uploadedBy   User   @relation("UploadedAttachments", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  userId         String?
+  user           User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contractId     String?
+  contract       Contract?            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestoneId    String?
+  milestone      Milestone?           @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  submissionId   String?
+  submission     MilestoneSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  disputeId      String?
+  dispute        Dispute?             @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  issueId        String?
+  issue          Issue?               @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueCommentId String?
+  issueComment   IssueComment?        @relation(fields: [issueCommentId], references: [id], onDelete: Cascade)
+  reportId       String?
+  report         Report?              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([purpose, createdAt])
+  @@index([userId])
+  @@index([contractId])
+  @@index([milestoneId])
+  @@index([submissionId])
+  @@index([disputeId])
+  @@index([issueId])
+  @@index([issueCommentId])
+  @@index([reportId])
+  @@index([uploadedById])
+}

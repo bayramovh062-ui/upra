@@ -19,6 +19,20 @@ export const cleanUpUserIds = async (ids) => {
 
     const contractWhere = { OR: [{ clientId: { in: ids } }, { freelancerId: { in: ids } }] };
 
+    // Plan P3: attachments reference users/contracts/milestones/submissions/disputes/issues/reports (some RESTRICT)
+    await prisma.attachment.deleteMany({
+        where: {
+            OR: [
+                { uploadedById: { in: ids } },
+                { userId: { in: ids } },
+                { contract: contractWhere },
+                { issue: { board: { contract: contractWhere } } },
+                { issueComment: { issue: { board: { contract: contractWhere } } } },
+                { report: { OR: [{ reporterId: { in: ids } }, { adminId: { in: ids } }] } },
+            ],
+        },
+    });
+
     // P2 cədvəlləri (Report/Dispute/MilestoneSubmission) user FK-ları RESTRICT ola bilər: əvvəl onları sil
     await prisma.report.deleteMany({
         where: { OR: [{ reporterId: { in: ids } }, { adminId: { in: ids } }] },

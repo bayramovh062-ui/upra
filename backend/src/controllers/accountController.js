@@ -34,6 +34,15 @@ export const deleteAccount = asyncHandler(async (req, res) => {
         );
     }
 
+    // P5/Plan 3 safety: pending/held/locked money cannot be abandoned by soft-deleting the account.
+    const wallet = await prisma.wallet.findUnique({ where: { userId: user.id }, select: { availableCents: true, lockedCents: true } });
+    if (wallet && (wallet.availableCents > 0 || wallet.lockedCents > 0)) {
+        throw new AppError(
+            'You have funds in your wallet. Withdraw your available balance and resolve any escrow before deleting your account.',
+            400
+        );
+    }
+
     await prisma.$transaction([
         // Client: açıq elanlar ləğv olunur, gözləyən təkliflər rədd edilir
         prisma.proposal.updateMany({

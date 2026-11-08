@@ -10,6 +10,8 @@ import { emitToContract } from '../socket.js';
 import { assertWorkFunded } from '../services/financialService.js';
 import { notify, otherParty, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
+const ATTACHMENT_SELECT = { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true };
+
 const MIN_POSITION_GAP = 0.001;
 
 const excerpt = (text, max = 120) => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
@@ -41,9 +43,11 @@ export const getContractIssues = asyncHandler(async (req, res) => {
         include: {
             createdBy: { select: { id: true, fullName: true } },
             assignee: { select: { id: true, fullName: true } },
+            attachments: { select: ATTACHMENT_SELECT, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             comments: {
                 include: {
                     author: { select: { id: true, fullName: true } },
+                    attachments: { select: ATTACHMENT_SELECT, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
                 },
                 orderBy: { createdAt: 'asc' },
             },

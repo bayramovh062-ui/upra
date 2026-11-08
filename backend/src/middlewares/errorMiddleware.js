@@ -39,6 +39,16 @@ export const globalErrorMiddleware = (err, req, res, next) => {
         message = "The token has expired; please log in again.";
     }
 
+    // Multer upload limits
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        statusCode = 400;
+        message = 'File is too large';
+    }
+    if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' || err.code === 'LIMIT_PART_COUNT') {
+        statusCode = 400;
+        message = 'Too many files or invalid upload form';
+    }
+
     // Logging
     if (statusCode === 500) {
         logger.error(`${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`, { stack: err.stack });
