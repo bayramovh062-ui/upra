@@ -566,7 +566,7 @@ const ContractDetailPage = () => {
                 </Card>
             </div>
 
-            <div className="mb-6 inline-flex gap-1 rounded-xl bg-surface-container-low p-1" role="tablist">
+            <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-surface-container-low p-1" role="tablist">
                 {[
                     { key: 'board', label: 'Board', icon: 'view_kanban' },
                     { key: 'escrow', label: 'Escrow', icon: 'account_balance' },
@@ -578,7 +578,7 @@ const ContractDetailPage = () => {
                         aria-selected={tab === t.key}
                         onClick={() => selectTab(t.key)}
                         className={cn(
-                            'inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-label-md transition-all',
+                            'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-1.5 text-label-md transition-all',
                             tab === t.key
                                 ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
                                 : 'text-on-surface-variant hover:text-on-surface',

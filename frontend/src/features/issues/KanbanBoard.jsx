@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
-import { Avatar, Button, EmptyState, ErrorState, Icon, Skeleton, StatusBadge } from '../../components/ui';
+import { Avatar, Button, EmptyState, ErrorState, Icon, Modal, Skeleton, StatusBadge } from '../../components/ui';
 import { cn } from '../../lib/cn';
 import { getErrorMessage } from '../../lib/format';
 import IssueDrawer from './IssueDrawer';
@@ -23,41 +23,65 @@ const computePosition = (prev, next) => {
     return 1000;
 };
 
-const IssueCard = ({ issue, onOpen }) => (
-    <button
-        type="button"
-        onClick={() => onOpen(issue.id)}
-        className="flex w-full flex-col gap-3 text-left"
-    >
-        <p className="break-words text-body-md-medium text-on-surface">{issue.title}</p>
-        <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-                <StatusBadge status={issue.priority} />
-                {(issue.comments?.length ?? 0) > 0 && (
-                    <span className="flex items-center gap-0.5 text-caption text-secondary">
-                        <Icon name="chat_bubble_outline" className="text-[14px]" />
-                        {issue.comments.length}
+const MOVE_OPTIONS = {
+    TODO: ['IN_PROGRESS', 'DONE'],
+    IN_PROGRESS: ['TODO', 'DONE'],
+    DONE: ['TODO', 'IN_PROGRESS'],
+};
+
+const columnTitle = (status) => COLUMNS.find((c) => c.status === status)?.title || status;
+
+const IssueCard = ({ issue, onOpen, onMove, readOnly, moving }) => (
+    <div className="flex w-full flex-col gap-3">
+        <button type="button" onClick={() => onOpen(issue.id)} className="flex w-full flex-col gap-3 text-left">
+            <p className="break-words text-body-md-medium text-on-surface">{issue.title}</p>
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <StatusBadge status={issue.priority} />
+                    {(issue.comments?.length ?? 0) > 0 && (
+                        <span className="flex items-center gap-0.5 text-caption text-secondary">
+                            <Icon name="chat_bubble_outline" className="text-[14px]" />
+                            {issue.comments.length}
+                        </span>
+                    )}
+                </div>
+                {issue.assignee ? (
+                    <Avatar name={issue.assignee.fullName} size="sm" />
+                ) : (
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-line text-secondary">
+                        <Icon name="person" className="text-[16px]" />
                     </span>
                 )}
             </div>
-            {issue.assignee ? (
-                <Avatar name={issue.assignee.fullName} size="sm" />
-            ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-line text-secondary">
-                    <Icon name="person" className="text-[16px]" />
-                </span>
-            )}
-        </div>
-    </button>
+        </button>
+        {!readOnly && (
+            <div className="flex justify-end md:hidden">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onMove(issue);
+                    }}
+                    disabled={moving}
+                >
+                    <Icon name="swap_horiz" className="text-[16px]" />
+                    Move to…
+                </Button>
+            </div>
+        )}
+    </div>
 );
 
 // readOnly: contract ACTIVE deyilsə sürüşdürmə və yaratma söndürülür (backend də 400 qaytarır)
 const KanbanBoard = ({ contract, readOnly }) => {
     const { data, isLoading, isError, refetch } = useGetIssuesQuery(contract.id);
-    const [moveIssue] = useMoveIssueMutation();
+    const [moveIssue, { isLoading: moving }] = useMoveIssueMutation();
     const live = useIssueSocket(contract.id);
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
+    const [moveTarget, setMoveTarget] = useState(null);
 
     const issues = useMemo(() => data?.issues ?? [], [data]);
 
@@ -69,6 +93,18 @@ const KanbanBoard = ({ contract, readOnly }) => {
     }, [issues]);
 
     const selected = issues.find((i) => i.id === selectedId) ?? null;
+
+    const moveToStatus = async (issue, status) => {
+        const target = byStatus[status] ?? [];
+        const last = target[target.length - 1];
+        const position = computePosition(last?.position, null);
+        try {
+            await moveIssue({ id: issue.id, contractId: contract.id, status, position }).unwrap();
+            setMoveTarget(null);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not move the issue'));
+        }
+    };
 
     const onDragEnd = async ({ draggableId, source, destination }) => {
         if (!destination) return;
@@ -143,9 +179,12 @@ const KanbanBoard = ({ contract, readOnly }) => {
             )}
 
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+                <div className="flex items-start gap-4 overflow-x-auto pb-2 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:snap-none">
                     {COLUMNS.map((col) => (
-                        <div key={col.status} className="rounded-xl bg-surface-container-low p-3">
+                        <div
+                            key={col.status}
+                            className="min-w-[82vw] max-w-[82vw] shrink-0 snap-start rounded-xl bg-surface-container-low p-3 sm:min-w-[360px] sm:max-w-[360px] md:min-w-0 md:max-w-none"
+                        >
                             <div className="mb-3 flex items-center gap-2 px-1">
                                 <span className={cn('h-2 w-2 rounded-full', col.dot)} />
                                 <h3 className="text-label-md font-semibold uppercase tracking-wider text-on-surface-variant">
@@ -176,12 +215,19 @@ const KanbanBoard = ({ contract, readOnly }) => {
                                                         ref={drag.innerRef}
                                                         {...drag.draggableProps}
                                                         {...drag.dragHandleProps}
+                                                        style={{ ...drag.draggableProps.style, touchAction: 'manipulation' }}
                                                         className={cn(
-                                                            'rounded-xl bg-surface-container-lowest p-3 shadow-sm transition-shadow hover:shadow-md',
+                                                            'rounded-xl bg-surface-container-lowest p-3 shadow-sm transition-shadow hover:shadow-md select-none',
                                                             dragSnapshot.isDragging && 'shadow-lg ring-2 ring-primary-container',
                                                         )}
                                                     >
-                                                        <IssueCard issue={issue} onOpen={setSelectedId} />
+                                                        <IssueCard
+                                                            issue={issue}
+                                                            onOpen={setSelectedId}
+                                                            onMove={setMoveTarget}
+                                                            readOnly={readOnly}
+                                                            moving={moving}
+                                                        />
                                                     </div>
                                                 )}
                                             </Draggable>
@@ -195,6 +241,33 @@ const KanbanBoard = ({ contract, readOnly }) => {
                 </div>
             </DragDropContext>
 
+            <Modal
+                open={!!moveTarget}
+                onClose={() => setMoveTarget(null)}
+                title={moveTarget ? `Move “${moveTarget.title}”` : 'Move issue'}
+                footer={
+                    <Button variant="secondary" onClick={() => setMoveTarget(null)} disabled={moving}>
+                        Cancel
+                    </Button>
+                }
+            >
+                <p className="mb-3 text-body-md text-secondary">Choose a column for this card.</p>
+                <div className="flex flex-col gap-2">
+                    {(MOVE_OPTIONS[moveTarget?.status] || []).map((status) => (
+                        <Button
+                            key={status}
+                            variant="secondary"
+                            className="justify-start"
+                            loading={moving}
+                            onClick={() => moveToStatus(moveTarget, status)}
+                        >
+                            <Icon name="drive_file_move" className="text-[18px]" />
+                            Move to {columnTitle(status)}
+                        </Button>
+                    ))}
+                </div>
+            </Modal>
+
             <IssueFormModal open={createOpen} onClose={() => setCreateOpen(false)} contract={contract} />
             <IssueDrawer
                 issue={selected}
@@ -207,3 +280,4 @@ const KanbanBoard = ({ contract, readOnly }) => {
 };
 
 export default KanbanBoard;
+
