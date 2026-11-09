@@ -4,7 +4,6 @@ import { AppError } from '../utils/AppError.js';
 export const ATTACHMENT_SELECT = {
   id: true,
   purpose: true,
-  url: true,
   filename: true,
   mimeType: true,
   size: true,
@@ -21,8 +20,18 @@ export const ATTACHMENT_SELECT = {
   createdAt: true,
 };
 
+// Raw storage URLs are only read server-side (content proxy / avatar). API responses never expose
+// protected file URLs; clients use GET /api/attachments/:id/content instead.
+export const ATTACHMENT_FILE_SELECT = { ...ATTACHMENT_SELECT, url: true };
+
 export const findAttachment = async (id) => {
   const attachment = await prisma.attachment.findUnique({ where: { id }, select: { ...ATTACHMENT_SELECT } });
+  if (!attachment) throw new AppError('Attachment not found', 404);
+  return attachment;
+};
+
+export const findAttachmentWithFile = async (id) => {
+  const attachment = await prisma.attachment.findUnique({ where: { id }, select: { ...ATTACHMENT_FILE_SELECT } });
   if (!attachment) throw new AppError('Attachment not found', 404);
   return attachment;
 };

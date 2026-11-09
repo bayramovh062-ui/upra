@@ -116,19 +116,26 @@ const loadMilestone = async (milestoneId) => {
 };
 
 // Tranzaksiya daxilində: Contract kilidi + müqavilənin aktivliyi + mərhələnin təzə vəziyyəti
-const lockAndLoad = async (tx, contractId, milestoneId) => {
+const lockAndLoad = async (tx, contractId, milestoneId, { expectedStatus, conflictMessage } = {}) => {
     await lockContract(tx, contractId);
 
     const contract = await tx.contract.findUnique({
         where: { id: contractId },
         select: { id: true, status: true, clientId: true, freelancerId: true },
     });
-    if (!ACTIVE_CONTRACT_STATUSES.includes(contract.status)) {
-        throw new AppError('Contract is not active', 400);
-    }
 
     const milestone = await tx.milestone.findUnique({ where: { id: milestoneId } });
     if (!milestone) throw new AppError('Milestone not found', 404);
+
+    // Əvvəlcə mərhələnin öz vəziyyəti: son ödənişdən sonra müqavilə avtomatik COMPLETED ola bilər,
+    // amma təkrar approve/request-changes yenə də 400 yox, 409 (konflikt) qaytarmalıdır.
+    if (expectedStatus && milestone.status !== expectedStatus) {
+        throw conflict(conflictMessage);
+    }
+
+    if (!ACTIVE_CONTRACT_STATUSES.includes(contract.status)) {
+        throw new AppError('Contract is not active', 400);
+    }
 
     return { contract, milestone };
 };
@@ -143,6 +150,55 @@ const notifyMilestone = (contractId, milestone) =>
 const milestoneLabel = (pre, milestone) =>
     `milestone ${milestone.sequence} "${milestone.title}" of "${pre.contract.jobPost?.title ?? 'your contract'}"`;
 const escrowLink = (contractId) => `/contracts/${contractId}?tab=escrow`;
+
+// Müqavilə avtomatik bitirilməsi (Phase A): son ödənişdən sonra bütün mərhələlər terminal
+// (PAID/CANCELLED) olub ən azı biri PAID-dirsə və açıq dispute yoxdursa, müqavilə COMPLETED olur.
+// completeContract-ın qaydaları ilə eynidir; tranzaksiya Contract kilidi altında çağırır.
+const TERMINAL_MILESTONE_STATUSES = ['PAID', 'CANCELLED'];
+const CLEAR_CANCEL_REQUEST = { cancelRequestedById: null, cancelRequestedAt: null, cancelReason: null };
+
+const completeContractIfEligible = async (tx, contractId) => {
+    const contract = await tx.contract.findUnique({
+        where: { id: contractId },
+        select: { id: true, status: true, jobPostId: true, clientId: true, freelancerId: true },
+    });
+    if (!contract || contract.status !== 'ACTIVE') return null;
+
+    const [openDisputes, unpaid, paid] = await Promise.all([
+        tx.dispute.count({ where: { contractId, status: 'OPEN' } }),
+        tx.milestone.count({ where: { contractId, status: { notIn: TERMINAL_MILESTONE_STATUSES } } }),
+        tx.milestone.count({ where: { contractId, status: 'PAID' } }),
+    ]);
+    if (openDisputes > 0 || unpaid > 0 || paid === 0) return null;
+
+    // Şərti update: eyni anda gələn ikinci çağırış heç nə etmir.
+    const claimed = await tx.contract.updateMany({
+        where: { id: contractId, status: 'ACTIVE' },
+        data: { status: 'COMPLETED', ...CLEAR_CANCEL_REQUEST },
+    });
+    if (claimed.count === 0) return null;
+
+    await tx.jobPost.update({ where: { id: contract.jobPostId }, data: { status: 'COMPLETED' } });
+    return tx.contract.findUniqueOrThrow({ where: { id: contractId } });
+};
+
+const notifyContractCompleted = async (contractId, clientId, freelancerId, jobTitle, automatic = false) => {
+    emitToContract(contractId, 'contract:updated', {
+        id: contractId,
+        status: 'COMPLETED',
+        clientId,
+        freelancerId,
+    });
+    await notifyMany([clientId, freelancerId], {
+        type: N.CONTRACT_COMPLETED,
+        title: 'Contract completed',
+        body: automatic
+            ? `All milestones for "${jobTitle ?? 'your contract'}" are paid. The contract was completed automatically.`
+            : `"${jobTitle ?? 'Your contract'}" was marked as completed. All milestones are paid.`,
+        link: `/contracts/${contractId}`,
+        data: { contractId, automatic },
+    });
+};
 
 // ---------- pul kisəsi: top-up, withdraw, xülasə ----------
 
@@ -337,11 +393,11 @@ export const requestChanges = async (milestoneId, actorId, { note } = {}) => {
     if (pre.contract.clientId !== actorId) throw new AppError('Only the client can request changes', 403);
 
     const milestone = await runTx(async (tx) => {
-        const { milestone: current } = await lockAndLoad(tx, pre.contractId, milestoneId);
+        const { milestone: current } = await lockAndLoad(tx, pre.contractId, milestoneId, {
+            expectedStatus: 'IN_REVIEW',
+            conflictMessage: 'Only a milestone that is in review can be sent back',
+        });
 
-        if (current.status !== 'IN_REVIEW') {
-            throw conflict('Only a milestone that is in review can be sent back');
-        }
         if (current.revisionCount >= current.maxRevisions) {
             throw new AppError(
                 `Revision limit reached (${current.revisionCount}/${current.maxRevisions}). Approve the work or open a dispute.`,
@@ -487,7 +543,13 @@ export const resolveDispute = async (
     const pre = await prisma.dispute.findUnique({
         where: { id: disputeId },
         include: {
-            milestone: { include: { contract: { select: { clientId: true, freelancerId: true } } } },
+            milestone: {
+                include: {
+                    contract: {
+                        select: { clientId: true, freelancerId: true, jobPost: { select: { title: true } } },
+                    },
+                },
+            },
         },
     });
     if (!pre) throw new AppError('Dispute not found', 404);
@@ -624,6 +686,7 @@ export const resolveDispute = async (
                 commissionCents: commission,
                 netCents: net,
             },
+            completedContract: await completeContractIfEligible(tx, pre.contractId),
         };
     });
 
@@ -649,6 +712,17 @@ export const resolveDispute = async (
         link: escrowLink(pre.contractId),
         data: { contractId: pre.contractId, milestoneId: pre.milestoneId, disputeId, resolution },
     });
+
+    // Phase A: dispute həlli son mərhələni bağlayıbsa, müqaviləni avtomatik bitir.
+    if (result.completedContract) {
+        await notifyContractCompleted(
+            pre.contractId,
+            pre.milestone.contract.clientId,
+            pre.milestone.contract.freelancerId,
+            pre.milestone.contract.jobPost?.title,
+            true
+        );
+    }
 
     return result;
 };
@@ -676,9 +750,10 @@ export const approveMilestone = async (milestoneId, { actorId, now = new Date() 
     const reference = randomUUID();
 
     const result = await runTx(async (tx) => {
-        const { milestone } = await lockAndLoad(tx, pre.contractId, milestoneId);
-
-        if (milestone.status !== 'IN_REVIEW') throw conflict('Only a milestone that is in review can be approved');
+        const { milestone } = await lockAndLoad(tx, pre.contractId, milestoneId, {
+            expectedStatus: 'IN_REVIEW',
+            conflictMessage: 'Only a milestone that is in review can be approved',
+        });
 
         // Avtomatik təsdiq yalnız 7 TAM gün keçibsə (sərhəd daxildir: tam 7 gün = uyğundur)
         if (isSystem && (!milestone.submittedAt || milestone.submittedAt > cutoff)) {
@@ -739,6 +814,7 @@ export const approveMilestone = async (milestoneId, { actorId, now = new Date() 
         return {
             milestone: await tx.milestone.findUniqueOrThrow({ where: { id: milestoneId } }),
             payout: { grossCents: gross, commissionCents: commission, netCents: net },
+            completedContract: await completeContractIfEligible(tx, pre.contractId),
         };
     });
 
@@ -760,6 +836,17 @@ export const approveMilestone = async (milestoneId, { actorId, now = new Date() 
             link: escrowLink(pre.contractId),
             data: { contractId: pre.contractId, milestoneId },
         });
+    }
+
+    // Phase A: son uyğun mərhələ ödənildikdə müqaviləni avtomatik bitir.
+    if (result.completedContract) {
+        await notifyContractCompleted(
+            pre.contractId,
+            pre.contract.clientId,
+            pre.contract.freelancerId,
+            pre.contract.jobPost?.title,
+            true
+        );
     }
 
     return result;

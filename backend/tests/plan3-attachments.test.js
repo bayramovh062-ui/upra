@@ -80,6 +80,30 @@ describe('Plan P3 file uploads', () => {
       .attach('files', Buffer.from('deliverable'), { filename: 'deliverable.txt', contentType: 'text/plain' });
     expect(ok.status).toBe(201);
     expect(ok.body.attachments[0]).toMatchObject({ purpose: 'MILESTONE_SUBMIT', contractId: contract.id, milestoneId: m.id });
+
+    // Phase A: metadata responses never expose the raw storage URL; contents come from the protected endpoint.
+    const attachment = ok.body.attachments[0];
+    expect(attachment.url).toBeUndefined();
+    const meta = await request(app).get(`/api/attachments/${attachment.id}`).set(auth(pair.f.token));
+    expect(meta.status).toBe(200);
+    expect(meta.body.attachment.url).toBeUndefined();
+
+    // Content access is authenticated and limited to contract parties/admins.
+    const contentUrl = `/api/attachments/${attachment.id}/content`;
+    expect((await request(app).get(contentUrl)).status).toBe(401);
+    expect((await request(app).get(contentUrl).set(auth(outsider.token))).status).toBe(403);
+
+    // The client must be able to inspect submitted files while the milestone is IN_REVIEW.
+    const submitted = await request(app).post(`/api/milestones/${m.id}/submit`).set(auth(pair.f.token));
+    expect(submitted.status).toBe(200);
+    expect((await prisma.milestone.findUnique({ where: { id: m.id } })).status).toBe('IN_REVIEW');
+
+    for (const user of [pair.c, pair.f, admin]) {
+      const content = await request(app).get(contentUrl).set(auth(user.token));
+      expect(content.status).toBe(200);
+      expect(content.headers['cache-control']).toBe('private, no-store');
+      expect(content.text).toBe('deliverable');
+    }
   });
 
   it('allows dispute evidence for parties and admin can view dispute attachments', async () => {

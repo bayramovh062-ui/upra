@@ -10,7 +10,7 @@ import { emitToContract } from '../socket.js';
 import { assertWorkFunded } from '../services/financialService.js';
 import { notify, otherParty, NOTIFICATION_TYPES as N } from '../services/notificationService.js';
 
-const ATTACHMENT_SELECT = { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true };
+const ATTACHMENT_SELECT = { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true };
 
 const MIN_POSITION_GAP = 0.001;
 

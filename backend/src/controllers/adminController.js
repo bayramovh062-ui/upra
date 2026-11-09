@@ -50,7 +50,7 @@ export const listDisputes = asyncHandler(async (req, res) => {
                     },
                 },
                 openedBy: { select: { id: true, fullName: true, role: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.dispute.count({ where }),
@@ -88,14 +88,14 @@ export const getDispute = asyncHandler(async (req, res) => {
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         include: {
             actor: { select: { id: true, fullName: true, role: true } },
-            attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+            attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
         },
     });
 
     const evidence = await prisma.attachment.findMany({
         where: { disputeId: dispute.id },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true },
+        select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true },
     });
 
     res.status(200).json({ success: true, dispute: { ...dispute, attachments: evidence }, submissions });
@@ -133,7 +133,7 @@ export const listReports = asyncHandler(async (req, res) => {
             include: {
                 reporter: { select: { id: true, fullName: true, email: true, role: true } },
                 admin: { select: { id: true, fullName: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.report.count({ where }),
@@ -150,7 +150,7 @@ export const getReport = asyncHandler(async (req, res) => {
         include: {
             reporter: { select: { id: true, fullName: true, email: true, role: true } },
             admin: { select: { id: true, fullName: true, email: true } },
-            attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+            attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
         },
     });
 

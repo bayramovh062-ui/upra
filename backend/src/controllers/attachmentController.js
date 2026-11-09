@@ -1,7 +1,16 @@
+import fs from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import prisma from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { storeFile, toAttachmentRecord, UPLOAD_LIMITS } from '../services/uploadService.js';
+import {
+  getLocalPath,
+  localKeyFromUrl,
+  storeFile,
+  toAttachmentRecord,
+  UPLOAD_LIMITS,
+} from '../services/uploadService.js';
 import {
   ATTACHMENT_SELECT,
   assertAttachmentAccess,
@@ -11,6 +20,7 @@ import {
   assertCanAttachToMilestoneSubmission,
   assertCanAttachToReport,
   findAttachment,
+  findAttachmentWithFile,
 } from '../services/attachmentService.js';
 
 const saveMany = async (files, purpose, uploadedById, links) => {
@@ -91,4 +101,59 @@ export const getAttachment = asyncHandler(async (req, res) => {
   const attachment = await findAttachment(req.params.id);
   await assertAttachmentAccess(attachment, req.user);
   res.status(200).json({ success: true, attachment });
+});
+
+const headerFilename = (name) => String(name || 'attachment').replace(/[^\w.\- ]+/g, '_').slice(0, 120) || 'attachment';
+
+const contentDisposition = (attachment) => {
+  const fallback = headerFilename(attachment.filename);
+  const encoded = encodeURIComponent(attachment.filename || 'attachment').replace(/'/g, '%27');
+  return `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+};
+
+const sendStream = async (res, stream) => {
+  try {
+    await pipeline(stream, res);
+  } catch (err) {
+    // The response may already be partially streamed (client disconnected, upstream error).
+    if (!res.headersSent) throw err;
+    res.destroy(err);
+  }
+};
+
+// Protected file content. Authorization is checked before any bytes are read/forwarded, and the raw
+// storage URL (local path or Cloudinary CDN URL) is never returned to the client.
+export const getAttachmentContent = asyncHandler(async (req, res) => {
+  const attachment = await findAttachmentWithFile(req.params.id);
+  await assertAttachmentAccess(attachment, req.user);
+
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', contentDisposition(attachment));
+
+  if (attachment.provider === 'local') {
+    const key = localKeyFromUrl(attachment.url);
+    if (!key) throw new AppError('Attachment file is unavailable', 404);
+    const filePath = getLocalPath(key);
+    if (!fs.existsSync(filePath)) throw new AppError('Attachment file is unavailable', 404);
+    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+    return sendStream(res, fs.createReadStream(filePath));
+  }
+
+  if (!/^https?:\/\//i.test(attachment.url || '')) {
+    throw new AppError('Attachment storage is not configured correctly', 502);
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(attachment.url, { redirect: 'follow' });
+  } catch {
+    throw new AppError('Attachment storage is unreachable', 502);
+  }
+  if (!upstream.ok || !upstream.body) {
+    throw new AppError('Attachment file is unavailable', 502);
+  }
+
+  res.setHeader('Content-Type', attachment.mimeType || upstream.headers.get('content-type') || 'application/octet-stream');
+  return sendStream(res, Readable.fromWeb(upstream.body));
 });

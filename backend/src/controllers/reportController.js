@@ -69,7 +69,7 @@ export const createReport = asyncHandler(async (req, res) => {
             reason: reason.trim(),
             details: details?.trim() || null,
         },
-        include: { attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true } } },
+        include: { attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true } } },
     });
 
     res.status(201).json({ success: true, report });

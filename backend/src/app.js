@@ -72,9 +72,11 @@ app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
 app.use('/api', taxonomyRoutes);
 
-// Plan P3: local upload fallback (dev/test). Files served by key; URLs are unguessable-ish but not a substitute for Cloudinary in prod.
+// Plan P3: local upload fallback for dev/test only. Production must use Cloudinary (enforced by
+// uploadService.assertUploadStorageReady), and local files are never exposed through a public static
+// mount in production. Protected files are served by GET /api/attachments/:id/content.
 const localUploadDir = process.env.UPLOAD_LOCAL_DIR || path.join(__dirname, '../uploads');
-if (fs.existsSync(localUploadDir) || process.env.UPLOAD_PROVIDER === 'local' || (!process.env.CLOUDINARY_CLOUD_NAME && process.env.NODE_ENV !== 'production')) {
+if (process.env.NODE_ENV !== 'production') {
     fs.mkdirSync(localUploadDir, { recursive: true });
     app.use('/api/uploads/local', express.static(localUploadDir, { fallthrough: false, index: false }));
 }

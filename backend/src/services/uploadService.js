@@ -9,8 +9,53 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Plan P3: Cloudinary when configured; local disk fallback for dev/tests (Render disk is ephemeral in prod).
-const PROVIDER = (process.env.UPLOAD_PROVIDER || (process.env.CLOUDINARY_CLOUD_NAME ? 'cloudinary' : 'local')).toLowerCase();
+// Phase A: the provider is resolved for every upload, and production may never silently write to local disk.
 const LOCAL_DIR = process.env.UPLOAD_LOCAL_DIR || path.join(__dirname, '../../uploads');
+
+const isProduction = () => process.env.NODE_ENV === 'production';
+
+const cloudinaryCredentials = () => ({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const isCloudinaryConfigured = () => Object.values(cloudinaryCredentials()).every(Boolean);
+
+const resolveProvider = () => {
+  const explicit = (process.env.UPLOAD_PROVIDER || '').trim().toLowerCase();
+  if (explicit) return explicit;
+  return isCloudinaryConfigured() ? 'cloudinary' : 'local';
+};
+
+// Called by storeFile before every upload and at server startup. In production a missing/incomplete
+// Cloudinary setup is a configuration error, not a reason to fall back to the ephemeral local disk.
+export const assertUploadStorageReady = () => {
+  const provider = resolveProvider();
+
+  if (provider === 'cloudinary') {
+    if (!isCloudinaryConfigured()) {
+      throw new AppError(
+        'Cloudinary upload storage is selected but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are not all set.',
+        503
+      );
+    }
+    return provider;
+  }
+
+  if (provider !== 'local') {
+    throw new AppError(`Unsupported UPLOAD_PROVIDER "${provider}". Use "cloudinary" or "local".`, 503);
+  }
+
+  if (isProduction()) {
+    throw new AppError(
+      'Local upload storage is disabled in production. Configure Cloudinary and set UPLOAD_PROVIDER=cloudinary.',
+      503
+    );
+  }
+
+  return provider;
+};
 
 export const UPLOAD_LIMITS = {
   AVATAR: { maxBytes: 2 * 1024 * 1024, maxFiles: 1, kinds: ['image'] },
@@ -40,17 +85,11 @@ export const allowedMime = (purpose, mimeType) => {
   return kinds.some((k) => MIME_KINDS[k]?.has(mimeType));
 };
 
-const ensureCloudinary = () => {
-  if (PROVIDER !== 'cloudinary') return false;
-  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) return false;
+const configureCloudinary = () => {
   cloudinary.config({
-    cloud_name: CLOUDINARY_CLOUD_NAME,
-    api_key: CLOUDINARY_API_KEY,
-    api_secret: CLOUDINARY_API_SECRET,
+    ...cloudinaryCredentials(),
     secure: true,
   });
-  return true;
 };
 
 const ensureLocalDir = () => {
@@ -66,7 +105,11 @@ export const storeFile = async (file, { purpose }) => {
   if (file.size > limit.maxBytes) throw new AppError(`File is too large (max ${Math.round(limit.maxBytes / 1024 / 1024)} MB)`, 400);
   if (!allowedMime(purpose, file.mimetype)) throw new AppError(`File type ${file.mimetype} is not allowed for ${purpose}`, 400);
 
-  if (PROVIDER === 'cloudinary' && ensureCloudinary()) {
+  // Phase A: throws a clear 503 in production instead of silently using local disk.
+  const provider = assertUploadStorageReady();
+
+  if (provider === 'cloudinary') {
+    configureCloudinary();
     const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
     const folder = `upra/${purpose.toLowerCase()}`;
     const result = await new Promise((resolve, reject) => {
@@ -84,7 +127,7 @@ export const storeFile = async (file, { purpose }) => {
     };
   }
 
-  // local fallback
+  // local fallback (development/test only; assertUploadStorageReady rejects this in production)
   ensureLocalDir();
   const key = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}-${safeName(file.originalname)}`;
   fs.writeFileSync(path.join(LOCAL_DIR, key), file.buffer);
@@ -97,6 +140,22 @@ export const storeFile = async (file, { purpose }) => {
 };
 
 export const getLocalPath = (key) => path.join(LOCAL_DIR, path.basename(key));
+
+// Extract the on-disk key from a stored local upload URL. Supports both relative paths and the
+// absolute avatar URLs created by the avatar controller.
+export const localKeyFromUrl = (url) => {
+  if (typeof url !== 'string') return null;
+  const marker = '/api/uploads/local/';
+  const clean = url.split('?')[0].split('#')[0];
+  const index = clean.indexOf(marker);
+  if (index === -1) return null;
+  try {
+    const key = decodeURIComponent(clean.slice(index + marker.length));
+    return key ? path.basename(key) : null;
+  } catch {
+    return null;
+  }
+};
 
 export const toAttachmentRecord = (file, stored, { purpose, uploadedById, links = {} }) => ({
   purpose,

@@ -248,8 +248,12 @@ describe('Notifications', () => {
 
             await autoApproveDue();
 
-            expect(await types(freelancer)).toEqual(['MILESTONE_AUTO_APPROVED']);
-            expect(await types(client)).toEqual(['MILESTONE_AUTO_APPROVED']);
+            expect(await types(freelancer)).toEqual(
+                expect.arrayContaining(['MILESTONE_AUTO_APPROVED', 'CONTRACT_COMPLETED'])
+            );
+            expect(await types(client)).toEqual(
+                expect.arrayContaining(['MILESTONE_AUTO_APPROVED', 'CONTRACT_COMPLETED'])
+            );
         });
 
         it('covers the cancellation request, decline, withdraw, acceptance and direct cancel', async () => {
@@ -291,18 +295,28 @@ describe('Notifications', () => {
             expect(await types(client)).toEqual(['CONTRACT_CANCELLED']);
         });
 
-        it('tells the freelancer when the contract is completed', async () => {
+        it('tells both parties when the final milestone completes the contract automatically', async () => {
             const { contract } = await offerAndAccept([{ title: 'Whole job', amount: 30 }]);
             const m = contract.milestones[0];
             await topUp(client.user.id, m.amountCents);
             await fundMilestone(m.id, client.user.id);
             await submitMilestone(m.id, freelancer.user.id);
-            await request(app).post(`/api/milestones/${m.id}/approve`).set(auth(client.token));
             await clearAll();
 
-            const done = await request(app).patch(`/api/contracts/${contract.id}/complete`).set(auth(client.token));
-            expect(done.status).toBe(200);
-            expect(await types(freelancer)).toEqual(['CONTRACT_COMPLETED']);
+            const approved = await request(app).post(`/api/milestones/${m.id}/approve`).set(auth(client.token));
+            expect(approved.status).toBe(200);
+
+            const freelancerTypes = await types(freelancer);
+            expect(freelancerTypes).toEqual(
+                expect.arrayContaining(['MILESTONE_PAID', 'CONTRACT_COMPLETED'])
+            );
+            expect(await types(client)).toContain('CONTRACT_COMPLETED');
+
+            const notes = (await list(freelancer, '?limit=100')).body.notifications;
+            const completed = notes.find((n) => n.type === 'CONTRACT_COMPLETED');
+            expect(completed.body).toMatch(/automatically/i);
+            expect(completed.data).toMatchObject({ contractId: contract.id, automatic: true });
+            expect((await prisma.contract.findUnique({ where: { id: contract.id } })).status).toBe('COMPLETED');
         });
     });
 

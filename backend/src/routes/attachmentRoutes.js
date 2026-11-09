@@ -3,6 +3,7 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { multiFiles, singleFile } from '../middlewares/upload.js';
 import {
   getAttachment,
+  getAttachmentContent,
   uploadAvatar,
   uploadCommentFiles,
   uploadDisputeFiles,
@@ -32,6 +33,7 @@ router.post('/issue-comments/:id/files', multiFiles('ISSUE_COMMENT', 'files'), u
 router.post('/reports/:id/files', multiFiles('REPORT_EVIDENCE', 'files'), uploadReportFiles);
 
 // Attachment metadata (access controlled)
+router.get('/:id/content', getAttachmentContent);
 router.get('/:id', getAttachment);
 
 export default router;

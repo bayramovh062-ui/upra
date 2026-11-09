@@ -42,7 +42,7 @@ export const getContractHistory = asyncHandler(async (req, res) => {
             include: {
                 actor: { select: { id: true, fullName: true, role: true } },
                 milestone: { select: { id: true, sequence: true, title: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.dispute.findMany({
@@ -52,13 +52,13 @@ export const getContractHistory = asyncHandler(async (req, res) => {
                 openedBy: { select: { id: true, fullName: true, role: true } },
                 admin: { select: { id: true, fullName: true } },
                 milestone: { select: { id: true, sequence: true, title: true } },
-                attachments: { select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+                attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
         prisma.attachment.findMany({
             where: { contractId: req.params.id, purpose: 'MILESTONE_SUBMIT' },
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-            select: { id: true, url: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true },
+            select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true, milestoneId: true, submissionId: true, disputeId: true },
         }),
     ]);
 

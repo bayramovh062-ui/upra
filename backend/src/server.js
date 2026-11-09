@@ -3,10 +3,19 @@ import http from 'http';
 import app from './app.js';
 import { initSocket } from './socket.js';
 import { autoApproveDue } from './services/financialService.js';
+import { assertUploadStorageReady } from './services/uploadService.js';
 import { logger } from './utils/logger.js';
 
 if (!process.env.JWT_SECRET) {
     console.error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
+    process.exit(1);
+}
+
+// Phase A: fail fast instead of running with local/unconfigured upload storage in production.
+try {
+    assertUploadStorageReady();
+} catch (err) {
+    console.error(`FATAL ERROR: ${err.message}`);
     process.exit(1);
 }
 
