@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: upra_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      # Testlər yalnız .env.test ilə işləyir (baza adı _test ilə bitməlidir: scripts/run-tests.js yoxlayır).
+      - name: Create .env.test
+        run: |
+          cat > .env.test <<'EOF'
+          NODE_ENV=test
+          DATABASE_URL="postgresql://postgres:postgres@localhost:5432/upra_test?schema=public"
+          JWT_SECRET=ci_test_secret_not_for_production
+          EOF
+
+      # CI-dakı baza boşdur: migrasiyalar tətbiq olunur (lokalda UPRA_TEST_DB_MIGRATE ehtiyatlıdır, burada təhlükəsizdir).
+      - name: Run tests
+        run: npm test
+        env:
+          UPRA_TEST_DB_MIGRATE: '1'
+
+  frontend:
+    name: Frontend lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # Mövcud lint xətaları varsa ilk vaxt CI-ni qırmasın; düzəldəndən sonra continue-on-error-u silin.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: upra_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      CI: 'true'
+      # playwright.config.js: baza adı "_e2e" ilə bitməlidir. Migrasiyaları config-dəki webServer "prisma migrate deploy" ilə özü tətbiq edir.
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/upra_e2e?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # Backend və frontend webServer kimi qalxır (playwright.config.js), ona görə hər ikisinin asılılıqları lazımdır
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Run E2E tests (desktop + mobile)
+        run: npm run e2e
+        working-directory: frontend
+
+      # Uğursuz testin trace-i və ekran görüntüsü burdan yüklənir (hesabatı açmaq: npx playwright show-report)
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
