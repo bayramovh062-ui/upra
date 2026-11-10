@@ -12,6 +12,21 @@ export const loginSchema = z.object({
         .min(1, 'Password is required'),
 });
 
+// Phase B: parol bərpası
+export const forgotPasswordSchema = z.object({
+    email: z.string().trim().min(1, 'Email is required').email('Invalid email address'),
+});
+
+export const resetPasswordSchema = z
+    .object({
+        newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+        confirmPassword: z.string().min(1, 'Confirm password is required'),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+        message: 'Passwords do not match',
+        path: ['confirmPassword'],
+    });
+
 // Qeydiyyat üçün daxil edilən məlumatların yoxlanması sxemi
 // Sahə adları və rol dəyərləri backend-dəki registerSchema ilə eyni olmalıdır
 export const registerSchema = z

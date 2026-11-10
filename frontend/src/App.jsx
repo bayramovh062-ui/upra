@@ -13,6 +13,9 @@ import AppLayout from './components/layout/AppLayout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DashboardPage from './pages/DashboardPage';
 import DashboardRedirect from './pages/DashboardRedirect';
@@ -46,6 +49,13 @@ function App() {
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterPage />} />
                         </Route>
+                    </Route>
+
+                    {/* Phase B: e-poçt linkləri giriş etmiş istifadəçi üçün də işləməlidir, ona görə GuestRoute-dan kənarda */}
+                    <Route element={<AuthLayout />}>
+                        <Route path="/verify-email" element={<VerifyEmailPage />} />
+                        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
                     </Route>
 
                     {/* Qonaq səhifələri: yuxarıda Navbar, aşağıda Footer */}

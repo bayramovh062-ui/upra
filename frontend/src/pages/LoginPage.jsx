@@ -73,6 +73,15 @@ const LoginPage = () => {
                         {...register('password')}
                     />
 
+                    <div className="flex justify-end">
+                        <Link
+                            to="/forgot-password"
+                            className="text-label-md font-semibold text-primary transition-colors hover:text-surface-tint"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
+
                     <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full">
                         {isLoading ? 'Signing in...' : 'Sign in'}
                         {!isLoading && <Icon name="login" />}

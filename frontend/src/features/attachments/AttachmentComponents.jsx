@@ -17,30 +17,80 @@ const pickAccept = {
   REPORT_EVIDENCE: '.pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.gif,.zip,.7z,.rar',
 };
 
-const apiOrigin = () => {
-  const base = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  try { return new URL(base, window.location.origin).origin; } catch { return window.location.origin; }
+const apiBase = () => (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+
+const attachmentContentUrl = (id) => `${apiBase()}/attachments/${encodeURIComponent(id)}/content`;
+
+const openBlob = (blob, attachment) => {
+  const objectUrl = URL.createObjectURL(blob);
+  const inline =
+    attachment.mimeType === 'application/pdf' ||
+    attachment.mimeType?.startsWith('image/') ||
+    attachment.mimeType?.startsWith('text/');
+
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  if (inline) {
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  } else {
+    link.download = attachment.filename || 'attachment';
+  }
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Give the browser time to open/save before releasing the temporary blob URL.
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 };
-export const resolveFileUrl = (u) => (u?.startsWith('/') ? `${apiOrigin()}${u}` : u);
 
 export function AttachmentList({ attachments, compact = false, label }) {
+  const [busyId, setBusyId] = useState(null);
   if (!attachments?.length) return null;
+
+  // Files are protected: fetch them with the auth token instead of linking to a raw storage URL.
+  const openAttachment = async (attachment) => {
+    if (busyId) return;
+    setBusyId(attachment.id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(attachmentContentUrl(attachment.id), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        let message = 'Could not open file';
+        try {
+          const data = await res.json();
+          if (data?.message) message = data.message;
+        } catch {
+          // not JSON
+        }
+        throw new Error(message);
+      }
+      openBlob(await res.blob(), attachment);
+    } catch (err) {
+      toast.error(err?.message || 'Could not open file');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className={compact ? 'mt-1' : 'mt-2'}>
       {label && <p className="mb-1 text-caption font-semibold text-secondary">{label}</p>}
       <ul className={compact ? 'flex flex-col gap-1' : 'flex flex-wrap gap-2'}>
         {attachments.map((a) => (
           <li key={a.id}>
-            <a
-              href={resolveFileUrl(a.url)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex max-w-full items-center gap-1 rounded-lg border border-line bg-surface-container-lowest px-2 py-1 text-caption text-primary hover:underline"
+            <button
+              type="button"
+              onClick={() => openAttachment(a)}
+              disabled={busyId === a.id}
+              className="inline-flex max-w-full items-center gap-1 rounded-lg border border-line bg-surface-container-lowest px-2 py-1 text-caption text-primary hover:underline disabled:opacity-60"
               title={a.filename}
             >
               <Icon name={a.mimeType?.startsWith('image/') ? 'image' : 'attach_file'} className="text-[14px] shrink-0" />
-              <span className="truncate max-w-[180px]">{a.filename}</span>
-            </a>
+              <span className="truncate max-w-[180px]">{busyId === a.id ? 'Opening…' : a.filename}</span>
+            </button>
           </li>
         ))}
       </ul>

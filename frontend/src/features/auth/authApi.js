@@ -37,10 +37,51 @@ export const authApi = baseApi.injectEndpoints({
             query: () => '/auth/me',
             providesTags: ['Auth'],
         }),
+        // Phase B: e-poçt təsdiqi və parol bərpası
+        resendVerification: builder.mutation({
+            query: () => ({ url: '/auth/verify-email/send', method: 'POST' }),
+            async onQueryStarted(arg, { dispatch, getState, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled;
+                    const user = getState().auth.user;
+                    if (data.alreadyVerified && user) dispatch(updateUser({ ...user, emailVerified: true }));
+                } catch {
+                    // Xəta komponentdə toast ilə göstərilir
+                }
+            },
+        }),
+        verifyEmail: builder.mutation({
+            query: (body) => ({ url: '/auth/verify-email', method: 'POST', body }),
+            invalidatesTags: ['Auth'],
+            async onQueryStarted(arg, { dispatch, getState, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    // Linki giriş etmiş istifadəçi açıbsa banner dərhal yox olsun
+                    const user = getState().auth.user;
+                    if (user) dispatch(updateUser({ ...user, emailVerified: true }));
+                } catch {
+                    // Xəta səhifədə göstərilir
+                }
+            },
+        }),
+        forgotPassword: builder.mutation({
+            query: (body) => ({ url: '/auth/forgot-password', method: 'POST', body }),
+        }),
+        resetPassword: builder.mutation({
+            query: (body) => ({ url: '/auth/reset-password', method: 'POST', body }),
+        }),
     }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useGetMeQuery } = authApi;
+export const {
+    useLoginMutation,
+    useRegisterMutation,
+    useGetMeQuery,
+    useResendVerificationMutation,
+    useVerifyEmailMutation,
+    useForgotPasswordMutation,
+    useResetPasswordMutation,
+} = authApi;
 
 // Settings: ad dəyişmə və parol dəyişmə
 export const settingsApi = baseApi.injectEndpoints({
