@@ -13,6 +13,8 @@ import {
     payAllMilestones,
 } from './helpers/db.js';
 
+import { withdraw } from '../src/services/financialService.js';
+
 const PASSWORD = 'Password123!';
 const MISSING_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -166,8 +168,10 @@ describe('Delivery flow, dashboard stats and public profile', () => {
             const job = await prisma.jobPost.findUnique({ where: { id: job1.id } });
             expect(job.status).toBe('COMPLETED');
 
+            // P3: təkrar complete təhlükəsizdir (idempotent): 400 yox, 200 qaytarır və heç nə dəyişmir
             const again = await patchContract(contract1.id, 'complete', client.token);
-            expect(again.status).toBe(400);
+            expect(again.status).toBe(200);
+            expect(again.body.contract.status).toBe('COMPLETED');
         });
 
         it('does not let either party cancel a contract with started work alone, only by agreement', async () => {
@@ -403,6 +407,15 @@ describe('DELETE /api/auth/me', () => {
             .patch(`/api/contracts/${busyContract.id}/complete`)
             .set(auth(busyClient.token));
         expect(complete.status).toBe(200);
+
+        // Qazanc frilanserin pul kisəsinə düşüb: balans qalarkən hesab silinmir (P5/Plan 3 qaydası)
+        const blocked = await del(busyFree.token, { password: PASSWORD });
+        expect(blocked.status).toBe(400);
+        expect(blocked.body.message).toMatch(/wallet/i);
+
+        const wallet = await prisma.wallet.findUnique({ where: { userId: busyFree.user.id } });
+        expect(wallet.availableCents).toBeGreaterThan(0);
+        await withdraw(busyFree.user.id, wallet.availableCents);
 
         const res = await del(busyFree.token, { password: PASSWORD });
         expect(res.status).toBe(200);
