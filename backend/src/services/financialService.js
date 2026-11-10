@@ -520,7 +520,7 @@ export const openDispute = async (milestoneId, actorId, { reason, details } = {}
             type: N.DISPUTE_OPENED,
             title: 'Dispute needs review',
             body: `${milestoneLabel(pre, dispute.milestone)} is disputed: ${reason.trim()}`,
-            link: `/admin/disputes/${dispute.id}`,
+            link: '/admin/disputes',
             data: { contractId: pre.contractId, milestoneId, disputeId: dispute.id },
         }
     );

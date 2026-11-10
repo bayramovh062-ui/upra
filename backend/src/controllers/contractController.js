@@ -226,7 +226,7 @@ export const createContract = asyncHandler(async (req, res) => {
         type: N.CONTRACT_OFFERED,
         title: 'New contract offer',
         body: `${req.user.fullName} offered you a contract for "${proposal.jobPost.title}". Review and accept it to start.`,
-        link: contractLink(contract),
+        link: '/freelancer/proposals',
         data: { contractId: contract.id },
     });
 

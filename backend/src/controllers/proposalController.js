@@ -62,8 +62,8 @@ export const getMyProposals = asyncHandler(async (req, res) => {
             jobPost: {
                 select: { id: true, title: true, status: true, budget: true },
             },
-            // Qəbul olunan təklif üçün: frilanser "Open workspace" linkini bundan qurur
-            contract: { select: { id: true } },
+            // Müqavilənin real statusu (PENDING_ACCEPTANCE / ACTIVE / COMPLETED ...): siyahıda düzgün status və düymə üçün
+            contract: { select: { id: true, status: true } },
         },
         orderBy: { createdAt: 'desc' },
     });
