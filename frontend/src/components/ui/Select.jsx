@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { fieldClass, FieldLabel, FieldError } from './Input';
+import { FieldLabel, FieldError } from './Input';
+import { fieldClass } from './fieldClass';
 
 // options: [{ value, label }]
 const Select = ({ label, error, options = [], placeholder, className, id, ref, ...props }) => {

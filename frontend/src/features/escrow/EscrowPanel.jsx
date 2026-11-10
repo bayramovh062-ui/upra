@@ -13,7 +13,8 @@ import {
     useRequestMilestoneChangesMutation,
     useSubmitMilestoneMutation,
 } from './escrowApi';
-import { MilestoneBadge, calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from './escrow';
+import { MilestoneBadge } from './escrow';
+import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from './escrowUtils';
 import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
 const AUTO_APPROVE_DAYS = 7; // backend: AUTO_APPROVE_DAYS

@@ -16,7 +16,7 @@ if (!databaseUrl) {
     );
 }
 
-let databaseName = '';
+let databaseName;
 try {
     databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
 } catch {

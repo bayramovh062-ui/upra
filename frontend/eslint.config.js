@@ -23,4 +23,11 @@ export default defineConfig([
       'react-refresh/only-export-components': 'warn',
     },
   },
+  {
+    // Node mühitində işləyən fayllar (Playwright konfiqi və E2E testləri): process, Buffer və s.
+    files: ['*.config.js', 'e2e/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

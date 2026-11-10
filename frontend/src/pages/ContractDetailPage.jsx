@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
 import EscrowPanel from '../features/escrow/EscrowPanel';
-import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from '../features/escrow/escrow';
+import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from '../features/escrow/escrowUtils';
 import {
     useApproveMilestoneMutation,
     useGetContractHistoryQuery,

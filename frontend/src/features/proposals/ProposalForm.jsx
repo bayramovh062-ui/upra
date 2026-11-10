@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { Button, Icon, Input, Textarea } from '../../components/ui';
@@ -14,14 +14,14 @@ const ProposalForm = ({ job }) => {
     const {
         register,
         handleSubmit,
-        watch,
+        control,
         formState: { errors },
     } = useForm({
         resolver: zodResolver(proposalSchema),
         defaultValues: { bidAmount: undefined, coverLetter: '' },
     });
 
-    const coverLetter = watch('coverLetter') ?? '';
+    const coverLetter = useWatch({ control, name: 'coverLetter' }) ?? '';
 
     const onSubmit = async (values) => {
         try {

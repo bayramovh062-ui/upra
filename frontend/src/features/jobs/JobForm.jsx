@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -179,7 +179,6 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
         control,
         handleSubmit,
         trigger,
-        watch,
         formState: { errors },
     } = useForm({ resolver, defaultValues: { ...EMPTY, ...defaultValues } });
 
@@ -191,7 +190,7 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
     const { data: categoryData, isLoading: categoriesLoading } = useGetCategoriesQuery();
     const categories = categoryData?.categories ?? [];
 
-    const values = watch();
+    const values = useWatch({ control });
     const title = values.title ?? '';
     const description = values.description ?? '';
     const skills = values.skills ?? [];

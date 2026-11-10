@@ -6,7 +6,7 @@ import { EXPERIENCE_LEVELS, PAYMENT_STRUCTURES } from '../../lib/labels';
 import SkillPicker from '../taxonomy/SkillPicker';
 import { useGetCategoriesQuery } from '../taxonomy/taxonomyApi';
 
-export const BUDGET_PRESETS = [
+const BUDGET_PRESETS = [
     { label: 'Under $500', min: '', max: '500' },
     { label: '$500 – $2,000', min: '500', max: '2000' },
     { label: '$2,000 – $10,000', min: '2000', max: '10000' },

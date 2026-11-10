@@ -4,7 +4,7 @@ import { Button, Card, CardHeader, EmptyState, ErrorState, Icon, Skeleton, Statu
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
 import { useGetMyJobsQuery } from '../features/jobs/jobsApi';
 import { useGetMyProposalsQuery } from '../features/proposals/proposalsApi';
-import { summarizeMilestones } from '../features/escrow/escrow';
+import { summarizeMilestones } from '../features/escrow/escrowUtils';
 import TransactionList from '../features/wallet/TransactionList';
 import WalletCard from '../features/wallet/WalletCard';
 import { useGetWalletQuery } from '../features/wallet/walletApi';

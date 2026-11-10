@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { fieldClass, FieldLabel, FieldError } from './Input';
+import { FieldLabel, FieldError } from './Input';
+import { fieldClass } from './fieldClass';
 
 const Textarea = ({ label, error, hint, className, id, ref, rows = 4, ...props }) => {
     const autoId = useId();

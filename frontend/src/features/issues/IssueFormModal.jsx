@@ -6,15 +6,7 @@ import { Button, Input, Modal, Select, Textarea } from '../../components/ui';
 import { getErrorMessage } from '../../lib/format';
 import { issueSchema } from '../../validations/issueSchema';
 import { useCreateIssueMutation } from './issuesApi';
-
-export const PRIORITY_OPTIONS = [
-    { value: 'LOW', label: 'Low' },
-    { value: 'MEDIUM', label: 'Medium' },
-    { value: 'HIGH', label: 'High' },
-];
-
-export const assigneeOptions = (contract) =>
-    [contract.client, contract.freelancer].filter(Boolean).map((u) => ({ value: u.id, label: u.fullName }));
+import { PRIORITY_OPTIONS, assigneeOptions } from './issueOptions';
 
 // Yeni tapşırıq (həmişə TODO sütununun sonuna düşür, bunu backend edir)
 const IssueFormModal = ({ open, onClose, contract }) => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Icon } from '../../components/ui';
-import { fieldClass } from '../../components/ui/Input';
+import { fieldClass } from '../../components/ui/fieldClass';
 import { useDebounce } from '../../lib/useDebounce';
 import { SKILL_NAME_REGEX, normalizeSkillName, toSkillSlug } from '../../lib/skills';
 import { useGetSkillsQuery } from './taxonomyApi';

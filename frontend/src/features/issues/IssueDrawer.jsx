@@ -15,7 +15,7 @@ import {
 } from '../../components/ui';
 import { getErrorMessage, timeAgo } from '../../lib/format';
 import { commentSchema, issueSchema } from '../../validations/issueSchema';
-import { assigneeOptions, PRIORITY_OPTIONS } from './IssueFormModal';
+import { assigneeOptions, PRIORITY_OPTIONS } from './issueOptions';
 import { useAddCommentMutation, useDeleteIssueMutation, useUpdateIssueMutation } from './issuesApi';
 import { useUploadCommentFilesMutation } from '../attachments/attachmentsApi';
 import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';

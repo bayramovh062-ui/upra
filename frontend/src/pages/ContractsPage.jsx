@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Avatar, Button, Card, EmptyState, ErrorState, Icon, PageHeader, Skeleton, StatusBadge } from '../components/ui';
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
-import { summarizeMilestones } from '../features/escrow/escrow';
+import { summarizeMilestones } from '../features/escrow/escrowUtils';
 import { cn } from '../lib/cn';
 import { formatCents, formatDate, formatMoney } from '../lib/format';
 
