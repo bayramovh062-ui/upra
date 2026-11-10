@@ -1,16 +1,52 @@
-# React + Vite
+# Upra frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite single-page app for [Upra](../README.md): job marketplace, contract and escrow screens, Kanban workspace, chat, notifications and admin pages.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server at http://localhost:5173 |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Node's built-in test runner) |
+| `npm run e2e:install` | Install the Playwright Chromium browser (once) |
+| `npm run e2e` | Playwright E2E suite (desktop and mobile) |
+| `npm run e2e:ui` | E2E suite in Playwright's UI mode |
 
-## React Compiler
+## Configuration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `VITE_API_URL` | `http://localhost:5000/api` | Backend API base URL. Must end in `/api`. The Socket.IO URL is derived from it. Read at build time. |
 
-## Expanding the ESLint configuration
+## E2E tests
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The Playwright config starts its own backend (port 5100) and frontend (port 5174) against a **separate** database and refuses to run otherwise:
+
+```powershell
+$env:E2E_DATABASE_URL="postgresql://postgres:PASSWORD@localhost:5433/upra_e2e?schema=public"
+npm run e2e:install   # first time only
+npm run e2e
+```
+
+The database name must end in `_e2e`. The backend's `.env` is not read, so no real email or Cloudinary credentials are used.
+
+## Structure
+
+```
+src/
+├── app/            # Redux store
+├── components/     # layout (AppLayout, Sidebar, Topbar, ...) and ui/ primitives
+├── features/       # one folder per domain: RTK Query API + components
+│                   # (auth, jobs, proposals, contracts, escrow, issues, wallet,
+│                   #  chat, notifications, reviews, attachments, admin, ...)
+├── lib/            # baseApi (auth header, re-login on 401), formatting, labels, demo-money texts
+├── pages/          # route-level pages (admin/ for ADMIN-only pages)
+├── validations/    # Zod schemas for forms
+└── App.jsx         # routes and role guards
+e2e/                # Playwright specs and helpers
+```
+
+Routes are guarded in `App.jsx`: guests are redirected to `/login`, signed-in users skip the auth pages, and `CLIENT`, `FREELANCER` and `ADMIN` areas are role-protected. The "Demo · test money" labels live in `src/lib/demo.js`.

@@ -9,6 +9,8 @@
     "dev": "nodemon src/server.js",
     "db:sync": "prisma migrate deploy && prisma generate",
     "admin:promote": "node ./scripts/promote-admin.js",
+    "seed": "node ./scripts/seed.js",
+    "seed:reset": "node ./scripts/seed.js --reset-only",
     "test": "node ./scripts/run-tests.js"
   },
   "jest": {
