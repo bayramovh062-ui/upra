@@ -16,13 +16,12 @@ export const logger = winston.createLogger({
     ]
 });
 
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.simple()
-            ),
-        })
-    );
-}
+// Development-də rəngli oxunaqlı format; production-da (Render) JSON sətirləri konsola yazılır ki, Logs bölməsində görünsün.
+logger.add(
+    new winston.transports.Console({
+        format:
+            process.env.NODE_ENV !== 'production'
+                ? winston.format.combine(winston.format.colorize(), winston.format.simple())
+                : logFormat,
+    })
+);
