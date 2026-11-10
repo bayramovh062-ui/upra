@@ -20,6 +20,7 @@ const localTime = (timezone) => {
     }
 };
 
+
 const ProfileSkeleton = () => (
     <div className="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-3">
