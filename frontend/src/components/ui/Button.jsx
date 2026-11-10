@@ -3,9 +3,9 @@ import Spinner from './Spinner';
 
 const variants = {
     primary:
-        'bg-primary-container text-on-primary shadow-sm hover:bg-primary focus-visible:ring-primary-container',
+        'bg-primary-container text-on-primary shadow-sm hover:opacity-90 focus-visible:ring-primary-container',
     secondary:
-        'bg-white text-on-surface border border-line shadow-sm hover:bg-surface-container-low focus-visible:ring-primary-container',
+        'bg-surface-container-lowest text-on-surface border border-line shadow-sm hover:bg-surface-container-low focus-visible:ring-primary-container',
     ghost: 'text-secondary hover:bg-surface-container hover:text-on-surface focus-visible:ring-primary-container',
     danger: 'bg-error text-on-error shadow-sm hover:opacity-90 focus-visible:ring-error',
 };
@@ -31,7 +31,7 @@ const Button = ({
         disabled={disabled || loading}
         className={cn(
             'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             'disabled:cursor-not-allowed disabled:opacity-50',
             variants[variant],
             sizes[size],

@@ -8,7 +8,7 @@ const iconFor = (type = '') => {
     if (type === 'ISSUE_ASSIGNED') return 'task_alt';
     if (type === 'COMMENT_ADDED') return 'chat_bubble';
     if (type.startsWith('MILESTONE') || type === 'CHANGES_REQUESTED') return 'account_balance';
-    if (type.startsWith('DISPUTE')) return 'gavel';
+    if (type.startsWith('DISPUTE')) return 'report_problem';
     if (type === 'REVIEW_RECEIVED') return 'star';
     if (type.startsWith('REPORT')) return 'flag';
     if (type === 'ACCOUNT_SUSPENDED') return 'block';

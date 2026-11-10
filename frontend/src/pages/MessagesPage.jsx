@@ -241,7 +241,7 @@ const ChatThread = ({ conversationId, onBack }) => {
                         maxLength={MAX_MESSAGE_LENGTH}
                         disabled={Boolean(other?.isDeleted)}
                         placeholder={other?.isDeleted ? 'This account was deleted.' : 'Write a message...'}
-                        className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-line bg-white px-3.5 py-2.5 text-body-md text-on-surface shadow-sm placeholder:text-secondary/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container disabled:cursor-not-allowed disabled:bg-surface-container-low"
+                        className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-line bg-surface-container-lowest px-3.5 py-2.5 text-body-md text-on-surface shadow-sm placeholder:text-secondary/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container disabled:cursor-not-allowed disabled:bg-surface-container-low"
                     />
                     <Button type="submit" loading={sending} disabled={!body.trim() || Boolean(other?.isDeleted)}>
                         <Icon name="send" className="text-[18px]" />

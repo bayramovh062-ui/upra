@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tailwind v4-də `dark:` variantı sinifə bağlanır (prefers-color-scheme deyil). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
   Dizayn tokenləri: Google Stitch "Upra Design System" (DESIGN.md) ilə eynidir.
   Tailwind v4: --color-primary → bg-primary, text-primary və s. yaradır.
@@ -112,6 +115,78 @@
   --text-caption--font-weight: 500;
 }
 
+/*
+  Tünd rejim palitrası. Yalnız tokenlər dəyişir; komponentlər eyni sinifləri işlədir.
+  `@theme` dəyişənləri `@layer theme`-də olduğu üçün bu qatmansız blok onları üstələyir.
+*/
+.dark {
+  color-scheme: dark;
+
+  --color-background: #0e1117;
+  --color-surface: #0e1117;
+  --color-surface-container-lowest: #151a23;
+  --color-surface-container-low: #1a202a;
+  --color-surface-container: #202733;
+  --color-surface-container-high: #29313f;
+  --color-surface-container-highest: #343d4d;
+  --color-surface-variant: #343d4d;
+  --color-on-surface: #e7eaf2;
+  --color-on-surface-variant: #b7becd;
+  --color-inverse-surface: #e7eaf2;
+  --color-inverse-on-surface: #1a202a;
+  --color-outline: #8b93a4;
+  --color-outline-variant: #333b4a;
+  --color-surface-tint: #c3c0ff;
+
+  --color-primary: #c3c0ff;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #4f46e5;
+  --color-on-primary-container: #dad7ff;
+  --color-primary-fixed: #2d2a63;
+  --color-primary-fixed-dim: #3f3a8f;
+  --color-on-primary-fixed: #e2dfff;
+  --color-inverse-primary: #3525cd;
+
+  --color-secondary: #b3bccb;
+  --color-on-secondary: #1a202a;
+  --color-secondary-container: #333c4a;
+  --color-on-secondary-container: #d6e0f3;
+  --color-secondary-fixed-dim: #bdc7d9;
+
+  --color-tertiary: #c2c6d2;
+  --color-tertiary-container: #5b606b;
+  --color-on-tertiary-container: #d7dbe8;
+
+  --color-error: #f87171;
+  --color-on-error: #450a0a;
+  --color-error-container: #7f1d1d;
+  --color-on-error-container: #fecaca;
+
+  --color-success-soft: #052e16;
+  --color-success-ink: #86efac;
+  --color-warning-soft: #3f2d06;
+  --color-warning-ink: #fcd34d;
+  --color-danger-soft: #450a0a;
+  --color-danger-ink: #fca5a5;
+  --color-info-soft: #1e1b4b;
+  --color-info-ink: #a5b4fc;
+
+  --color-brand-50: #1e1b4b;
+  --color-brand-100: #312e81;
+  --color-brand-500: #a5b4fc;
+  --color-brand-600: #818cf8;
+  --color-brand-700: #c3c0ff;
+  --color-canvas: #0e1117;
+  --color-ink: #e7eaf2;
+  --color-muted: #b3bccb;
+  --color-line: #2a3241;
+  --color-nav: #171d27;
+}
+
+html {
+  color-scheme: light;
+}
+
 html,
 body,
 #root {
@@ -124,6 +199,11 @@ body {
   color: var(--color-on-surface);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary);
 }
 
 /* Pul və say göstəriciləri üçün bərabər enli rəqəmlər (DESIGN.md → Typography) */

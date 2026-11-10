@@ -15,13 +15,13 @@ const Drawer = ({ open, onClose, title, children, className }) => {
 
     return (
         <div className="fixed inset-0 z-50">
-            <div className="absolute inset-0 bg-gray-900/40" onClick={onClose} aria-hidden="true" />
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
             <aside
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'absolute right-0 top-0 flex h-full w-full max-w-[480px] flex-col bg-white shadow-xl',
+                    'absolute right-0 top-0 flex h-full w-full max-w-[480px] flex-col bg-surface-container-lowest shadow-xl',
                     className
                 )}
             >

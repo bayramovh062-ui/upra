@@ -40,7 +40,7 @@ const NotificationBell = () => {
             >
                 <Icon name="notifications" />
                 {unreadCount > 0 && (
-                    <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold leading-none text-white">
+                    <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold leading-none text-on-error">
                         {badgeText(unreadCount)}
                     </span>
                 )}
@@ -50,7 +50,7 @@ const NotificationBell = () => {
                 <>
                     <div className="fixed inset-0 z-10" onClick={close} aria-hidden="true" />
                     {/* Mobildə ekranın eninə, geniş ekranda zəngin altında açılır */}
-                    <div className="fixed left-2 right-2 top-[4.25rem] z-20 overflow-hidden rounded-xl border border-line bg-white shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
+                    <div className="fixed left-2 right-2 top-[4.25rem] z-20 overflow-hidden rounded-xl border border-line bg-surface-container-lowest shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
                         <div className="flex items-center justify-between border-b border-line px-4 py-3">
                             <h2 className="text-title-md text-on-surface">Notifications</h2>
                             <button

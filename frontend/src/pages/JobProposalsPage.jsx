@@ -61,7 +61,7 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
                     <span
                         className={cn(
                             'rounded-full px-2 py-0.5 text-caption font-semibold',
-                            diff < 0 ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]',
+                            diff < 0 ? 'bg-success-soft text-success-ink' : 'bg-warning-soft text-warning-ink',
                         )}
                     >
                         {formatMoney(Math.abs(diff))} {diff < 0 ? 'under' : 'over'} budget

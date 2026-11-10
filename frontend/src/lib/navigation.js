@@ -17,7 +17,7 @@ export const NAV_ITEMS = {
         { to: '/settings', label: 'Settings', icon: 'settings' },
     ],
     ADMIN: [
-        { to: '/admin/disputes', label: 'Disputes', icon: 'gavel' },
+        { to: '/admin/disputes', label: 'Disputes', icon: 'report_problem' },
         { to: '/admin/reports', label: 'Reports', icon: 'flag' },
         { to: '/admin/users', label: 'Users', icon: 'group' },
         { to: '/contracts', label: 'Contracts', icon: 'verified_user' },

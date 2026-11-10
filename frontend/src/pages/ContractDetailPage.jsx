@@ -468,7 +468,7 @@ const ContractDetailPage = () => {
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-error-container p-4 text-body-md text-on-surface">
                     <div className="min-w-0">
                         <p className="flex items-center gap-2 font-semibold">
-                            <Icon name="gavel" className="text-[18px]" />
+                            <Icon name="report_problem" className="text-[18px]" />
                             {openDisputes.length === 1
                                 ? 'A dispute is open on this contract'
                                 : `${openDisputes.length} disputes are open on this contract`}

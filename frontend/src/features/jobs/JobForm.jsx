@@ -77,7 +77,7 @@ const OptionCards = ({ label, name, options, hints, value, register, error }) =>
                             'focus-within:ring-2 focus-within:ring-primary-container',
                             checked
                                 ? 'border-primary-container bg-primary-fixed/40'
-                                : 'border-line bg-white hover:bg-surface-container-low'
+                                : 'border-line bg-surface-container-lowest hover:bg-surface-container-low'
                         )}
                     >
                         <input type="radio" value={option.value} className="sr-only" {...register(name)} />

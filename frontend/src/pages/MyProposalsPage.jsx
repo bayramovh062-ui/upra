@@ -13,12 +13,18 @@ import {
     StatusBadge,
 } from '../components/ui';
 import { useDeleteProposalMutation, useGetMyProposalsQuery } from '../features/proposals/proposalsApi';
+import { useAcceptContractMutation, useDeclineContractMutation } from '../features/contracts/contractsApi';
+import { isPendingOffer } from '../features/contracts/contractOffer';
 import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const MyProposalsPage = () => {
     const { data, isLoading, isError, refetch } = useGetMyProposalsQuery();
     const [deleteProposal, { isLoading: withdrawing }] = useDeleteProposalMutation();
     const [target, setTarget] = useState(null);
+    // Client təklif göndərib: frilanser workspace-dən əvvəl burada qəbul/rədd edir. { type: 'accept' | 'decline', proposal }
+    const [offerAction, setOfferAction] = useState(null);
+    const [acceptContract, { isLoading: accepting }] = useAcceptContractMutation();
+    const [declineContract, { isLoading: declining }] = useDeclineContractMutation();
 
     const proposals = data?.proposals ?? [];
 
@@ -29,6 +35,22 @@ const MyProposalsPage = () => {
             setTarget(null);
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not withdraw the proposal'));
+        }
+    };
+
+    const handleOffer = async () => {
+        const { type, proposal } = offerAction;
+        try {
+            if (type === 'accept') {
+                await acceptContract(proposal.contract.id).unwrap();
+                toast.success('Offer accepted, the workspace is open');
+            } else {
+                await declineContract(proposal.contract.id).unwrap();
+                toast.success('Offer declined');
+            }
+            setOfferAction(null);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'Could not update the offer'));
         }
     };
 
@@ -57,7 +79,12 @@ const MyProposalsPage = () => {
                 />
             ) : (
                 <div className="flex flex-col gap-3">
-                    {proposals.map((p) => (
+                    {proposals.map((p) => {
+                        // Təklifin statusu qəbul olunandan sonra dəyişmir; real vəziyyət müqavilədədir
+                        const contractStatus = p.contract?.status;
+                        const displayStatus = p.status === 'ACCEPTED' && contractStatus ? contractStatus : p.status;
+                        const offerPending = isPendingOffer(contractStatus);
+                        return (
                         <Card key={p.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
                             <div className="min-w-0 flex-1">
                                 <Link
@@ -76,7 +103,7 @@ const MyProposalsPage = () => {
                                     {formatMoney(p.bidAmount)}
                                 </p>
                             </div>
-                            <StatusBadge status={p.status} />
+                            <StatusBadge status={displayStatus} />
                             <div className="flex gap-2">
                                 {p.status === 'PENDING' && p.jobPost?.status === 'OPEN' && (
                                     <>
@@ -91,7 +118,18 @@ const MyProposalsPage = () => {
                                         </Button>
                                     </>
                                 )}
-                                {p.status === 'ACCEPTED' && p.contract?.id && (
+                                {offerPending && p.contract?.id && (
+                                    <>
+                                        <Button variant="ghost" size="sm" onClick={() => setOfferAction({ type: 'decline', proposal: p })}>
+                                            Decline
+                                        </Button>
+                                        <Button size="sm" onClick={() => setOfferAction({ type: 'accept', proposal: p })}>
+                                            <Icon name="task_alt" className="text-[16px]" />
+                                            Accept offer
+                                        </Button>
+                                    </>
+                                )}
+                                {p.status === 'ACCEPTED' && contractStatus === 'ACTIVE' && p.contract?.id && (
                                     <Link to={`/contracts/${p.contract.id}`}>
                                         <Button size="sm">
                                             <Icon name="view_kanban" className="text-[16px]" />
@@ -99,11 +137,34 @@ const MyProposalsPage = () => {
                                         </Button>
                                     </Link>
                                 )}
+                                {p.status === 'ACCEPTED' && ['COMPLETED', 'CANCELLED'].includes(contractStatus) && p.contract?.id && (
+                                    <Link to={`/contracts/${p.contract.id}`}>
+                                        <Button variant="secondary" size="sm">
+                                            View contract
+                                        </Button>
+                                    </Link>
+                                )}
                             </div>
                         </Card>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={!!offerAction}
+                onClose={() => setOfferAction(null)}
+                onConfirm={handleOffer}
+                loading={accepting || declining}
+                variant={offerAction?.type === 'decline' ? 'danger' : 'primary'}
+                title={offerAction?.type === 'decline' ? 'Decline this contract offer?' : 'Accept this contract offer?'}
+                message={
+                    offerAction?.type === 'decline'
+                        ? 'The client will be able to offer the job to another freelancer. You cannot undo this.'
+                        : 'The contract becomes active and you can start working. The other proposals for this job will be rejected.'
+                }
+                confirmText={offerAction?.type === 'decline' ? 'Decline offer' : 'Accept offer'}
+            />
 
             <ConfirmDialog
                 open={!!target}

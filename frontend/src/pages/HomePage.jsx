@@ -172,7 +172,7 @@ const HomePage = () => (
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                     <Link
                         to="/register"
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container px-7 py-3.5 text-body-md font-medium text-on-primary shadow-sm transition-all hover:bg-primary"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-container px-7 py-3.5 text-body-md font-medium text-on-primary shadow-sm transition-all hover:opacity-90"
                     >
                         <Icon name="search" className="text-[18px]" />
                         Find work
@@ -295,7 +295,7 @@ const HomePage = () => (
                 <div className="z-10 flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row">
                     <Link
                         to="/register"
-                        className="inline-flex w-full items-center justify-center rounded-xl bg-primary-container px-7 py-3.5 text-body-md font-medium text-on-primary shadow-sm transition-all hover:bg-primary sm:w-auto"
+                        className="inline-flex w-full items-center justify-center rounded-xl bg-primary-container px-7 py-3.5 text-body-md font-medium text-on-primary shadow-sm transition-all hover:opacity-90 sm:w-auto"
                     >
                         Create a free account
                     </Link>

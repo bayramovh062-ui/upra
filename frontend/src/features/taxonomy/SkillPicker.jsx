@@ -104,7 +104,7 @@ const SkillPicker = ({
                 />
 
                 {showMenu && (
-                    <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-line bg-white py-1 shadow-lg">
+                    <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-line bg-surface-container-lowest py-1 shadow-lg">
                         {suggestions.map((skill) => (
                             <li key={skill.id}>
                                 <button

@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { useLogout } from '../../features/auth/useLogout';
 import { DEMO_BADGE, DEMO_NOTICE } from '../../lib/demo';
 import NotificationBell from '../../features/notifications/NotificationBell';
+import ThemeToggle from '../../features/theme/ThemeToggle';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 
@@ -44,6 +45,7 @@ const Topbar = ({ onMenuClick }) => {
                         <Icon name="science" className="text-[16px]" />
                         <span className="sr-only sm:not-sr-only">{DEMO_BADGE}</span>
                     </span>
+                    <ThemeToggle tone="nav" />
                     <NotificationBell />
 
                     <div className="relative">
@@ -71,7 +73,7 @@ const Topbar = ({ onMenuClick }) => {
                                 onClick={() => setMenuOpen(false)}
                                 aria-hidden="true"
                             />
-                            <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-white py-1 shadow-lg">
+                            <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-surface-container-lowest py-1 shadow-lg">
                                 <Link
                                     to={`/users/${user?.id}`}
                                     onClick={() => setMenuOpen(false)}

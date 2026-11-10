@@ -8,7 +8,7 @@ const EmptyState = ({ title, description, action, icon = 'inbox', className }) =
             className
         )}
     >
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-fixed text-primary-container">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-fixed text-primary">
             <Icon name={icon} className="text-[24px]" />
         </div>
         <h3 className="text-title-md text-on-surface">{title}</h3>

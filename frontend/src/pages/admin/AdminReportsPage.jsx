@@ -77,7 +77,7 @@ const ReviewModal = ({ report, onClose }) => {
                             'flex cursor-pointer gap-3 rounded-xl border px-3 py-2.5 transition',
                             status === s.key
                                 ? 'border-primary-container bg-primary-fixed/30'
-                                : 'border-line bg-white hover:bg-surface-container-low',
+                                : 'border-line bg-surface-container-lowest hover:bg-surface-container-low',
                         )}
                     >
                         <input

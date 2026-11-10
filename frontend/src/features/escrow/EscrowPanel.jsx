@@ -91,7 +91,7 @@ const DisputeBox = ({ dispute, contractId, canUpload }) => {
     return (
         <div className={`rounded-lg px-3 py-2 text-label-md ${isOpen ? 'bg-danger-soft text-danger-ink' : 'bg-surface-container text-on-surface-variant'}`}>
             <p className="flex items-center gap-1.5 font-semibold">
-                <Icon name={isOpen ? 'gavel' : 'task_alt'} className="text-[16px]" />
+                <Icon name={isOpen ? 'report_problem' : 'task_alt'} className="text-[16px]" />
                 {isOpen ? 'Dispute open — escrow is frozen' : `Dispute resolved: ${dispute.resolution}`}
             </p>
             <p className="mt-0.5 break-words">Reason: {dispute.reason}</p>
@@ -392,7 +392,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                                     className="text-error hover:bg-error-container"
                                                     onClick={() => setDisputeFor(m)}
                                                 >
-                                                    <Icon name="gavel" className="text-[16px]" />
+                                                    <Icon name="report_problem" className="text-[16px]" />
                                                     Open dispute
                                                 </Button>
                                             )}

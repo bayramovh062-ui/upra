@@ -92,7 +92,7 @@ const ResolutionModal = ({ dispute, onClose }) => {
                             'flex cursor-pointer gap-3 rounded-xl border px-3 py-2.5 transition',
                             resolution === r.key
                                 ? 'border-primary-container bg-primary-fixed/30'
-                                : 'border-line bg-white hover:bg-surface-container-low',
+                                : 'border-line bg-surface-container-lowest hover:bg-surface-container-low',
                         )}
                     >
                         <input
@@ -124,7 +124,7 @@ const ResolutionModal = ({ dispute, onClose }) => {
                             step="0.01"
                             value={release}
                             onChange={(e) => setRelease(e.target.value)}
-                            className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-body-md text-on-surface shadow-sm focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container"
+                            className="w-full rounded-xl border border-line bg-surface-container-lowest px-3.5 py-2.5 text-body-md text-on-surface shadow-sm focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container"
                         />
                     </div>
                     <div>
@@ -138,7 +138,7 @@ const ResolutionModal = ({ dispute, onClose }) => {
                             step="0.01"
                             value={refund}
                             onChange={(e) => setRefund(e.target.value)}
-                            className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-body-md text-on-surface shadow-sm focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container"
+                            className="w-full rounded-xl border border-line bg-surface-container-lowest px-3.5 py-2.5 text-body-md text-on-surface shadow-sm focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container"
                         />
                     </div>
                     <p className={cn('text-label-md sm:col-span-2', splitValid ? 'text-secondary' : 'text-error')}>
@@ -207,7 +207,7 @@ const DisputeCard = ({ dispute, onResolve }) => {
             {isOpen ? (
                 <div className="flex justify-end">
                     <Button size="sm" onClick={() => onResolve(dispute)}>
-                        <Icon name="gavel" className="text-[16px]" />
+                        <Icon name="report_problem" className="text-[16px]" />
                         Resolve
                     </Button>
                 </div>
@@ -272,7 +272,7 @@ const AdminDisputesPage = () => {
                 <ErrorState title="Could not load disputes" onRetry={refetch} />
             ) : disputes.length === 0 ? (
                 <EmptyState
-                    icon="gavel"
+                    icon="report_problem"
                     title="No disputes here"
                     description="When a client or freelancer disputes a funded milestone, it appears here for review."
                 />

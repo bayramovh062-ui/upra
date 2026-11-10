@@ -7,7 +7,7 @@ const tones = {
     green: 'bg-success-soft text-success-ink',
     amber: 'bg-warning-soft text-warning-ink',
     red: 'bg-danger-soft text-danger-ink',
-    blue: 'bg-blue-50 text-blue-700',
+    blue: 'bg-info-soft text-info-ink',
 };
 
 // Backend enum dəyərləri → rəng və yazı. Yeni status gələndə yalnız bura əlavə et.

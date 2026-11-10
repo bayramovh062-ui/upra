@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Guard-lar və qabıqlar
@@ -39,7 +39,17 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 function App() {
     return (
         <BrowserRouter>
-            <Toaster position="top-right" reverseOrder={false} />
+            <Toaster
+                position="top-right"
+                reverseOrder={false}
+                toastOptions={{
+                    style: {
+                        background: 'var(--color-surface-container-high)',
+                        color: 'var(--color-on-surface)',
+                        border: '1px solid var(--color-line)',
+                    },
+                }}
+            />
 
             {/* Səhifə yenilənəndə token getMe ilə yoxlanılır */}
             <SessionGate>
@@ -99,6 +109,8 @@ function App() {
                             {/* Yalnız ADMIN */}
                             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                                 <Route path="/admin/disputes" element={<AdminDisputesPage />} />
+                                {/* Köhnə bildirişlərdə /admin/disputes/:id linki qalıb: 404 əvəzinə siyahıya yönləndirilir */}
+                                <Route path="/admin/disputes/:id" element={<Navigate to="/admin/disputes" replace />} />
                                 <Route path="/admin/reports" element={<AdminReportsPage />} />
                                 <Route path="/admin/users" element={<AdminUsersPage />} />
                             </Route>

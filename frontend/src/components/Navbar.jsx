@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLogout } from '../features/auth/useLogout';
 import { getDashboardPath } from '../lib/navigation';
+import ThemeToggle from '../features/theme/ThemeToggle';
 import Button from './ui/Button';
 
 // Yalnız qonaq (public) səhifələrdə görünür. Giriş etmiş istifadəçilər AppLayout-un sidebar-ını görür.
@@ -38,6 +39,7 @@ const Navbar = () => {
                         <span className="hidden text-body-md text-secondary-fixed-dim sm:inline">
                             {user?.fullName}
                         </span>
+                        <ThemeToggle tone="nav" />
                         <Link to={getDashboardPath(user?.role)}>
                             <Button size="sm">Dashboard</Button>
                         </Link>
@@ -47,6 +49,7 @@ const Navbar = () => {
                     </div>
                 ) : (
                     <div className="flex items-center gap-3">
+                        <ThemeToggle tone="nav" />
                         <Link
                             to="/login"
                             className="text-body-md font-medium text-secondary-fixed-dim transition-colors hover:text-white"

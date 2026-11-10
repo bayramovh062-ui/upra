@@ -89,7 +89,7 @@ const RegisterPage = () => {
                             {ROLES.map((role) => (
                                 <label
                                     key={role.value}
-                                    className="relative flex cursor-pointer flex-col rounded-xl border border-line bg-white p-4 shadow-sm transition hover:bg-surface-container-low has-[:checked]:border-primary-container has-[:checked]:bg-surface-container-low has-[:checked]:ring-1 has-[:checked]:ring-primary-container"
+                                    className="relative flex cursor-pointer flex-col rounded-xl border border-line bg-surface-container-lowest p-4 shadow-sm transition hover:bg-surface-container-low has-[:checked]:border-primary-container has-[:checked]:bg-surface-container-low has-[:checked]:ring-1 has-[:checked]:ring-primary-container"
                                 >
                                     <input
                                         type="radio"

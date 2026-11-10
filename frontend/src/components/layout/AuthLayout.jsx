@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router-dom';
 import Icon from '../ui/Icon';
+import ThemeToggle from '../../features/theme/ThemeToggle';
 
 // Dizayndakı sol brend paneli: izahedici nümunə lövhə. Məlumatlar təsadüfi nümunədir, real deyil.
 const SAMPLE_CARDS = [
@@ -13,7 +14,7 @@ const BrandPanel = () => (
         <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-surface-tint opacity-40 blur-3xl" />
 
         <Link to="/" className="relative z-10 flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary shadow-md">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary-container shadow-md">
                 <Icon name="dataset" filled className="text-[24px]" />
             </span>
             <span className="text-headline-md font-bold tracking-tight text-white">Upra</span>
@@ -42,7 +43,7 @@ const BrandPanel = () => (
                 </div>
                 <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                     {SAMPLE_CARDS.map((card) => (
-                        <div key={card.key} className="rounded-xl bg-white p-3.5 text-on-surface shadow-sm">
+                        <div key={card.key} className="rounded-xl bg-surface-container-lowest p-3.5 text-on-surface shadow-sm">
                             <div className="mb-2 flex items-center justify-between">
                                 <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-caption text-primary">
                                     {card.tag}
@@ -67,9 +68,12 @@ const BrandPanel = () => (
 
 // /login və /register üçün: sol brend paneli, sağda forma (Outlet)
 const AuthLayout = () => (
-    <div className="grid min-h-screen grid-cols-1 bg-white lg:grid-cols-12">
+    <div className="grid min-h-screen grid-cols-1 bg-surface lg:grid-cols-12">
         <BrandPanel />
         <div className="flex flex-col bg-surface p-6 sm:p-10 lg:col-span-7 lg:p-14">
+            <div className="mb-4 flex justify-end">
+                <ThemeToggle />
+            </div>
             <Outlet />
             <p className="pt-8 text-caption text-secondary">© 2026 Upra</p>
         </div>

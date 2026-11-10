@@ -20,13 +20,13 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-900/50" onClick={onClose} aria-hidden="true" />
+            <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'relative w-full rounded-xl border border-line bg-white shadow-xl',
+                    'relative w-full rounded-xl border border-line bg-surface-container-lowest shadow-xl',
                     // cn() Tailwind siniflərini birləşdirmir: ölçü className-də verilibsə default max-w-md qoyulmur
                     !className?.includes('max-w-') && 'max-w-md',
                     className
