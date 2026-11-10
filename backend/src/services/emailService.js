@@ -16,10 +16,22 @@ export const clearTestOutbox = () => {
     testOutbox.length = 0;
 };
 
-// SMTP (məs. Gmail + App Password) varsa o işlədilir; yoxdursa Resend; heç biri yoxdursa (development) log.
+// Provayder prioriteti: Brevo (HTTPS API) > SMTP (Gmail) > Resend > (development) log.
+// Render-in pulsuz planı SMTP portlarını bloklayır, ona görə canlıda Brevo/Resend (HTTPS) işlədilməlidir.
 const smtpConfigured = () => Boolean(process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
 const resendConfigured = () => Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
-const emailConfigured = () => smtpConfigured() || resendConfigured();
+
+// "Upra <noreply@x.com>" və ya yalnız "noreply@x.com" -> { name, email }
+const parseSender = (raw) => {
+    const value = String(raw || '').trim();
+    const match = value.match(/^\s*"?([^<"]*?)"?\s*<([^>]+)>\s*$/);
+    if (match) return { name: match[1].trim() || 'Upra', email: match[2].trim() };
+    return { name: 'Upra', email: value };
+};
+const brevoSender = () => parseSender(process.env.EMAIL_FROM?.trim() || process.env.SMTP_USER?.trim());
+const brevoConfigured = () => Boolean(process.env.BREVO_API_KEY?.trim() && brevoSender().email);
+
+const emailConfigured = () => brevoConfigured() || smtpConfigured() || resendConfigured();
 
 // nodemailer yalnız SMTP istifadə olunanda yüklənir (test/console rejimində paket tələb olunmur).
 let smtpTransport;
@@ -47,7 +59,7 @@ const getSmtpTransport = async () => {
 export const assertEmailReady = () => {
     if (isProduction() && !emailConfigured()) {
         throw new AppError(
-            'Email delivery is not configured. Set SMTP_USER and SMTP_PASS, or RESEND_API_KEY and EMAIL_FROM (and APP_URL) for production.',
+            'Email delivery is not configured. Set BREVO_API_KEY (+ EMAIL_FROM), or SMTP_USER and SMTP_PASS, or RESEND_API_KEY and EMAIL_FROM for production.',
             503
         );
     }
@@ -73,6 +85,40 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         }
         logger.info(`[email:dev] To: ${to} | Subject: ${subject}\n${text}`);
         return { provider: 'console' };
+    }
+
+    if (brevoConfigured()) {
+        let response;
+        try {
+            response = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: {
+                    'api-key': process.env.BREVO_API_KEY.trim(),
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    sender: brevoSender(),
+                    to: [{ email: to }],
+                    subject,
+                    htmlContent: html,
+                    textContent: text,
+                }),
+                signal: AbortSignal.timeout(10_000),
+            });
+        } catch (err) {
+            logger.error(`Brevo request failed: ${err.message}`);
+            throw new AppError('Could not send the email right now. Please try again later.', 502);
+        }
+
+        if (!response.ok) {
+            const detail = await response.text().catch(() => '');
+            logger.error(`Brevo rejected the email (${response.status}): ${detail}`);
+            throw new AppError('Could not send the email right now. Please try again later.', 502);
+        }
+
+        logger.info(`[email:brevo] to=${to} status=${response.status}`);
+        return { provider: 'brevo' };
     }
 
     if (smtpConfigured()) {
