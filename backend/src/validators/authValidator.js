@@ -98,3 +98,21 @@ export const updatePasswordSchema = z.object({
     currentPassword: z.string().min(1, 'Current password is required'),
     newPassword: z.string().min(6, 'New password must be at least 6 characters long'),
 });
+
+// Phase B: e-poçt təsdiqi və parol bərpası
+const tokenField = z.string({ error: 'Token is required' }).trim().min(1, 'Token is required').max(200, 'Token is invalid');
+
+export const verifyEmailSchema = z.object({ token: tokenField });
+
+export const forgotPasswordSchema = z.object({
+    email: z
+        .string({ error: 'Email is required' })
+        .trim()
+        .toLowerCase()
+        .email('Invalid email address format'),
+});
+
+export const resetPasswordSchema = z.object({
+    token: tokenField,
+    newPassword: z.string({ error: 'New password is required' }).min(6, 'New password must be at least 6 characters long'),
+});

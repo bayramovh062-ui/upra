@@ -6,6 +6,7 @@ const skillInclude = { select: { skill: { select: { id: true, name: true, slug: 
 export const ownProfileSelect = {
     id: true,
     email: true,
+    emailVerified: true,
     fullName: true,
     role: true,
     headline: true,

@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, restrictTo } from '../middlewares/authMiddleware.js';
+import { protect, restrictTo, requireVerifiedEmail } from '../middlewares/authMiddleware.js';
 import { validate } from '../middlewares/validate.js';
 import {
     createProposalSchema,
@@ -18,7 +18,7 @@ const router = express.Router();
 
 router.use(protect);
 
-router.post('/', restrictTo('FREELANCER'), validate(createProposalSchema), createProposal);
+router.post('/', restrictTo('FREELANCER'), requireVerifiedEmail, validate(createProposalSchema), createProposal);
 router.get('/my', restrictTo('FREELANCER'), getMyProposals);
 router.get('/job/:jobId', restrictTo('CLIENT'), getProposalsForJob);
 router.patch('/:id', restrictTo('FREELANCER'), validate(updateProposalSchema), updateProposal);

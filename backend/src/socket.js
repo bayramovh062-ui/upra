@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import prisma from './config/db.js';
 import { verifyContractAccess } from './utils/contractAccess.js';
 
 let io;
@@ -13,7 +14,7 @@ export const initSocket = (httpServer) => {
     });
 
     // JWT Auth Middleware: Yalnız valid tokeni olan istifadəçilər qoşula bilər
-    io.use((socket, next) => {
+    io.use(async (socket, next) => {
         const token =
             socket.handshake.auth?.token ||
             socket.handshake.headers?.authorization?.split(' ')[1];
@@ -24,6 +25,16 @@ export const initSocket = (httpServer) => {
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            // Phase B: parol sıfırlanandan sonra (tokenVersion dəyişib) və ya hesab silinib/dayandırılıbsa socket qəbul olunmur
+            const user = await prisma.user.findUnique({
+                where: { id: decoded.id },
+                select: { tokenVersion: true, deletedAt: true, isSuspended: true },
+            });
+            if (!user || user.deletedAt !== null || user.isSuspended || (decoded.ver ?? 0) !== user.tokenVersion) {
+                return next(new Error('Authentication error: Invalid token'));
+            }
+
             socket.user = decoded;
             next();
         } catch (err) {

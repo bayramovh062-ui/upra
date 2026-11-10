@@ -218,6 +218,44 @@ export const registerLimiter = rateLimit({
 // Köhnə ad: başqa yerdə import olunubsa sınmasın
 export const authLimiter = loginLimiter;
 
+// ================= PHASE B: E-POÇT TƏSDİQİ VƏ PAROL BƏRPASI =================
+// Spam/enumeration qarşısı: forgot-password-da həm IP, həm də e-poçt üzrə saatda limit (e-poçt mövcud olmasa da sayılır).
+const hourlyLimiter = ({ max, keyGenerator, message }) =>
+    rateLimit({
+        windowMs: 60 * 60 * 1000,
+        max,
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator,
+        handler: (req, res, next, options) => {
+            const retryAfterMs = Math.max(0, (req.rateLimit?.resetTime?.getTime() ?? Date.now()) - Date.now());
+            res.status(options.statusCode).json(
+                tooMany(`${message} Please try again in ${minutesText(retryAfterMs)}.`, Math.ceil(retryAfterMs / 1000))
+            );
+        },
+    });
+
+// IP üzrə: forgot-password, reset-password, verify-email (token təxmini də yavaşdır)
+export const authTokenIpLimiter = hourlyLimiter({
+    max: pick(20, 200),
+    keyGenerator: (req) => `ip:${ipKey(req)}`,
+    message: 'Too many requests from this network.',
+});
+
+// E-poçt üzrə: eyni ünvana saatda 5 parol bərpası sorğusu
+export const forgotPasswordEmailLimiter = hourlyLimiter({
+    max: pick(5, 100),
+    keyGenerator: (req) => (accountKey(req) ? `email:${accountKey(req)}` : `ip:${ipKey(req)}`),
+    message: 'Too many password reset requests for this email.',
+});
+
+// Təsdiq mailinin yenidən göndərilməsi: istifadəçi başına saatda 5 (protect-dən sonra işləyir)
+export const verificationSendLimiter = hourlyLimiter({
+    max: pick(5, 100),
+    keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${ipKey(req)}`),
+    message: 'Too many verification emails requested.',
+});
+
 // ================= WALLET TOP-UP (demo) =================
 // İstifadəçi başına saatda 30 sorğu. Bir sorğunun özünün də limiti var ($5000), amma
 // limitsiz çoxlu sorğu göndərib demo balansını sınırsız artırmaq olmasın. Açar: giriş etmiş istifadəçi (protect-dən sonra işləyir).

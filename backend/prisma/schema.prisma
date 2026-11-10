@@ -155,6 +155,12 @@ model User {
   profilePublic Boolean      @default(true) // false: başqaları yalnız ad və rolu görür
   deletedAt     DateTime? // Soft delete: doludursa hesab silinib (bazadan silinmir)
 
+  // Phase B: e-poçt təsdiqi və parol bərpası. Tokenlər YALNIZ hash kimi saxlanılır.
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  // Parol bərpası zamanı artırılır: köhnə JWT-lər (ver < tokenVersion) etibarsız olur.
+  tokenVersion Int @default(0)
+
   // P3: admin moderasiyası. Suspend olunmuş istifadəçi login edə və qorunan əməliyyatları yerinə yetirə bilməz.
   isSuspended        Boolean   @default(false)
   suspendedAt        DateTime?
@@ -194,6 +200,9 @@ model User {
   reviewsWritten  Review[] @relation("ReviewsWritten")
   reviewsReceived Review[] @relation("ReviewsReceived")
   suspensionsMade User[]   @relation("UserSuspensions")
+
+  // Phase B: e-poçt təsdiqi / parol bərpası tokenləri (yalnız hash saxlanılır)
+  authTokens AuthToken[]
 
   // Plan P3: file uploads
   uploadedAttachments Attachment[] @relation("UploadedAttachments")
@@ -687,6 +696,12 @@ model Review {
   @@index([revieweeId, createdAt])
 }
 
+// Phase B: birdəfəlik, vaxt məhdudiyyətli tokenlər
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
 enum AttachmentPurpose {
   AVATAR
   MILESTONE_SUBMIT
@@ -737,4 +752,23 @@ model Attachment {
   @@index([issueCommentId])
   @@index([reportId])
   @@index([uploadedById])
+}
+
+// Phase B: açıq token yalnız e-poçtdakı linkdə olur; bazada SHA-256 hash-i saxlanılır.
+// usedAt dolu = istifadə olunub. Eyni istifadəçi + tip üçün yeni token yaradılanda köhnə istifadə olunmamışlar silinir.
+model AuthToken {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@index([expiresAt])
 }

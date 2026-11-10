@@ -4,6 +4,7 @@ import app from './app.js';
 import { initSocket } from './socket.js';
 import { autoApproveDue } from './services/financialService.js';
 import { assertUploadStorageReady } from './services/uploadService.js';
+import { assertEmailReady } from './services/emailService.js';
 import { logger } from './utils/logger.js';
 
 if (!process.env.JWT_SECRET) {
@@ -14,6 +15,8 @@ if (!process.env.JWT_SECRET) {
 // Phase A: fail fast instead of running with local/unconfigured upload storage in production.
 try {
     assertUploadStorageReady();
+    // Phase B: production-da Resend konfiqurasiyası olmadan e-poçt təsdiqi/parol bərpası işləməz.
+    assertEmailReady();
 } catch (err) {
     console.error(`FATAL ERROR: ${err.message}`);
     process.exit(1);

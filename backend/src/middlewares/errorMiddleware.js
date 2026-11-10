@@ -64,5 +64,6 @@ export const globalErrorMiddleware = (err, req, res, next) => {
     return res.status(statusCode).json({
         success: false,
         message,
+        ...(err.errorCode && { code: err.errorCode }),
     });
 };

@@ -5,6 +5,15 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { ownProfileSelect, withFlatSkills } from '../utils/profile.js';
 import { resolveSkillIds } from '../utils/skills.js';
+import { logger } from '../utils/logger.js';
+import { issueAuthToken, consumeAuthToken, findUsedAuthTokenOwner } from '../services/authTokenService.js';
+import { sendEmail, buildVerificationEmail, buildPasswordResetEmail } from '../services/emailService.js';
+
+// Qeydiyyat/yenidən göndəriş üçün: token yaradır və təsdiq mailini göndərir. Xəta atarsa çağıran qərar verir.
+const sendVerificationEmailTo = async (user) => {
+    const token = await issueAuthToken(user.id, 'EMAIL_VERIFY');
+    await sendEmail(buildVerificationEmail({ to: user.email, fullName: user.fullName, token }));
+};
 
 // @route   POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -29,15 +38,25 @@ export const register = asyncHandler(async (req, res) => {
             email: true,
             fullName: true,
             role: true,
+            emailVerified: true,
+            tokenVersion: true,
             createdAt: true,
         },
     });
 
-    const token = generateToken(newUser.id, newUser.role);
+    // Qeydiyyat e-poçt xətası uğrunda sınmamalıdır: istifadəçi sonra "yenidən göndər" edə bilər.
+    try {
+        await sendVerificationEmailTo(newUser);
+    } catch (err) {
+        logger.error(`Verification email failed for ${newUser.id}: ${err.message}`);
+    }
+
+    const { tokenVersion, ...publicUser } = newUser;
+    const token = generateToken(newUser.id, newUser.role, tokenVersion);
 
     res.status(201).json({
         success: true,
-        user: newUser,
+        user: publicUser,
         token,
     });
 });
@@ -61,7 +80,7 @@ export const login = asyncHandler(async (req, res) => {
         throw new AppError('Your account is suspended. Contact support for help.', 403);
     }
 
-    const token = generateToken(user.id, user.role);
+    const token = generateToken(user.id, user.role, user.tokenVersion);
 
     res.status(200).json({
         success: true,
@@ -70,6 +89,7 @@ export const login = asyncHandler(async (req, res) => {
             email: user.email,
             fullName: user.fullName,
             role: user.role,
+            emailVerified: user.emailVerified,
         },
         token,
     });
@@ -164,4 +184,112 @@ export const updatePassword = asyncHandler(async (req, res) => {
         success: true,
         message: 'Password updated successfully.',
     });
+});
+
+// ================= PHASE B: E-POÇT TƏSDİQİ VƏ PAROL BƏRPASI =================
+
+// @route   POST /api/auth/verify-email/send
+// @access  Private. Təsdiq mailini yenidən göndərir (əvvəlki link etibarsız olur).
+export const sendVerificationEmail = asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true, email: true, fullName: true, emailVerified: true },
+    });
+
+    if (user.emailVerified) {
+        return res.status(200).json({ success: true, alreadyVerified: true, message: 'Your email is already verified.' });
+    }
+
+    // Burada istifadəçi məhz bunu tələb edib: göndəriş xətası (503/502) ona göstərilir.
+    await sendVerificationEmailTo(user);
+
+    res.status(200).json({ success: true, alreadyVerified: false, message: 'Verification email sent. Please check your inbox.' });
+});
+
+// @route   POST /api/auth/verify-email
+// @access  Public. Body: { token }
+export const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+
+    const userId = await prisma.$transaction(async (tx) => {
+        const id = await consumeAuthToken(tx, token, 'EMAIL_VERIFY');
+        if (!id) return null;
+
+        await tx.user.update({
+            where: { id },
+            data: { emailVerified: true, emailVerifiedAt: new Date() },
+        });
+        return id;
+    });
+
+    if (userId) {
+        return res.status(200).json({ success: true, message: 'Your email has been verified.' });
+    }
+
+    // Linkin ikinci dəfə açılması (e-poçt skaneri, çift klik): hesab artıq təsdiqlənibsə uğurlu sayılır.
+    const usedOwnerId = await findUsedAuthTokenOwner(token, 'EMAIL_VERIFY');
+    if (usedOwnerId) {
+        const owner = await prisma.user.findUnique({ where: { id: usedOwnerId }, select: { emailVerified: true } });
+        if (owner?.emailVerified) {
+            return res.status(200).json({ success: true, alreadyVerified: true, message: 'Your email is already verified.' });
+        }
+    }
+
+    throw new AppError('This verification link is invalid or has expired. Request a new one from your account.', 400);
+});
+
+const FORGOT_PASSWORD_MESSAGE = 'If an account exists for that email, we sent a password reset link.';
+
+// @route   POST /api/auth/forgot-password
+// @access  Public. Body: { email }
+// Cavab hər zaman eynidir: e-poçtın mövcudluğunu açıqlamır (enumeration-un qarşısı).
+export const forgotPassword = asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+        where: { email: req.body.email },
+        select: { id: true, email: true, fullName: true, deletedAt: true },
+    });
+
+    if (user && user.deletedAt === null) {
+        const token = await issueAuthToken(user.id, 'PASSWORD_RESET');
+        // Göndərişi gözləməyirik: cavab müddəti hesabın mövcud olub-olmamasını sızdırmasın.
+        sendEmail(buildPasswordResetEmail({ to: user.email, fullName: user.fullName, token })).catch((err) =>
+            logger.error(`Password reset email failed for ${user.id}: ${err.message}`)
+        );
+    }
+
+    res.status(200).json({ success: true, message: FORGOT_PASSWORD_MESSAGE });
+});
+
+// @route   POST /api/auth/reset-password
+// @access  Public. Body: { token, newPassword }
+// Token birdəfəlik və 1 saatlıqdır. Uğurlu sıfırlamadan sonra bütün köhnə sessiyalar ləğv olunur (tokenVersion).
+export const resetPassword = asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const userId = await prisma.$transaction(async (tx) => {
+        const id = await consumeAuthToken(tx, token, 'PASSWORD_RESET');
+        if (!id) return null;
+
+        const current = await tx.user.findUnique({ where: { id }, select: { emailVerified: true, deletedAt: true } });
+        if (!current || current.deletedAt !== null) return null;
+
+        await tx.user.update({
+            where: { id },
+            data: {
+                passwordHash,
+                tokenVersion: { increment: 1 },
+                // Linki yalnız e-poçtın sahibi ala bilər: bu həm də e-poçtın təsdiqidir
+                ...(current.emailVerified ? {} : { emailVerified: true, emailVerifiedAt: new Date() }),
+            },
+        });
+        await tx.authToken.deleteMany({ where: { userId: id, usedAt: null } });
+        return id;
+    });
+
+    if (!userId) {
+        throw new AppError('This reset link is invalid or has expired. Please request a new one.', 400);
+    }
+
+    res.status(200).json({ success: true, message: 'Your password has been reset. You can now log in.' });
 });

@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, optionalAuth, restrictTo } from '../middlewares/authMiddleware.js';
+import { protect, optionalAuth, restrictTo, requireVerifiedEmail } from '../middlewares/authMiddleware.js';
 import { validate } from '../middlewares/validate.js';
 import { createJobSchema, updateJobSchema } from '../validators/jobValidator.js';
 import {
@@ -27,8 +27,8 @@ router.get('/my', restrictTo('CLIENT'), getMyJobs);
 router.get('/saved', restrictTo('FREELANCER'), getSavedJobs);
 router.get('/:id', getJob);
 
-router.post('/', restrictTo('CLIENT'), validate(createJobSchema), createJob);
-router.post('/:id/publish', restrictTo('CLIENT'), publishJob);
+router.post('/', restrictTo('CLIENT'), requireVerifiedEmail, validate(createJobSchema), createJob);
+router.post('/:id/publish', restrictTo('CLIENT'), requireVerifiedEmail, publishJob);
 router.post('/:id/save', restrictTo('FREELANCER'), saveJob);
 router.delete('/:id/save', restrictTo('FREELANCER'), unsaveJob);
 router.patch('/:id', restrictTo('CLIENT'), validate(updateJobSchema), updateJob);
