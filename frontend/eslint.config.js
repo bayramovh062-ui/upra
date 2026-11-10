@@ -17,5 +17,10 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Yalnız Fast Refresh (HMR) rahatlığıdır: komponent faylda köməkçi export (məs. fieldClass, calcCommissionCents)
+      // olanda həmin fayl dəyişəndə səhifə tam yenilənir. Kodun işləyişinə təsir etmir, ona görə xəta yox, xəbərdarlıqdır.
+      'react-refresh/only-export-components': 'warn',
+    },
   },
 ])

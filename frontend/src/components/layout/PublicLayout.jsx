@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router-dom';
 import Navbar from '../Navbar';
+import { DEMO_NOTICE } from '../../lib/demo';
 
 // Dizayndakı tünd footer (Stitch landing). Yalnız mövcud səhifələrə link verir.
 const Footer = () => (
@@ -44,7 +45,10 @@ const Footer = () => (
                     </ul>
                 </div>
             </div>
-            <p className="pt-4 text-caption">© 2026 Upra</p>
+            <div className="flex flex-col gap-1 pt-4 text-caption sm:flex-row sm:items-center sm:justify-between">
+                <p>© 2026 Upra</p>
+                <p>{DEMO_NOTICE}</p>
+            </div>
         </div>
     </footer>
 );

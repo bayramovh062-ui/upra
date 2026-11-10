@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   useUploadCommentFilesMutation,
@@ -108,7 +108,8 @@ export function FilePicker({ purpose, target, contractId, disabled, label = 'Att
   const [uploadComment, m4] = useUploadCommentFilesMutation();
   const [uploadReport, m5] = useUploadReportFilesMutation();
   const busy = m1.isLoading || m2.isLoading || m3.isLoading || m4.isLoading || m5.isLoading;
-  const id = useMemo(() => `fp-${Math.random().toString(36).slice(2)}`, []);
+  // useId: render zamanı təsadüfi ədəd (Math.random) lazım deyil, SSR/yenidən render zamanı sabit qalır
+  const id = useId();
 
   const upload = async () => {
     if (!files.length) return;

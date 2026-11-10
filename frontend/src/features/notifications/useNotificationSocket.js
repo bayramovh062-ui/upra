@@ -36,7 +36,7 @@ const useNotificationSocket = () => {
             });
 
             // Hadisə müqavilə, mərhələ, pul və ya təkliflərə toxunub: həmin siyahılar köhnəlməsin
-            dispatch(baseApi.util.invalidateTags(['Contract', 'Wallet', 'Proposal', 'Issue']));
+            dispatch(baseApi.util.invalidateTags(['Contract', 'Wallet', 'Proposal', 'Issue', 'Review']));
 
             toast(notification.title, { icon: '🔔' });
         });

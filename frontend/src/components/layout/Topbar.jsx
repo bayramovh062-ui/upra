@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLogout } from '../../features/auth/useLogout';
+import { DEMO_BADGE, DEMO_NOTICE } from '../../lib/demo';
 import NotificationBell from '../../features/notifications/NotificationBell';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
@@ -35,6 +36,14 @@ const Topbar = ({ onMenuClick }) => {
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2">
+                    {/* Daimi demo göstəricisi: bütün balanslar və ödənişlər sadəcə test puludur */}
+                    <span
+                        title={DEMO_NOTICE}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-label-sm text-warning-ink"
+                    >
+                        <Icon name="science" className="text-[16px]" />
+                        <span className="sr-only sm:not-sr-only">{DEMO_BADGE}</span>
+                    </span>
                     <NotificationBell />
 
                     <div className="relative">

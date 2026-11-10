@@ -12,9 +12,13 @@ const rawBaseQuery = fetchBaseQuery({
     },
 });
 
+// P3: admin hesabı dayandırıb (backend 403 + "suspended" qaytarır). Sessiya artıq işləmir, ona görə 401 kimi çıxış edilir,
+// yoxsa istifadəçi xəta verib-duran ekranda qalır. Login xətası üçün də zərərsizdir (artıq giriş edilməyib).
+const isSuspendedError = (error) => error?.status === 403 && /suspended/i.test(error?.data?.message ?? '');
+
 const baseQueryWithReauth = async (args, api, extraOptions) => {
     const result = await rawBaseQuery(args, api, extraOptions);
-    if (result.error && result.error.status === 401) {
+    if (result.error && (result.error.status === 401 || isSuspendedError(result.error))) {
         api.dispatch(logout());
     }
     return result;
@@ -23,6 +27,6 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 export const baseApi = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Auth', 'Job', 'Proposal', 'Contract', 'Issue', 'User', 'Wallet', 'Notification', 'Conversation', 'Message', 'AdminDispute', 'AdminReport', 'Attachment'],
+    tagTypes: ['Auth', 'Job', 'Proposal', 'Contract', 'Issue', 'User', 'Wallet', 'Notification', 'Conversation', 'Message', 'AdminDispute', 'AdminReport', 'AdminUser', 'Attachment', 'Review'],
     endpoints: () => ({}),
 });

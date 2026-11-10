@@ -28,7 +28,8 @@ const ContractsPage = () => {
     const [tab, setTab] = useState('ACTIVE');
     const { data, isLoading, isError, refetch } = useGetMyContractsQuery();
 
-    const contracts = data?.contracts ?? [];
+    // useMemo: hər render-də yeni boş massiv yaranmasın, aşağıdakı counts hesabı boş yerə yenidən işləməsin
+    const contracts = useMemo(() => data?.contracts ?? [], [data]);
 
     const counts = useMemo(() => {
         const c = { ALL: contracts.length, PENDING_ACCEPTANCE: 0, ACTIVE: 0, COMPLETED: 0, CANCELLED: 0 };

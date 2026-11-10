@@ -9,6 +9,10 @@ const iconFor = (type = '') => {
     if (type === 'COMMENT_ADDED') return 'chat_bubble';
     if (type.startsWith('MILESTONE') || type === 'CHANGES_REQUESTED') return 'account_balance';
     if (type.startsWith('DISPUTE')) return 'gavel';
+    if (type === 'REVIEW_RECEIVED') return 'star';
+    if (type.startsWith('REPORT')) return 'flag';
+    if (type === 'ACCOUNT_SUSPENDED') return 'block';
+    if (type === 'ACCOUNT_REINSTATED') return 'how_to_reg';
     if (type.startsWith('CANCEL') || type === 'CONTRACT_CANCELLED' || type === 'CONTRACT_DECLINED') return 'event_busy';
     if (type.startsWith('CONTRACT')) return 'verified_user';
     return 'notifications';

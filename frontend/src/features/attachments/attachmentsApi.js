@@ -32,7 +32,7 @@ export const attachmentsApi = baseApi.injectEndpoints({
       invalidatesTags: (_r, _e, { contractId }) => (contractId ? [{ type: 'Contract', id: contractId }, { type: 'Contract', id: `history:${contractId}` }] : ['Contract']),
     }),
     uploadDisputeFiles: builder.mutation({
-      query: ({ disputeId, files, contractId }) => {
+      query: ({ disputeId, files }) => {
         const fd = new FormData();
         [...files].forEach((f) => fd.append('files', f));
         return { url: `/attachments/disputes/${disputeId}/files`, method: 'POST', body: fd };
@@ -40,7 +40,7 @@ export const attachmentsApi = baseApi.injectEndpoints({
       invalidatesTags: (_r, _e, { contractId }) => (contractId ? [{ type: 'Contract', id: contractId }, { type: 'Contract', id: `history:${contractId}` }, 'AdminDispute'] : ['AdminDispute']),
     }),
     uploadIssueFiles: builder.mutation({
-      query: ({ issueId, files, contractId }) => {
+      query: ({ issueId, files }) => {
         const fd = new FormData();
         [...files].forEach((f) => fd.append('files', f));
         return { url: `/attachments/issues/${issueId}/files`, method: 'POST', body: fd };
@@ -48,7 +48,7 @@ export const attachmentsApi = baseApi.injectEndpoints({
       invalidatesTags: (_r, _e, { contractId }) => (contractId ? [{ type: 'Issue', id: `C-${contractId}` }] : ['Issue']),
     }),
     uploadCommentFiles: builder.mutation({
-      query: ({ commentId, files, contractId }) => {
+      query: ({ commentId, files }) => {
         const fd = new FormData();
         [...files].forEach((f) => fd.append('files', f));
         return { url: `/attachments/issue-comments/${commentId}/files`, method: 'POST', body: fd };

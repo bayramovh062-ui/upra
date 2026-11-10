@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, Card, ConfirmDialog, EmptyState, Icon, Modal, Textarea } from '../../components/ui';
+import { DEMO_MONEY_NOTE } from '../../lib/demo';
 import { formatCents, formatDate, getErrorMessage } from '../../lib/format';
 import TopUpModal from '../wallet/TopUpModal';
 import { useGetWalletQuery } from '../wallet/walletApi';
@@ -36,7 +37,7 @@ const buildDialog = (type, m) => {
             title: 'Fund this milestone?',
             confirmText: 'Fund milestone',
             variant: 'primary',
-            message: `${amount} moves from your wallet into escrow. The freelancer is paid only after you approve the work.`,
+            message: `${amount} moves from your wallet into escrow. The freelancer is paid only after you approve the work. ${DEMO_MONEY_NOTE}`,
         },
         submit: {
             title: 'Submit this milestone?',
@@ -48,7 +49,7 @@ const buildDialog = (type, m) => {
             title: 'Approve and pay?',
             confirmText: 'Approve & pay',
             variant: 'primary',
-            message: `${amount} is released from escrow to the freelancer. A 10% platform fee (${fee}) is taken from the freelancer's payout. This cannot be undone.`,
+            message: `${amount} is released from escrow to the freelancer. A 10% platform fee (${fee}) is taken from the freelancer's payout. This cannot be undone. ${DEMO_MONEY_NOTE}`,
         },
         changes: {
             title: 'Request changes?',

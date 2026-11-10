@@ -42,7 +42,10 @@ import {
 } from '../features/contracts/contractsApi';
 import { canRespondToOffer, isPendingOffer } from '../features/contracts/contractOffer';
 import { useOpenConversationMutation } from '../features/chat/chatApi';
+import ContractReviews from '../features/reviews/ContractReviews';
+import ReviewModal from '../features/reviews/ReviewModal';
 import { cn } from '../lib/cn';
+import { DEMO_MONEY_NOTE } from '../lib/demo';
 import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
@@ -85,6 +88,8 @@ const ContractDetailPage = () => {
     const [reportFiles, setReportFiles] = useState([]);
     const [createReport, { isLoading: reporting }] = useCreateReportMutation();
     const [uploadReportFiles, { isLoading: uploadingReportFiles }] = useUploadReportFilesMutation();
+    // P3: müqavilə bitəndə (client "Complete" edəndə) rəy pəncərəsi avtomatik açılır; frilanser bannerdəki düymə ilə açır
+    const [reviewOpen, setReviewOpen] = useState(false);
 
     if (isLoading) {
         return (
@@ -181,7 +186,7 @@ const ContractDetailPage = () => {
                   title: 'Approve and pay?',
                   confirmText: 'Approve & pay',
                   variant: 'primary',
-                  message: `${formatCents(msAction.milestone.amountCents)} is released to the freelancer. A 10% platform fee (${formatCents(calcCommissionCents(msAction.milestone.amountCents))}) is taken from the freelancer's payout. This cannot be undone.`,
+                  message: `${formatCents(msAction.milestone.amountCents)} is released to the freelancer. A 10% platform fee (${formatCents(calcCommissionCents(msAction.milestone.amountCents))}) is taken from the freelancer's payout. This cannot be undone. ${DEMO_MONEY_NOTE}`,
               },
               changes: {
                   title: 'Request changes?',
@@ -266,10 +271,13 @@ const ContractDetailPage = () => {
     const current = action ? ACTIONS[action] : null;
 
     const handleConfirm = async () => {
+        const completedNow = action === 'complete';
         try {
             await current.run(contract.id).unwrap();
             toast.success(current.success);
             setAction(null);
+            // Müqavilə bitdi: client-i dərhal qarşı tərəfi qiymətləndirməyə dəvət edirik ("Maybe later" ilə keçə bilər)
+            if (completedNow) setReviewOpen(true);
         } catch (err) {
             toast.error(getErrorMessage(err, 'Action failed'));
         }
@@ -566,6 +574,15 @@ const ContractDetailPage = () => {
                 </Card>
             </div>
 
+            {contract.status === 'COMPLETED' && (isClient || isFreelancer) && (
+                <ContractReviews
+                    contractId={contract.id}
+                    currentUserId={user?.id}
+                    otherName={other?.fullName}
+                    onWriteReview={() => setReviewOpen(true)}
+                />
+            )}
+
             <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-surface-container-low p-1" role="tablist">
                 {[
                     { key: 'board', label: 'Board', icon: 'view_kanban' },
@@ -659,6 +676,17 @@ const ContractDetailPage = () => {
                     onChange={(e) => setReason(e.target.value)}
                 />
             </Modal>
+
+            {/* P3: rəy pəncərəsi (yalnız tərəflər; backend COMPLETED və təkrar rəyi yoxlayır) */}
+            {(isClient || isFreelancer) && (
+                <ReviewModal
+                    open={reviewOpen}
+                    onClose={() => setReviewOpen(false)}
+                    contractId={contract.id}
+                    revieweeName={other?.fullName}
+                    jobTitle={contract.jobPost?.title}
+                />
+            )}
 
             {/* P2: şikayət pəncərəsi */}
             <Modal

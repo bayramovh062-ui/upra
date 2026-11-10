@@ -16,13 +16,38 @@ export const clearTestOutbox = () => {
     testOutbox.length = 0;
 };
 
-const emailConfigured = () => Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
+// SMTP (məs. Gmail + App Password) varsa o işlədilir; yoxdursa Resend; heç biri yoxdursa (development) log.
+const smtpConfigured = () => Boolean(process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
+const resendConfigured = () => Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
+const emailConfigured = () => smtpConfigured() || resendConfigured();
+
+// nodemailer yalnız SMTP istifadə olunanda yüklənir (test/console rejimində paket tələb olunmur).
+let smtpTransport;
+const getSmtpTransport = async () => {
+    if (smtpTransport) return smtpTransport;
+    const { default: nodemailer } = await import('nodemailer');
+    const port = Number(process.env.SMTP_PORT) || 465;
+    smtpTransport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
+        port,
+        secure: port === 465,
+        auth: {
+            user: process.env.SMTP_USER.trim(),
+            // Google App Password boşluqlarla göstərilir (abcd efgh ...): boşluqlar silinir
+            pass: process.env.SMTP_PASS.replace(/\s+/g, ''),
+        },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
+    });
+    return smtpTransport;
+};
 
 // server.js açılışda çağırır: production-da konfiqurasiya natamamdırsa server qalxmır.
 export const assertEmailReady = () => {
     if (isProduction() && !emailConfigured()) {
         throw new AppError(
-            'Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM (and APP_URL) for production.',
+            'Email delivery is not configured. Set SMTP_USER and SMTP_PASS, or RESEND_API_KEY and EMAIL_FROM (and APP_URL) for production.',
             503
         );
     }
@@ -48,6 +73,21 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         }
         logger.info(`[email:dev] To: ${to} | Subject: ${subject}\n${text}`);
         return { provider: 'console' };
+    }
+
+    if (smtpConfigured()) {
+        try {
+            const transport = await getSmtpTransport();
+            const from = process.env.EMAIL_FROM?.trim() || `Upra <${process.env.SMTP_USER.trim()}>`;
+            const info = await transport.sendMail({ from, to, subject, html, text });
+            logger.info(
+                `[email:smtp] to=${to} accepted=${JSON.stringify(info.accepted)} rejected=${JSON.stringify(info.rejected)} response=${info.response}`
+            );
+        } catch (err) {
+            logger.error(`SMTP send failed: ${err.message}`);
+            throw new AppError('Could not send the email right now. Please try again later.', 502);
+        }
+        return { provider: 'smtp' };
     }
 
     let response;

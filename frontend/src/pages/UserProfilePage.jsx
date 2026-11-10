@@ -6,6 +6,8 @@ import AvatarModal from '../components/AvatarModal';
 import { useGetUserProfileQuery } from '../features/users/usersApi';
 import { formatDate, formatMoney } from '../lib/format';
 import { availabilityLabel, availabilityTone } from '../lib/labels';
+import { StarRating } from '../features/reviews/StarRating';
+import { formatRating, reviewCountLabel } from '../features/reviews/reviewUtils';
 
 const ROLE_LABEL = { CLIENT: 'Client', FREELANCER: 'Freelancer' };
 
@@ -51,6 +53,23 @@ const StatRow = ({ label, value }) => (
         <span className="tabular text-title-md text-on-surface">{value}</span>
     </div>
 );
+
+// Orta reytinq (rəylərdən törədilir). Rəy yoxdursa "No reviews yet"
+const RatingSummary = ({ avgRating, reviewCount }) => {
+    const rating = formatRating(avgRating);
+
+    if (!reviewCount || rating === null) {
+        return <p className="mt-2 text-body-md text-secondary">No reviews yet</p>;
+    }
+
+    return (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 text-body-md">
+            <StarRating value={avgRating} sizeClass="text-[20px]" />
+            <span className="tabular font-semibold text-on-surface">{rating}</span>
+            <span className="text-secondary">({reviewCountLabel(reviewCount)})</span>
+        </p>
+    );
+};
 
 const UserProfilePage = () => {
     const { id } = useParams();
@@ -137,6 +156,7 @@ const UserProfilePage = () => {
                                 )}
                             </div>
                             {user.headline && <p className="mt-1 text-body-lg text-on-surface">{user.headline}</p>}
+                            {stats && <RatingSummary avgRating={stats.avgRating} reviewCount={stats.reviewCount} />}
                             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-body-md text-secondary">
                                 {user.location && <MetaItem icon="location_on">{user.location}</MetaItem>}
                                 {user.timezone && (
@@ -214,6 +234,11 @@ const UserProfilePage = () => {
                         <CardHeader title="Activity" />
                         <CardBody className="divide-y divide-line pt-0">
                             <StatRow label="Completed contracts" value={stats.completedContracts} />
+                            <StatRow
+                                label="Average rating"
+                                value={formatRating(stats.avgRating) ? `${formatRating(stats.avgRating)} / 5` : '—'}
+                            />
+                            <StatRow label="Reviews received" value={stats.reviewCount ?? 0} />
                             {stats.jobsPosted != null && <StatRow label="Jobs posted" value={stats.jobsPosted} />}
                         </CardBody>
                     </Card>

@@ -6,6 +6,7 @@ import { registerSchema } from '../validations/authSchema';
 import { useRegisterMutation } from '../features/auth/authApi';
 import { Button, Icon, Input, PasswordInput } from '../components/ui';
 import { FieldError } from '../components/ui/Input';
+import { DEMO_NOTICE } from '../lib/demo';
 
 const ROLES = [
     {
@@ -72,6 +73,10 @@ const RegisterPage = () => {
                     <h2 className="mb-2 text-headline-lg text-on-surface">Create your Upra account</h2>
                     <p className="text-body-md text-secondary">
                         Start hiring talent or finding projects. You can pick one role per account.
+                    </p>
+                    <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
+                        <Icon name="science" className="mt-0.5 shrink-0 text-[18px]" />
+                        {DEMO_NOTICE}
                     </p>
                 </div>
 

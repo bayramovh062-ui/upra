@@ -6,7 +6,7 @@ import { formatCents, timeAgo } from '../../lib/format';
 // ona görə hər sətir balans növü ilə birlikdə göstərilir.
 const TYPES = {
     TOP_UP: { label: 'Demo top-up', icon: 'add_card' },
-    WITHDRAWAL: { label: 'Withdrawal', icon: 'north_east' },
+    WITHDRAWAL: { label: 'Demo withdrawal', icon: 'north_east' },
     MILESTONE_FUNDING: { label: 'Milestone funded', icon: 'lock' },
     ESCROW_LOCK: { label: 'Locked in escrow', icon: 'account_balance' },
     ESCROW_RELEASE: { label: 'Released from escrow', icon: 'lock_open' },

@@ -34,6 +34,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import MessagesPage from './pages/MessagesPage';
 import AdminDisputesPage from './pages/admin/AdminDisputesPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
 
 function App() {
     return (
@@ -99,6 +100,7 @@ function App() {
                             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                                 <Route path="/admin/disputes" element={<AdminDisputesPage />} />
                                 <Route path="/admin/reports" element={<AdminReportsPage />} />
+                                <Route path="/admin/users" element={<AdminUsersPage />} />
                             </Route>
                         </Route>
                     </Route>

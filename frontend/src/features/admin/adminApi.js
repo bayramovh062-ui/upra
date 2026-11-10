@@ -35,6 +35,21 @@ export const adminApi = baseApi.injectEndpoints({
             query: ({ id, ...body }) => ({ url: `/admin/reports/${id}`, method: 'PATCH', body }),
             invalidatesTags: [{ type: 'AdminReport', id: 'LIST' }],
         }),
+
+        // P3: istifadəçi moderasiyası. params: { q, role, suspended: 'true'|'false', limit, offset } -> { total, count, users }
+        getAdminUsers: builder.query({
+            query: (params = {}) => ({ url: '/admin/users', params }),
+            providesTags: [{ type: 'AdminUser', id: 'LIST' }],
+        }),
+        // arg: { id, suspended: boolean, reason? }. Admin hesabı və öz hesabı backend-də qəbul olunmur.
+        updateAdminUserSuspension: builder.mutation({
+            query: ({ id, suspended, reason }) => ({
+                url: `/admin/users/${id}/suspension`,
+                method: 'PATCH',
+                body: { suspended, reason },
+            }),
+            invalidatesTags: [{ type: 'AdminUser', id: 'LIST' }],
+        }),
     }),
 });
 
@@ -44,4 +59,6 @@ export const {
     useResolveAdminDisputeMutation,
     useGetAdminReportsQuery,
     useReviewAdminReportMutation,
+    useGetAdminUsersQuery,
+    useUpdateAdminUserSuspensionMutation,
 } = adminApi;

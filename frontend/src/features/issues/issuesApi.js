@@ -22,7 +22,12 @@ export const issuesApi = baseApi.injectEndpoints({
 
         // arg: { id, contractId, title?, description?, priority?, assigneeId? (null = unassign) }
         updateIssue: builder.mutation({
-            query: ({ id, contractId, ...body }) => ({ url: `/issues/${id}`, method: 'PATCH', body }),
+            // contractId yalnız cache tag-i üçündür, backend-ə göndərilmir
+            query: ({ id, ...rest }) => {
+                const body = { ...rest };
+                delete body.contractId;
+                return { url: `/issues/${id}`, method: 'PATCH', body };
+            },
             invalidatesTags: (result, error, { contractId }) => [listTag(contractId)],
         }),
 
