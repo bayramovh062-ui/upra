@@ -12,7 +12,8 @@ concurrency:
 jobs:
   backend:
     name: Backend tests
-    runs-on: ubuntu-latest
+    # ubuntu-latest tezliklə Ubuntu 26-ya keçir; sabitlik üçün versiya sabitlənib
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     services:
@@ -35,9 +36,9 @@ jobs:
         working-directory: backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '26'
           cache: npm
@@ -62,7 +63,7 @@ jobs:
 
   frontend:
     name: Frontend lint, test, build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     defaults:
@@ -70,9 +71,9 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '26'
           cache: npm
@@ -80,10 +81,8 @@ jobs:
 
       - run: npm ci
 
-      # Mövcud lint xətaları varsa ilk vaxt CI-ni qırmasın; düzəldəndən sonra continue-on-error-u silin.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Unit tests
         run: npm test
@@ -93,7 +92,7 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     services:
@@ -117,9 +116,9 @@ jobs:
       E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/upra_e2e?schema=public
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '26'
           cache: npm
@@ -147,7 +146,7 @@ jobs:
       # Uğursuz testin trace-i və ekran görüntüsü burdan yüklənir (hesabatı açmaq: npx playwright show-report)
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: |
