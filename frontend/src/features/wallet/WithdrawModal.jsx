@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, Input, Modal } from '../../components/ui';
 import { formatCents, getErrorMessage } from '../../lib/format';
+import { useTranslation } from '../locale/useTranslation';
 import { useWithdrawFromWalletMutation } from './walletApi';
 
 // Dollar yazısını sentə çevirir. Yanlışdırsa NaN (boş, mənfi, 2-dən çox onluq rəqəm)
@@ -14,6 +15,7 @@ const toCents = (value) => {
 // DEMO: real pul çıxmır, yalnız kilidsiz (available) balansdan simulyasiya edilmiş çıxarış.
 // availableCents: cari kilidsiz balans (sent). Escrow-dakı pul çıxarıla bilməz.
 const WithdrawModal = ({ open, onClose, availableCents = 0 }) => {
+    const { t } = useTranslation();
     const [amount, setAmount] = useState('');
     const [error, setError] = useState('');
     const [withdraw, { isLoading }] = useWithdrawFromWalletMutation();
@@ -33,26 +35,26 @@ const WithdrawModal = ({ open, onClose, availableCents = 0 }) => {
     const submit = async () => {
         const cents = toCents(amount);
         if (Number.isNaN(cents)) {
-            setError('Enter a valid amount (max 2 decimals)');
+            setError(t('wallet.withdraw.amountInvalid'));
             return;
         }
         if (cents <= 0) {
-            setError('Enter an amount greater than 0');
+            setError(t('wallet.withdraw.amountPositive'));
             return;
         }
         if (cents > availableCents) {
-            setError(`You can withdraw at most ${formatCents(availableCents)}`);
+            setError(t('wallet.withdraw.amountMax', { amount: formatCents(availableCents) }));
             return;
         }
 
         try {
             await withdraw({ amountCents: cents }).unwrap();
-            toast.success(`${formatCents(cents)} withdrawn (demo)`);
+            toast.success(t('wallet.withdraw.success', { amount: formatCents(cents) }));
             setAmount('');
             setError('');
             onClose();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not withdraw'));
+            toast.error(getErrorMessage(err, t('wallet.withdraw.error')));
         }
     };
 
@@ -60,27 +62,28 @@ const WithdrawModal = ({ open, onClose, availableCents = 0 }) => {
         <Modal
             open={open}
             onClose={close}
-            title="Withdraw funds"
+            title={t('wallet.withdraw.title')}
             footer={
                 <>
                     <Button variant="secondary" onClick={close} disabled={isLoading}>
-                        Cancel
+                        {t('common.actions.cancel')}
                     </Button>
                     <Button onClick={submit} loading={isLoading} disabled={availableCents <= 0}>
-                        Withdraw
+                        {t('wallet.withdraw.submit')}
                     </Button>
                 </>
             }
         >
             <p className="mb-3 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
-                Demo only: no real money is sent anywhere.
+                {t('wallet.withdraw.demoNote')}
             </p>
             <p className="mb-3 text-body-md text-secondary">
-                Available to withdraw: <span className="tabular font-semibold text-on-surface">{formatCents(availableCents)}</span>.
-                Money held in escrow cannot be withdrawn.
+                {t('wallet.withdraw.availableLabel')}{' '}
+                <span className="tabular font-semibold text-on-surface">{formatCents(availableCents)}</span>.{' '}
+                {t('wallet.withdraw.escrowNote')}
             </p>
             <Input
-                label="Amount (USD)"
+                label={t('wallet.withdraw.amount')}
                 inputMode="decimal"
                 placeholder="0.00"
                 value={amount}
@@ -96,7 +99,7 @@ const WithdrawModal = ({ open, onClose, availableCents = 0 }) => {
                 disabled={availableCents <= 0}
                 className="mt-2 text-label-sm font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
             >
-                Withdraw everything
+                {t('wallet.withdraw.all')}
             </button>
         </Modal>
     );

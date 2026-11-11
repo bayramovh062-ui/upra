@@ -4,6 +4,7 @@ import { Icon } from '../../components/ui';
 import { fieldClass } from '../../components/ui/fieldClass';
 import { useDebounce } from '../../lib/useDebounce';
 import { SKILL_NAME_REGEX, normalizeSkillName, toSkillSlug } from '../../lib/skills';
+import { useTranslation } from '../locale/useTranslation';
 import { useGetSkillsQuery } from './taxonomyApi';
 
 // Bacarıq çipləri + avtomatik tamamlama.
@@ -14,9 +15,11 @@ const SkillPicker = ({
     onChange,
     max = 15,
     allowCreate = true,
-    placeholder = 'Type a skill and press Enter',
+    placeholder,
     chipClassName = 'bg-primary-fixed text-on-primary-fixed',
 }) => {
+    const { t } = useTranslation();
+    const resolvedPlaceholder = placeholder ?? t('jobs.skillPicker.defaultPlaceholder');
     const [input, setInput] = useState('');
     const [open, setOpen] = useState(false);
     const debounced = useDebounce(input.trim(), 250);
@@ -37,11 +40,11 @@ const SkillPicker = ({
             return;
         }
         if (value.length >= max) {
-            toast.error(`You can select at most ${max} skills`);
+            toast.error(t('jobs.skillPicker.tooMany', { max }));
             return;
         }
         if (!SKILL_NAME_REGEX.test(name)) {
-            toast.error('Skill names can use letters, numbers, spaces and . + # & / - (max 30 characters)');
+            toast.error(t('jobs.skillPicker.invalid'));
             return;
         }
         onChange([...value, name]);
@@ -78,7 +81,7 @@ const SkillPicker = ({
                             <button
                                 type="button"
                                 onClick={() => remove(name)}
-                                aria-label={`Remove ${name}`}
+                                aria-label={t('jobs.skillPicker.remove', { name })}
                                 className="flex items-center opacity-70 transition-opacity hover:opacity-100"
                             >
                                 <Icon name="close" className="text-[13px]" />
@@ -92,7 +95,11 @@ const SkillPicker = ({
                 <input
                     type="text"
                     value={input}
-                    placeholder={value.length >= max ? `Limit reached (${max})` : placeholder}
+                    placeholder={
+                        value.length >= max
+                            ? t('jobs.skillPicker.limitReached', { max })
+                            : resolvedPlaceholder
+                    }
                     disabled={value.length >= max}
                     onChange={(e) => setInput(e.target.value)}
                     onFocus={() => setOpen(true)}
@@ -100,7 +107,7 @@ const SkillPicker = ({
                     onKeyDown={onKeyDown}
                     className={fieldClass(false)}
                     autoComplete="off"
-                    aria-label="Search skills"
+                    aria-label={t('jobs.skillPicker.searchLabel')}
                 />
 
                 {showMenu && (
@@ -131,7 +138,7 @@ const SkillPicker = ({
                                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-md text-primary hover:bg-surface-container-low"
                                 >
                                     <Icon name="add" className="text-[16px]" />
-                                    Add “{normalizeSkillName(input)}”
+                                    {t('jobs.skillPicker.addSuggestion', { name: normalizeSkillName(input) })}
                                 </button>
                             </li>
                         )}
@@ -141,7 +148,7 @@ const SkillPicker = ({
 
             {max && (
                 <p className="text-caption text-secondary">
-                    {value.length}/{max} selected
+                    {t('jobs.skillPicker.selected', { count: value.length, max })}
                 </p>
             )}
         </div>

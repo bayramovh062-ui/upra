@@ -8,6 +8,7 @@ import {
   useUploadReportFilesMutation,
 } from './attachmentsApi';
 import { Icon } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
 
 const pickAccept = {
   MILESTONE_SUBMIT: '.pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.gif,.zip,.7z,.rar',
@@ -45,6 +46,7 @@ const openBlob = (blob, attachment) => {
 };
 
 export function AttachmentList({ attachments, compact = false, label }) {
+  const { t } = useTranslation();
   const [busyId, setBusyId] = useState(null);
   if (!attachments?.length) return null;
 
@@ -58,7 +60,7 @@ export function AttachmentList({ attachments, compact = false, label }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        let message = 'Could not open file';
+        let message = t('attachments.openError');
         try {
           const data = await res.json();
           if (data?.message) message = data.message;
@@ -69,7 +71,7 @@ export function AttachmentList({ attachments, compact = false, label }) {
       }
       openBlob(await res.blob(), attachment);
     } catch (err) {
-      toast.error(err?.message || 'Could not open file');
+      toast.error(err?.message || t('attachments.openError'));
     } finally {
       setBusyId(null);
     }
@@ -89,7 +91,7 @@ export function AttachmentList({ attachments, compact = false, label }) {
               title={a.filename}
             >
               <Icon name={a.mimeType?.startsWith('image/') ? 'image' : 'attach_file'} className="text-[14px] shrink-0" />
-              <span className="truncate max-w-[180px]">{busyId === a.id ? 'Opening…' : a.filename}</span>
+              <span className="truncate max-w-[180px]">{busyId === a.id ? t('attachments.opening') : a.filename}</span>
             </button>
           </li>
         ))}
@@ -98,7 +100,8 @@ export function AttachmentList({ attachments, compact = false, label }) {
   );
 }
 
-export function FilePicker({ purpose, target, contractId, disabled, label = 'Attach files', onUploaded, onFilesChange, files: controlledFiles, showUploadButton = true, compact }) {
+export function FilePicker({ purpose, target, contractId, disabled, label, onUploaded, onFilesChange, files: controlledFiles, showUploadButton = true, compact }) {
+  const { t } = useTranslation();
   const [internalFiles, setInternalFiles] = useState([]);
   const files = controlledFiles ?? internalFiles;
   const setFiles = onFilesChange ?? setInternalFiles;
@@ -119,12 +122,12 @@ export function FilePicker({ purpose, target, contractId, disabled, label = 'Att
       else if (purpose === 'ISSUE') await uploadIssue({ issueId: target.issueId, files, contractId }).unwrap();
       else if (purpose === 'ISSUE_COMMENT') await uploadComment({ commentId: target.commentId, files, contractId }).unwrap();
       else if (purpose === 'REPORT_EVIDENCE') await uploadReport({ reportId: target.reportId, files }).unwrap();
-      else throw new Error('Unsupported upload purpose');
-      toast.success('Files uploaded');
+      else throw new Error(t('attachments.unsupported'));
+      toast.success(t('attachments.uploaded'));
       setFiles([]);
       onUploaded?.();
     } catch (e) {
-      toast.error(e?.data?.message || e?.message || 'Upload failed');
+      toast.error(e?.data?.message || e?.message || t('attachments.uploadFailed'));
     }
   };
 
@@ -132,7 +135,7 @@ export function FilePicker({ purpose, target, contractId, disabled, label = 'Att
     <div className={compact ? 'flex flex-wrap items-center gap-2' : 'flex flex-col gap-2'}>
       <label htmlFor={id} className={`inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-label-md text-on-surface hover:bg-surface-container ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
         <Icon name="attach_file" className="text-[16px]" />
-        {label}
+        {label ?? t('attachments.attachFiles')}
       </label>
       <input
         id={id}
@@ -145,9 +148,9 @@ export function FilePicker({ purpose, target, contractId, disabled, label = 'Att
       />
       {!!files.length && (
         <div className="flex flex-wrap items-center gap-2 text-caption text-secondary">
-          <span>{files.length} file(s) selected</span>
-          {showUploadButton && <button type="button" className="text-primary hover:underline disabled:opacity-50" onClick={upload} disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button>}
-          <button type="button" className="hover:underline" onClick={() => setFiles([])} disabled={busy}>Clear</button>
+          <span>{t('attachments.filesSelected', { count: files.length })}</span>
+          {showUploadButton && <button type="button" className="text-primary hover:underline disabled:opacity-50" onClick={upload} disabled={busy}>{busy ? t('attachments.uploading') : t('attachments.upload')}</button>}
+          <button type="button" className="hover:underline" onClick={() => setFiles([])} disabled={busy}>{t('attachments.clear')}</button>
         </div>
       )}
     </div>

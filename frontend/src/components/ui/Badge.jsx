@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import { useTranslation } from '../../features/locale/useTranslation';
 
 // Rənglər DESIGN.md "Badges & Status Chips" bölməsindən (index.css-də token kimi)
 const tones = {
@@ -10,30 +11,31 @@ const tones = {
     blue: 'bg-info-soft text-info-ink',
 };
 
-// Backend enum dəyərləri → rəng və yazı. Yeni status gələndə yalnız bura əlavə et.
-const STATUS_MAP = {
+// Backend enum dəyərləri → rəng. Yazı `common.status.<VALUE>` açarından gəlir.
+// Yeni status gələndə yalnız bura və dil fayllarına əlavə et.
+const STATUS_TONES = {
     // JobPost
-    DRAFT: { tone: 'gray', label: 'Draft' },
-    OPEN: { tone: 'brand', label: 'Open' },
-    IN_PROGRESS: { tone: 'blue', label: 'In progress' },
-    COMPLETED: { tone: 'green', label: 'Completed' },
-    CANCELLED: { tone: 'gray', label: 'Cancelled' },
+    DRAFT: 'gray',
+    OPEN: 'brand',
+    IN_PROGRESS: 'blue',
+    COMPLETED: 'green',
+    CANCELLED: 'gray',
     // Proposal
-    PENDING: { tone: 'amber', label: 'Pending' },
-    ACCEPTED: { tone: 'green', label: 'Accepted' },
-    REJECTED: { tone: 'red', label: 'Rejected' },
+    PENDING: 'amber',
+    ACCEPTED: 'green',
+    REJECTED: 'red',
     // Contract
-    PENDING_ACCEPTANCE: { tone: 'amber', label: 'Offer pending' },
-    ACTIVE: { tone: 'brand', label: 'Active' },
-    DELIVERED: { tone: 'amber', label: 'Delivered' },
-    DECLINED: { tone: 'red', label: 'Declined' },
+    PENDING_ACCEPTANCE: 'amber',
+    ACTIVE: 'brand',
+    DELIVERED: 'amber',
+    DECLINED: 'red',
     // Issue
-    TODO: { tone: 'gray', label: 'To do' },
-    DONE: { tone: 'green', label: 'Done' },
+    TODO: 'gray',
+    DONE: 'green',
     // Priority
-    LOW: { tone: 'gray', label: 'Low' },
-    MEDIUM: { tone: 'amber', label: 'Medium' },
-    HIGH: { tone: 'red', label: 'High' },
+    LOW: 'gray',
+    MEDIUM: 'amber',
+    HIGH: 'red',
 };
 
 const Badge = ({ tone = 'gray', className, children }) => (
@@ -49,10 +51,13 @@ const Badge = ({ tone = 'gray', className, children }) => (
 );
 
 export const StatusBadge = ({ status, className }) => {
-    const config = STATUS_MAP[status] || { tone: 'gray', label: status || 'Unknown' };
+    const { t } = useTranslation();
+    const tone = STATUS_TONES[status] || 'gray';
+    const label = status ? t(`common.status.${status}`) : t('common.status.UNKNOWN');
+
     return (
-        <Badge tone={config.tone} className={className}>
-            {config.label}
+        <Badge tone={tone} className={className}>
+            {label}
         </Badge>
     );
 };

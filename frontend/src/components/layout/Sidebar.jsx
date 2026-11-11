@@ -2,13 +2,15 @@ import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useGetUnreadMessagesQuery } from '../../features/chat/chatApi';
 import { cn } from '../../lib/cn';
-import { NAV_ITEMS } from '../../lib/navigation';
+import { navItems } from '../../lib/navigation';
+import { useTranslation } from '../../features/locale/useTranslation';
 import Icon from '../ui/Icon';
 
 // Üst panelin altında: ağ panel, w-64. Mobil: açılıb-bağlanan, desktop (lg+): həmişə görünür
 const Sidebar = ({ open, onClose }) => {
+    const { t } = useTranslation();
     const role = useSelector((state) => state.auth.user?.role);
-    const items = NAV_ITEMS[role] || [];
+    const items = navItems(role);
     const { data: unreadData } = useGetUnreadMessagesQuery();
     const unreadMessages = unreadData?.unreadCount ?? 0;
 
@@ -29,7 +31,7 @@ const Sidebar = ({ open, onClose }) => {
                 )}
             >
                 <p className="mb-3 px-4 text-caption uppercase tracking-wider text-on-surface-variant">
-                    Workspace
+                    {t('nav.workspace')}
                 </p>
                 <nav className="flex flex-col gap-1.5">
                     {items.map((item) => (

@@ -4,17 +4,16 @@ import { useSelector } from 'react-redux';
 import { Avatar, Badge, Button, Card, CardBody, CardHeader, EmptyState, ErrorState, Icon, Skeleton } from '../components/ui';
 import AvatarModal from '../components/AvatarModal';
 import { useGetUserProfileQuery } from '../features/users/usersApi';
+import { useTranslation } from '../features/locale/useTranslation';
 import { formatDate, formatMoney } from '../lib/format';
 import { availabilityLabel, availabilityTone } from '../lib/labels';
 import { StarRating } from '../features/reviews/StarRating';
 import { formatRating, reviewCountLabel } from '../features/reviews/reviewUtils';
 
-const ROLE_LABEL = { CLIENT: 'Client', FREELANCER: 'Freelancer' };
-
 // Seçilmiş saat qurşağında indiki vaxt ("14:05")
-const localTime = (timezone) => {
+const localTime = (timezone, intlLocale) => {
     try {
-        return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date());
+        return new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date());
     } catch {
         return null;
     }
@@ -57,10 +56,11 @@ const StatRow = ({ label, value }) => (
 
 // Orta reytinq (rəylərdən törədilir). Rəy yoxdursa "No reviews yet"
 const RatingSummary = ({ avgRating, reviewCount }) => {
+    const { t } = useTranslation();
     const rating = formatRating(avgRating);
 
     if (!reviewCount || rating === null) {
-        return <p className="mt-2 text-body-md text-secondary">No reviews yet</p>;
+        return <p className="mt-2 text-body-md text-secondary">{t('reviews.noReviews')}</p>;
     }
 
     return (
@@ -73,6 +73,7 @@ const RatingSummary = ({ avgRating, reviewCount }) => {
 };
 
 const UserProfilePage = () => {
+    const { t, intlLocale } = useTranslation();
     const { id } = useParams();
     const me = useSelector((state) => state.auth.user);
     const { data, isLoading, isError, error, refetch } = useGetUserProfileQuery(id);
@@ -85,17 +86,17 @@ const UserProfilePage = () => {
             return (
                 <EmptyState
                     icon="person_off"
-                    title="User not found"
-                    description="This profile does not exist or the account has been deleted."
+                    title={t('profile.notFoundTitle')}
+                    description={t('profile.notFoundText')}
                     action={
                         <Link to="/dashboard">
-                            <Button>Back to dashboard</Button>
+                            <Button>{t('profile.backToDashboard')}</Button>
                         </Link>
                     }
                 />
             );
         }
-        return <ErrorState title="Could not load this profile" onRetry={refetch} />;
+        return <ErrorState title={t('profile.loadError')} onRetry={refetch} />;
     }
 
     const { user, stats } = data;
@@ -112,20 +113,20 @@ const UserProfilePage = () => {
                         <Avatar name={user.fullName} size="xl" />
                         <div className="min-w-0">
                             <h1 className="truncate text-headline-lg text-on-surface">{user.fullName}</h1>
-                            <Badge className="mt-2">{ROLE_LABEL[user.role]}</Badge>
+                            <Badge className="mt-2">{t(`common.roles.${user.role}`)}</Badge>
                         </div>
                     </div>
                 </Card>
                 <EmptyState
                     icon="lock"
-                    title="This profile is private"
-                    description={`${user.fullName} has chosen to keep their profile details private.`}
+                    title={t('profile.privateTitle')}
+                    description={t('profile.privateText', { name: user.fullName })}
                 />
             </div>
         );
     }
 
-    const time = user.timezone ? localTime(user.timezone) : null;
+    const time = user.timezone ? localTime(user.timezone, intlLocale) : null;
     const skills = user.skills ?? [];
 
     return (
@@ -133,14 +134,14 @@ const UserProfilePage = () => {
             {isOwner && isPrivate && (
                 <div className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-warning-soft px-4 py-3 text-body-md text-warning-ink">
                     <Icon name="lock" className="text-[18px]" />
-                    <p>Your profile is private. Other members only see your name and role.</p>
+                    <p>{t('profile.ownerPrivateNotice')}</p>
                 </div>
             )}
 
             <Card className="mb-6 p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-start gap-4">
-                        <button type="button" onClick={() => setAvatarOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label="View profile photo">
+                        <button type="button" onClick={() => setAvatarOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label={t('profile.viewPhoto')}>
                             <Avatar name={user.fullName} src={user.avatarUrl} size="xl" />
                             {user.avatarUrl && (
                                 <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
@@ -151,7 +152,7 @@ const UserProfilePage = () => {
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="break-words text-headline-lg text-on-surface">{user.fullName}</h1>
-                                <Badge>{ROLE_LABEL[user.role]}</Badge>
+                                <Badge>{t(`common.roles.${user.role}`)}</Badge>
                                 {isFreelancer && user.availability && (
                                     <Badge tone={availabilityTone(user.availability)}>{availabilityLabel(user.availability)}</Badge>
                                 )}
@@ -162,11 +163,13 @@ const UserProfilePage = () => {
                                 {user.location && <MetaItem icon="location_on">{user.location}</MetaItem>}
                                 {user.timezone && (
                                     <MetaItem icon="schedule">
-                                        {time ? `${time} local time` : user.timezone}
+                                        {time ? t('profile.localTime', { time }) : user.timezone}
                                         <span className="hidden sm:inline">({user.timezone.replaceAll('_', ' ')})</span>
                                     </MetaItem>
                                 )}
-                                <MetaItem icon="calendar_today">Member since {formatDate(user.createdAt)}</MetaItem>
+                                <MetaItem icon="calendar_today">
+                                    {t('profile.memberSince', { date: formatDate(user.createdAt) })}
+                                </MetaItem>
                             </div>
                         </div>
                     </div>
@@ -174,15 +177,18 @@ const UserProfilePage = () => {
                     <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
                         {isFreelancer && user.hourlyRate != null && (
                             <div className="sm:text-right">
-                                <p className="tabular text-headline-md text-on-surface">{formatMoney(user.hourlyRate)}/hr</p>
-                                <p className="text-caption uppercase tracking-wider text-secondary">Hourly rate</p>
+                                <p className="tabular text-headline-md text-on-surface">
+                                    {formatMoney(user.hourlyRate)}
+                                    {t('profile.perHour')}
+                                </p>
+                                <p className="text-caption uppercase tracking-wider text-secondary">{t('profile.hourlyRate')}</p>
                             </div>
                         )}
                         {isOwner && (
                             <Link to="/settings">
                                 <Button variant="secondary" size="sm">
                                     <Icon name="edit" className="text-[16px]" />
-                                    Edit profile
+                                    {t('profile.editProfile')}
                                 </Button>
                             </Link>
                         )}
@@ -193,13 +199,13 @@ const UserProfilePage = () => {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div className="flex flex-col gap-6 lg:col-span-2">
                     <Card>
-                        <CardHeader title="About" />
+                        <CardHeader title={t('profile.about')} />
                         <CardBody className="pt-0">
                             {user.bio ? (
                                 <p className="whitespace-pre-line break-words text-body-md text-on-surface">{user.bio}</p>
                             ) : (
                                 <p className="text-body-md text-secondary">
-                                    {isOwner ? 'You have not added a biography yet.' : 'No biography yet.'}
+                                    {isOwner ? t('profile.noBioOwner') : t('profile.noBio')}
                                 </p>
                             )}
                         </CardBody>
@@ -207,7 +213,7 @@ const UserProfilePage = () => {
 
                     {isFreelancer && (
                         <Card>
-                            <CardHeader title="Skills" />
+                            <CardHeader title={t('profile.skills')} />
                             <CardBody className="pt-0">
                                 {skills.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5">
@@ -222,7 +228,7 @@ const UserProfilePage = () => {
                                     </div>
                                 ) : (
                                     <p className="text-body-md text-secondary">
-                                        {isOwner ? 'You have not added any skills yet.' : 'No skills listed yet.'}
+                                        {isOwner ? t('profile.noSkillsOwner') : t('profile.noSkills')}
                                     </p>
                                 )}
                             </CardBody>
@@ -232,15 +238,19 @@ const UserProfilePage = () => {
 
                 {stats && (
                     <Card className="h-fit">
-                        <CardHeader title="Activity" />
+                        <CardHeader title={t('profile.activity')} />
                         <CardBody className="divide-y divide-line pt-0">
-                            <StatRow label="Completed contracts" value={stats.completedContracts} />
+                            <StatRow label={t('profile.completedContracts')} value={stats.completedContracts} />
                             <StatRow
-                                label="Average rating"
-                                value={formatRating(stats.avgRating) ? `${formatRating(stats.avgRating)} / 5` : '—'}
+                                label={t('profile.averageRating')}
+                                value={
+                                    formatRating(stats.avgRating)
+                                        ? t('profile.ratingValue', { rating: formatRating(stats.avgRating) })
+                                        : t('common.labels.noValue')
+                                }
                             />
-                            <StatRow label="Reviews received" value={stats.reviewCount ?? 0} />
-                            {stats.jobsPosted != null && <StatRow label="Jobs posted" value={stats.jobsPosted} />}
+                            <StatRow label={t('profile.reviewsReceived')} value={stats.reviewCount ?? 0} />
+                            {stats.jobsPosted != null && <StatRow label={t('profile.jobsPosted')} value={stats.jobsPosted} />}
                         </CardBody>
                     </Card>
                 )}
@@ -248,9 +258,9 @@ const UserProfilePage = () => {
 
             {isOwner && !user.bio && !user.headline && (
                 <p className="mt-6 text-body-md text-secondary">
-                    Tip: a headline and biography help others understand what you do.{' '}
+                    {t('profile.tip')}{' '}
                     <Link to="/settings" className="font-medium text-primary hover:underline">
-                        Complete your profile
+                        {t('profile.completeProfile')}
                     </Link>
                 </p>
             )}

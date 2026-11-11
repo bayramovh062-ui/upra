@@ -13,16 +13,16 @@ import {
     StatusBadge,
     Textarea,
 } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
 import { getErrorMessage, timeAgo } from '../../lib/format';
-import { commentSchema, issueSchema } from '../../validations/issueSchema';
-import { assigneeOptions, PRIORITY_OPTIONS } from './issueOptions';
+import { createCommentSchema, createIssueSchema } from '../../validations/issueSchema';
+import { assigneeOptions, priorityOptions } from './issueOptions';
 import { useAddCommentMutation, useDeleteIssueMutation, useUpdateIssueMutation } from './issuesApi';
 import { useUploadCommentFilesMutation } from '../attachments/attachmentsApi';
 import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
-const STATUS_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done' };
-
 const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
+    const { t } = useTranslation();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [commentFiles, setCommentFiles] = useState([]);
     const [deleteIssue, { isLoading: deleting }] = useDeleteIssueMutation();
@@ -31,7 +31,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
     const [uploadCommentFiles, { isLoading: uploadingCommentFiles }] = useUploadCommentFilesMutation();
 
     const form = useForm({
-        resolver: zodResolver(issueSchema),
+        resolver: zodResolver(createIssueSchema(t)),
         defaultValues: {
             title: issue.title,
             description: issue.description ?? '',
@@ -39,7 +39,10 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
             assigneeId: issue.assigneeId ?? issue.assignee?.id ?? '',
         },
     });
-    const commentForm = useForm({ resolver: zodResolver(commentSchema), defaultValues: { body: '' } });
+    const commentForm = useForm({
+        resolver: zodResolver(createCommentSchema(t)),
+        defaultValues: { body: '' },
+    });
 
     const onSave = async (values) => {
         try {
@@ -51,10 +54,10 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 priority: values.priority,
                 assigneeId: values.assigneeId || null,
             }).unwrap();
-            toast.success('Issue updated');
+            toast.success(t('issues.toasts.updated'));
             form.reset(values);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update the issue'));
+            toast.error(getErrorMessage(err, t('issues.toasts.updateError')));
         }
     };
 
@@ -66,24 +69,24 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 try {
                     await uploadCommentFiles({ commentId, files: commentFiles, contractId: contract.id }).unwrap();
                 } catch (uploadErr) {
-                    toast.error(getErrorMessage(uploadErr, 'Comment posted, but file upload failed'));
+                    toast.error(getErrorMessage(uploadErr, t('issues.toasts.commentUploadFailed')));
                 }
             }
             setCommentFiles([]);
             commentForm.reset({ body: '' });
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not add the comment'));
+            toast.error(getErrorMessage(err, t('issues.toasts.commentError')));
         }
     };
 
     const handleDelete = async () => {
         try {
             await deleteIssue({ id: issue.id, contractId: contract.id }).unwrap();
-            toast.success('Issue deleted');
+            toast.success(t('issues.toasts.deleted'));
             setConfirmOpen(false);
             onDeleted();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not delete the issue'));
+            toast.error(getErrorMessage(err, t('issues.toasts.deleteError')));
         }
     };
 
@@ -93,24 +96,33 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
         <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-2 text-label-sm text-secondary">
                 <StatusBadge status={issue.status} />
-                <span>{STATUS_LABEL[issue.status]}</span>
-                <span>· Created by {issue.createdBy?.fullName} {timeAgo(issue.createdAt)}</span>
+                <span>{t(`common.status.${issue.status}`)}</span>
+                <span>
+                    · {t('issues.details.createdBy', {
+                        name: issue.createdBy?.fullName,
+                        time: timeAgo(issue.createdAt),
+                    })}
+                </span>
             </div>
 
             <form onSubmit={form.handleSubmit(onSave)} noValidate className="flex flex-col gap-4">
                 <fieldset disabled={readOnly} className="flex flex-col gap-4">
-                    <Input label="Title" error={form.formState.errors.title?.message} {...form.register('title')} />
+                    <Input
+                        label={t('issues.form.title')}
+                        error={form.formState.errors.title?.message}
+                        {...form.register('title')}
+                    />
                     <Textarea
                         rows={5}
-                        placeholder="No description"
+                        placeholder={t('issues.form.descriptionPlaceholder')}
                         error={form.formState.errors.description?.message}
                         {...form.register('description')}
                     />
                     <div className="grid grid-cols-2 gap-3">
-                        <Select label="Priority" options={PRIORITY_OPTIONS} {...form.register('priority')} />
+                        <Select label={t('issues.form.priority')} options={priorityOptions()} {...form.register('priority')} />
                         <Select
-                            label="Assignee"
-                            placeholder="Unassigned"
+                            label={t('issues.form.assignee')}
+                            placeholder={t('issues.form.unassigned')}
                             options={assigneeOptions(contract)}
                             {...form.register('assigneeId')}
                         />
@@ -119,7 +131,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 {!readOnly && (
                     <div className="flex justify-end">
                         <Button type="submit" loading={saving} disabled={!form.formState.isDirty}>
-                            Save changes
+                            {t('issues.form.save')}
                         </Button>
                     </div>
                 )}
@@ -127,19 +139,28 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
 
             {!readOnly && (
                 <div className="rounded-xl border border-dashed border-line p-3">
-                    <p className="mb-2 text-label-md text-secondary">Attachments</p>
+                    <p className="mb-2 text-label-md text-secondary">{t('issues.attachments.title')}</p>
                     <AttachmentList attachments={issue.attachments} />
                     <div className="mt-2">
-                        <FilePicker purpose="ISSUE" target={{ issueId: issue.id }} contractId={contract.id} label="Upload issue files" />
+                        <FilePicker
+                            purpose="ISSUE"
+                            target={{ issueId: issue.id }}
+                            contractId={contract.id}
+                            label={t('issues.attachments.upload')}
+                        />
                     </div>
                 </div>
             )}
             {readOnly && <AttachmentList attachments={issue.attachments} />}
 
             <div>
-                <h3 className="mb-3 text-title-md text-on-surface">Comments ({comments.length})</h3>
+                <h3 className="mb-3 text-title-md text-on-surface">
+                    {t('issues.comments.title', { count: comments.length })}
+                </h3>
                 <div className="flex flex-col gap-3">
-                    {comments.length === 0 && <p className="text-body-md text-secondary">No comments yet.</p>}
+                    {comments.length === 0 && (
+                        <p className="text-body-md text-secondary">{t('issues.comments.empty')}</p>
+                    )}
                     {comments.map((c) => (
                         <div key={c.id} className="flex gap-3">
                             <Avatar name={c.author?.fullName} size="sm" />
@@ -161,7 +182,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                     <form onSubmit={commentForm.handleSubmit(onComment)} noValidate className="mt-4 flex flex-col gap-2">
                         <Textarea
                             rows={3}
-                            placeholder="Write a comment..."
+                            placeholder={t('issues.comments.placeholder')}
                             error={commentForm.formState.errors.body?.message}
                             {...commentForm.register('body')}
                         />
@@ -172,12 +193,12 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                             files={commentFiles}
                             onFilesChange={setCommentFiles}
                             showUploadButton={false}
-                            label="Attach to comment"
+                            label={t('issues.comments.attach')}
                             compact
                         />
                         <div className="flex items-center justify-end gap-2">
                             <Button type="submit" size="sm" loading={commenting || uploadingCommentFiles}>
-                                Comment
+                                {t('issues.comments.submit')}
                             </Button>
                         </div>
                     </form>
@@ -192,7 +213,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                         onClick={() => setConfirmOpen(true)}
                     >
                         <Icon name="delete_outline" className="text-[18px]" />
-                        Delete issue
+                        {t('issues.delete.button')}
                     </Button>
                 </div>
             )}
@@ -203,21 +224,24 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 onConfirm={handleDelete}
                 loading={deleting}
                 variant="danger"
-                title="Delete this issue?"
-                message="The issue and its comments will be removed for both sides. This cannot be undone."
-                confirmText="Delete"
+                title={t('issues.delete.title')}
+                message={t('issues.delete.message')}
+                confirmText={t('issues.delete.confirm')}
             />
         </div>
     );
 };
 
 // issue: siyahıdan canlı götürülür; yenilənəndə key ilə forma sıfırlanır
-const IssueDrawer = ({ issue, contract, readOnly, onClose }) => (
-    <Drawer open={!!issue} onClose={onClose} title="Issue details">
-        {issue && (
-            <IssueDetails key={issue.id} issue={issue} contract={contract} readOnly={readOnly} onDeleted={onClose} />
-        )}
-    </Drawer>
-);
+const IssueDrawer = ({ issue, contract, readOnly, onClose }) => {
+    const { t } = useTranslation();
+    return (
+        <Drawer open={!!issue} onClose={onClose} title={t('issues.details.title')}>
+            {issue && (
+                <IssueDetails key={issue.id} issue={issue} contract={contract} readOnly={readOnly} onDeleted={onClose} />
+            )}
+        </Drawer>
+    );
+};
 
 export default IssueDrawer;

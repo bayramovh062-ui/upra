@@ -1,25 +1,17 @@
 // Rəy üçün sabitlər və təmiz köməkçilər (backend: reviewValidator.js ilə eyni qaydalar).
-export const MAX_COMMENT_LENGTH = 1000;
+import { formatNumber, translate } from '../../i18n/index.js';
 
-export const RATING_LABELS = {
-    1: 'Poor',
-    2: 'Fair',
-    3: 'Good',
-    4: 'Very good',
-    5: 'Excellent',
-};
+export const MAX_COMMENT_LENGTH = 1000;
 
 // Backend orta reytinqi 2 onluqla qaytarır (4.67). Ekranda 1 onluq göstərilir (4.7). Rəy yoxdursa null.
 export const formatRating = (avgRating) => {
     if (avgRating === null || avgRating === undefined || avgRating === '') return null;
     const num = Number(avgRating);
-    return Number.isFinite(num) ? num.toFixed(1) : null;
+    if (!Number.isFinite(num)) return null;
+    return formatNumber(num, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
 
-export const reviewCountLabel = (count) => {
-    const n = Number(count) || 0;
-    return `${n} ${n === 1 ? 'review' : 'reviews'}`;
-};
+export const reviewCountLabel = (count) => translate('reviews.count', { count: Number(count) || 0 });
 
 // Göndər düyməsi: 1..5 tam ədəd və şərh limiti keçilməyib
 export const isReviewSubmittable = (rating, comment = '') =>

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, Card, ConfirmDialog, EmptyState, Icon, Modal, Textarea } from '../../components/ui';
-import { DEMO_MONEY_NOTE } from '../../lib/demo';
 import { formatCents, formatDate, getErrorMessage } from '../../lib/format';
+import { useTranslation } from '../locale/useTranslation';
 import TopUpModal from '../wallet/TopUpModal';
 import { useGetWalletQuery } from '../wallet/walletApi';
 import {
@@ -20,6 +20,12 @@ import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents'
 const AUTO_APPROVE_DAYS = 7; // backend: AUTO_APPROVE_DAYS
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const RESOLUTION_KEYS = {
+    RELEASE: 'escrow.dispute.resolutions.RELEASE',
+    REFUND: 'escrow.dispute.resolutions.REFUND',
+    SPLIT: 'escrow.dispute.resolutions.SPLIT',
+};
+
 const SummaryCard = ({ label, value, hint }) => (
     <Card className="p-4">
         <p className="text-caption uppercase tracking-wider text-secondary">{label}</p>
@@ -29,53 +35,60 @@ const SummaryCard = ({ label, value, hint }) => (
 );
 
 // type: 'fund' | 'submit' | 'approve' | 'changes'. Hər biri üçün təsdiq pəncərəsinin mətni
-const buildDialog = (type, m) => {
+const buildDialog = (type, m, t) => {
     const amount = formatCents(m.amountCents);
     const fee = formatCents(calcCommissionCents(m.amountCents));
 
     return {
         fund: {
-            title: 'Fund this milestone?',
-            confirmText: 'Fund milestone',
+            title: t('escrow.dialog.fund.title'),
+            confirmText: t('escrow.dialog.fund.confirm'),
             variant: 'primary',
-            message: `${amount} moves from your wallet into escrow. The freelancer is paid only after you approve the work. ${DEMO_MONEY_NOTE}`,
+            message: t('escrow.dialog.fund.message', { amount, note: t('common.demo.moneyNote') }),
         },
         submit: {
-            title: 'Submit this milestone?',
-            confirmText: 'Submit for review',
+            title: t('escrow.dialog.submit.title'),
+            confirmText: t('escrow.dialog.submit.confirm'),
             variant: 'primary',
-            message: `The client will review it. If they do not respond, it is approved automatically after ${AUTO_APPROVE_DAYS} days.`,
+            message: t('escrow.dialog.submit.message', { days: AUTO_APPROVE_DAYS }),
         },
         approve: {
-            title: 'Approve and pay?',
-            confirmText: 'Approve & pay',
+            title: t('escrow.dialog.approve.title'),
+            confirmText: t('escrow.dialog.approve.confirm'),
             variant: 'primary',
-            message: `${amount} is released from escrow to the freelancer. A 10% platform fee (${fee}) is taken from the freelancer's payout. This cannot be undone. ${DEMO_MONEY_NOTE}`,
+            message: t('escrow.dialog.approve.message', { amount, fee, note: t('common.demo.moneyNote') }),
         },
         changes: {
-            title: 'Request changes?',
-            confirmText: 'Request changes',
+            title: t('escrow.dialog.changes.title'),
+            confirmText: t('escrow.dialog.changes.confirm'),
             variant: 'secondary',
-            message: `The milestone goes back to the freelancer. The money stays in escrow. Revisions used: ${m.revisionCount}/${m.maxRevisions}.`,
+            message: t('escrow.dialog.changes.message', {
+                used: m.revisionCount,
+                max: m.maxRevisions,
+            }),
         },
     }[type];
 };
 
 const SubmissionHistory = ({ submissions }) => {
+    const { t } = useTranslation();
     if (!submissions?.length) return null;
 
     return (
         <details className="rounded-lg border border-line bg-surface-container-lowest px-3 py-2">
             <summary className="cursor-pointer text-label-md text-secondary">
-                Submission history ({submissions.length})
+                {t('escrow.submission.title', { count: submissions.length })}
             </summary>
             <ul className="mt-2 flex flex-col gap-2">
                 {submissions.map((s) => (
                     <li key={s.id} className="text-caption text-secondary">
                         <span className="font-semibold text-on-surface">
-                            {s.type === 'SUBMITTED' ? 'Submitted' : 'Changes requested'}
+                            {s.type === 'SUBMITTED'
+                                ? t('escrow.submission.submitted')
+                                : t('escrow.submission.changes')}
                         </span>{' '}
-                        · revision {s.revisionNumber} · {s.actor?.fullName || 'Unknown'} · {formatDate(s.createdAt)}
+                        · {t('escrow.submission.revision', { number: s.revisionNumber })} ·{' '}
+                        {s.actor?.fullName || t('escrow.submission.unknown')} · {formatDate(s.createdAt)}
                         {s.note && <p className="mt-0.5 break-words text-on-surface-variant">{s.note}</p>}
                         <AttachmentList attachments={s.attachments} compact />
                     </li>
@@ -86,32 +99,50 @@ const SubmissionHistory = ({ submissions }) => {
 };
 
 const DisputeBox = ({ dispute, contractId, canUpload }) => {
+    const { t } = useTranslation();
     const isOpen = dispute.status === 'OPEN';
+    const resolutionKey = RESOLUTION_KEYS[dispute.resolution];
+    const resolutionLabel = resolutionKey ? t(resolutionKey) : dispute.resolution;
 
     return (
         <div className={`rounded-lg px-3 py-2 text-label-md ${isOpen ? 'bg-danger-soft text-danger-ink' : 'bg-surface-container text-on-surface-variant'}`}>
             <p className="flex items-center gap-1.5 font-semibold">
                 <Icon name={isOpen ? 'report_problem' : 'task_alt'} className="text-[16px]" />
-                {isOpen ? 'Dispute open — escrow is frozen' : `Dispute resolved: ${dispute.resolution}`}
+                {isOpen
+                    ? t('escrow.dispute.open')
+                    : t('escrow.dispute.resolved', { resolution: resolutionLabel })}
             </p>
-            <p className="mt-0.5 break-words">Reason: {dispute.reason}</p>
-            {dispute.details && <p className="mt-0.5 break-words">Details: {dispute.details}</p>}
+            <p className="mt-0.5 break-words">{t('escrow.dispute.reason', { reason: dispute.reason })}</p>
+            {dispute.details && (
+                <p className="mt-0.5 break-words">{t('escrow.dispute.details', { details: dispute.details })}</p>
+            )}
             {dispute.openedBy && (
                 <p className="mt-0.5">
-                    Opened by {dispute.openedBy.fullName} on {formatDate(dispute.openedAt)}
+                    {t('escrow.dispute.openedBy', {
+                        name: dispute.openedBy.fullName,
+                        date: formatDate(dispute.openedAt),
+                    })}
                 </p>
             )}
             {!isOpen && (
                 <p className="mt-0.5">
-                    {formatCents(dispute.releaseToFreelancerCents)} released ·{' '}
-                    {formatCents(dispute.refundToClientCents)} refunded
+                    {t('escrow.dispute.released', {
+                        amount: formatCents(dispute.releaseToFreelancerCents),
+                    })}{' '}
+                    ·{' '}
+                    {t('escrow.dispute.refunded', { amount: formatCents(dispute.refundToClientCents) })}
                     {dispute.adminNote ? ` · ${dispute.adminNote}` : ''}
                 </p>
             )}
             <AttachmentList attachments={dispute.attachments} compact />
             {isOpen && canUpload && (
                 <div className="mt-2">
-                    <FilePicker purpose="DISPUTE_EVIDENCE" target={{ disputeId: dispute.id }} contractId={contractId} label="Upload evidence" />
+                    <FilePicker
+                        purpose="DISPUTE_EVIDENCE"
+                        target={{ disputeId: dispute.id }}
+                        contractId={contractId}
+                        label={t('escrow.dispute.upload')}
+                    />
                 </div>
             )}
         </div>
@@ -119,6 +150,7 @@ const DisputeBox = ({ dispute, contractId, canUpload }) => {
 };
 
 const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
+    const { t } = useTranslation();
     const milestones = contract.milestones ?? [];
     const open = contract.status === 'ACTIVE' || contract.status === 'DELIVERED';
     const summary = summarizeMilestones(milestones, isFreelancer);
@@ -158,10 +190,10 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
     const [openDispute, { isLoading: openingDispute }] = useOpenMilestoneDisputeMutation();
 
     const RUN = {
-        fund: { run: fundMilestone, success: 'Milestone funded' },
-        submit: { run: submitMilestone, success: 'Milestone submitted for review' },
-        approve: { run: approveMilestone, success: 'Milestone approved and paid' },
-        changes: { run: requestChanges, success: 'Changes requested' },
+        fund: { run: fundMilestone, success: t('escrow.toasts.funded') },
+        submit: { run: submitMilestone, success: t('escrow.toasts.submitted') },
+        approve: { run: approveMilestone, success: t('escrow.toasts.approved') },
+        changes: { run: requestChanges, success: t('escrow.toasts.changes') },
     };
 
     // Backend qaydası: əvvəlki bütün mərhələlər PAID olmalıdır
@@ -171,7 +203,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
     const startFund = (m) => {
         // Balans məlumdursa və çatmırsa, əvvəl pul əlavə etməyə yönləndiririk
         if (available !== undefined && available < m.amountCents) {
-            toast('Your wallet balance is too low. Add demo funds first.', { icon: '💳' });
+            toast(t('escrow.toasts.lowBalance'), { icon: '💳' });
             setTopUpOpen(true);
             return;
         }
@@ -185,7 +217,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
             toast.success(RUN[type].success);
             setPending(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Action failed'));
+            toast.error(getErrorMessage(err, t('escrow.toasts.actionFailed')));
             setPending(null);
         }
     };
@@ -204,41 +236,49 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                 reason: disputeReason.trim(),
                 details: disputeDetails.trim() || undefined,
             }).unwrap();
-            toast.success('Dispute opened. An admin will review it.');
+            toast.success(t('escrow.toasts.disputeOpened'));
             closeDisputeModal();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not open the dispute'));
+            toast.error(getErrorMessage(err, t('escrow.toasts.disputeError')));
         }
     };
 
-    const dialog = pending ? buildDialog(pending.type, pending.milestone) : null;
+    const dialog = pending ? buildDialog(pending.type, pending.milestone, t) : null;
 
     return (
         <>
             <p className="mb-4 flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
                 <Icon name="science" className="text-[18px]" />
-                Demo: all money here is simulated (USD). No real payments are made.
+                {t('escrow.demoNotice')}
             </p>
 
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <SummaryCard label="Locked in escrow" value={formatCents(summary.lockedCents)} hint="Funded, not paid yet" />
                 <SummaryCard
-                    label={isFreelancer ? 'Earned' : 'Released'}
-                    value={formatCents(summary.releasedCents)}
-                    hint={isFreelancer ? 'After the 10% platform fee' : 'Paid to the freelancer'}
+                    label={t('escrow.summary.locked')}
+                    value={formatCents(summary.lockedCents)}
+                    hint={t('escrow.summary.lockedHint')}
                 />
-                <SummaryCard label="Not yet funded" value={formatCents(summary.unfundedCents)} hint="Waiting for the client" />
+                <SummaryCard
+                    label={isFreelancer ? t('escrow.summary.earned') : t('escrow.summary.released')}
+                    value={formatCents(summary.releasedCents)}
+                    hint={isFreelancer ? t('escrow.summary.earnedHint') : t('escrow.summary.releasedHint')}
+                />
+                <SummaryCard
+                    label={t('escrow.summary.unfunded')}
+                    value={formatCents(summary.unfundedCents)}
+                    hint={t('escrow.summary.unfundedHint')}
+                />
             </div>
 
             {isClient && (
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface-container-lowest px-4 py-3">
                     <p className="text-body-md text-on-surface">
-                        Wallet balance:{' '}
+                        {t('escrow.walletBalance')}{' '}
                         <span className="tabular font-semibold">{available === undefined ? '…' : formatCents(available)}</span>
                     </p>
                     <Button variant="secondary" size="sm" onClick={() => setTopUpOpen(true)}>
                         <Icon name="add_card" className="text-[16px]" />
-                        Add demo funds
+                        {t('escrow.addFunds')}
                     </Button>
                 </div>
             )}
@@ -246,15 +286,19 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
             <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-headline-sm text-on-surface">
                     <Icon name="account_balance" className="text-[22px] text-primary-container" />
-                    Milestones
+                    {t('escrow.milestonesTitle')}
                     <span className="text-label-md font-normal text-secondary">
-                        {summary.paid} / {summary.total} paid
+                        {t('escrow.paidCount', { paid: summary.paid, total: summary.total })}
                     </span>
                 </h2>
             </div>
 
             {milestones.length === 0 ? (
-                <EmptyState icon="flag" title="No milestones" description="This contract has no milestone plan." />
+                <EmptyState
+                    icon="flag"
+                    title={t('escrow.empty.title')}
+                    description={t('escrow.empty.text')}
+                />
             ) : (
                 <div className="flex flex-col gap-3">
                     {milestones.map((m) => {
@@ -274,12 +318,15 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="text-caption uppercase tracking-wider text-secondary">
-                                            Milestone {m.sequence}
+                                            {t('escrow.milestone.number', { number: m.sequence })}
                                         </p>
                                         <h3 className="break-words text-title-md text-on-surface">{m.title}</h3>
                                         <p className="mt-0.5 text-caption text-secondary">
-                                            Revisions: {m.revisionCount}/{m.maxRevisions}
-                                            {limitReached && ' · limit reached'}
+                                            {t('escrow.milestone.revisions', {
+                                                used: m.revisionCount,
+                                                max: m.maxRevisions,
+                                            })}
+                                            {limitReached && t('escrow.milestone.limitReached')}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -291,16 +338,21 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                 </div>
 
                                 <p className="text-caption text-secondary">
-                                    {m.dueDate && `Due ${formatDate(m.dueDate)}`}
-                                    {m.fundedAt && `${m.dueDate ? ' · ' : ''}Funded ${formatDate(m.fundedAt)}`}
-                                    {m.submittedAt && m.status === 'IN_REVIEW' && ` · Submitted ${formatDate(m.submittedAt)}`}
-                                    {m.disputedAt && ` · Disputed ${formatDate(m.disputedAt)}`}
-                                    {m.paidAt && ` · Paid ${formatDate(m.paidAt)}`}
+                                    {m.dueDate && t('escrow.milestone.due', { date: formatDate(m.dueDate) })}
+                                    {m.fundedAt &&
+                                        `${m.dueDate ? ' · ' : ''}${t('escrow.milestone.funded', { date: formatDate(m.fundedAt) })}`}
+                                    {m.submittedAt &&
+                                        m.status === 'IN_REVIEW' &&
+                                        ` · ${t('escrow.milestone.submitted', { date: formatDate(m.submittedAt) })}`}
+                                    {m.disputedAt &&
+                                        ` · ${t('escrow.milestone.disputed', { date: formatDate(m.disputedAt) })}`}
+                                    {m.paidAt &&
+                                        ` · ${t('escrow.milestone.paid', { date: formatDate(m.paidAt) })}`}
                                 </p>
 
                                 {autoDate && (
                                     <p className="text-caption text-secondary">
-                                        Approved automatically on {formatDate(autoDate)} if the client does not respond.
+                                        {t('escrow.autoApprove', { date: formatDate(autoDate) })}
                                     </p>
                                 )}
 
@@ -314,25 +366,35 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                     <p className="text-label-md text-success-ink">
                                         {m.resolvedReleaseCents != null && m.resolvedReleaseCents !== m.amountCents ? (
                                             <>
-                                                Dispute split: {formatCents(m.resolvedReleaseCents)} released
+                                                {t('escrow.paid.split', {
+                                                    amount: formatCents(m.resolvedReleaseCents),
+                                                })}
                                                 {isFreelancer
-                                                    ? ` (you received ${formatCents(m.resolvedReleaseCents - fee)}, platform fee ${formatCents(fee)})`
+                                                    ? t('escrow.paid.freelancerSplit', {
+                                                          net: formatCents(m.resolvedReleaseCents - fee),
+                                                          fee: formatCents(fee),
+                                                      })
                                                     : ''}
-                                                {m.resolvedRefundCents > 0 && ` · ${formatCents(m.resolvedRefundCents)} refunded to the client`}
+                                                {m.resolvedRefundCents > 0 &&
+                                                    t('escrow.paid.refunded', {
+                                                        amount: formatCents(m.resolvedRefundCents),
+                                                    })}
                                             </>
                                         ) : isFreelancer ? (
-                                            `You received ${formatCents((m.resolvedReleaseCents ?? m.amountCents) - fee)} (platform fee ${formatCents(fee)}).`
+                                            t('escrow.paid.freelancer', {
+                                                net: formatCents((m.resolvedReleaseCents ?? m.amountCents) - fee),
+                                                fee: formatCents(fee),
+                                            })
                                         ) : (
-                                            `Paid ${formatCents(m.resolvedReleaseCents ?? m.amountCents)} to the freelancer.`
+                                            t('escrow.paid.client', {
+                                                amount: formatCents(m.resolvedReleaseCents ?? m.amountCents),
+                                            })
                                         )}
                                     </p>
                                 )}
 
                                 {m.status === 'DISPUTED' && (
-                                    <p className="text-caption text-secondary">
-                                        Submit, approve and request-changes are blocked. An admin resolves the dispute.
-                                        Automatic approval is disabled.
-                                    </p>
+                                    <p className="text-caption text-secondary">{t('escrow.disputedNote')}</p>
                                 )}
 
                                 {open && (
@@ -341,11 +403,11 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                             (canFund(m) ? (
                                                 <Button size="sm" onClick={() => startFund(m)}>
                                                     <Icon name="lock" className="text-[16px]" />
-                                                    Fund milestone
+                                                    {t('escrow.actions.fund')}
                                                 </Button>
                                             ) : (
                                                 <span className="text-caption text-secondary">
-                                                    Pay the earlier milestones first.
+                                                    {t('escrow.waiting.payEarlier')}
                                                 </span>
                                             ))}
 
@@ -353,11 +415,11 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                             <>
                                                 <Button size="sm" onClick={() => setPending({ type: 'approve', milestone: m })}>
                                                     <Icon name="task_alt" className="text-[16px]" />
-                                                    Approve &amp; pay
+                                                    {t('escrow.actions.approve')}
                                                 </Button>
                                                 {limitReached ? (
                                                     <span className="text-caption text-warning-ink">
-                                                        Revision limit reached. Approve the work or open a dispute.
+                                                        {t('escrow.waiting.revisionLimit')}
                                                     </span>
                                                 ) : (
                                                     <Button
@@ -365,7 +427,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                                         variant="secondary"
                                                         onClick={() => setPending({ type: 'changes', milestone: m })}
                                                     >
-                                                        Request changes
+                                                        {t('escrow.actions.changes')}
                                                     </Button>
                                                 )}
                                             </>
@@ -376,10 +438,15 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                                 {m.status === 'FUNDED' && (
                                                     <Button size="sm" className="w-fit" onClick={() => setPending({ type: 'submit', milestone: m })}>
                                                         <Icon name="outbox" className="text-[16px]" />
-                                                        Submit milestone
+                                                        {t('escrow.actions.submit')}
                                                     </Button>
                                                 )}
-                                                <FilePicker purpose="MILESTONE_SUBMIT" target={{ milestoneId: m.id }} contractId={contract.id} label="Upload delivery files" />
+                                                <FilePicker
+                                                    purpose="MILESTONE_SUBMIT"
+                                                    target={{ milestoneId: m.id }}
+                                                    contractId={contract.id}
+                                                    label={t('escrow.files.delivery')}
+                                                />
                                             </div>
                                         )}
 
@@ -393,29 +460,33 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                                     onClick={() => setDisputeFor(m)}
                                                 >
                                                     <Icon name="report_problem" className="text-[16px]" />
-                                                    Open dispute
+                                                    {t('escrow.actions.openDispute')}
                                                 </Button>
                                             )}
 
                                         {isFreelancer && m.status === 'PENDING' && (
                                             <span className="text-caption text-secondary">
-                                                Waiting for the client to fund this milestone.
+                                                {t('escrow.waiting.clientFund')}
                                             </span>
                                         )}
                                         {isClient && m.status === 'FUNDED' && (
                                             <span className="text-caption text-secondary">
-                                                Funded. Waiting for the freelancer to submit.
+                                                {t('escrow.waiting.freelancerSubmit')}
                                             </span>
                                         )}
                                         {isFreelancer && m.status === 'IN_REVIEW' && (
-                                            <span className="text-caption text-secondary">Waiting for the client to review.</span>
+                                            <span className="text-caption text-secondary">
+                                                {t('escrow.waiting.clientReview')}
+                                            </span>
                                         )}
                                     </div>
                                 )}
 
                                 {(filesByMilestone[m.id]?.length > 0) && (
                                     <div>
-                                        <p className="text-caption font-semibold text-secondary">Delivery files</p>
+                                        <p className="text-caption font-semibold text-secondary">
+                                            {t('escrow.files.delivery')}
+                                        </p>
                                         <AttachmentList attachments={filesByMilestone[m.id]} compact />
                                     </div>
                                 )}
@@ -441,11 +512,11 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
             <Modal
                 open={!!disputeFor}
                 onClose={closeDisputeModal}
-                title="Open a dispute"
+                title={t('escrow.modals.disputeTitle')}
                 footer={
                     <>
                         <Button variant="secondary" onClick={closeDisputeModal} disabled={openingDispute}>
-                            Cancel
+                            {t('common.actions.cancel')}
                         </Button>
                         <Button
                             variant="danger"
@@ -453,26 +524,23 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                             loading={openingDispute}
                             disabled={disputeReason.trim().length < 5}
                         >
-                            Open dispute
+                            {t('escrow.actions.openDispute')}
                         </Button>
                     </>
                 }
             >
-                <p className="mb-3 text-body-md text-secondary">
-                    The milestone becomes disputed and the escrowed money is frozen. Submit, approve and automatic
-                    approval stop until an admin resolves it.
-                </p>
+                <p className="mb-3 text-body-md text-secondary">{t('escrow.modals.disputeIntro')}</p>
                 <Textarea
-                    label="Reason"
+                    label={t('escrow.modals.reasonLabel')}
                     rows={2}
                     maxLength={500}
                     value={disputeReason}
                     onChange={(e) => setDisputeReason(e.target.value)}
-                    hint="At least 5 characters."
+                    hint={t('escrow.modals.reasonHint')}
                 />
                 <Textarea
                     className="mt-3"
-                    label="Details (optional)"
+                    label={t('escrow.modals.detailsLabel')}
                     rows={4}
                     maxLength={2000}
                     value={disputeDetails}

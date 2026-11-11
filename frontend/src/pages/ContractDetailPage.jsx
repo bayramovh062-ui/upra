@@ -44,11 +44,12 @@ import { canRespondToOffer, isPendingOffer } from '../features/contracts/contrac
 import { useOpenConversationMutation } from '../features/chat/chatApi';
 import ContractReviews from '../features/reviews/ContractReviews';
 import ReviewModal from '../features/reviews/ReviewModal';
+import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
-import { DEMO_MONEY_NOTE } from '../lib/demo';
 import { formatCents, formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const ContractDetailPage = () => {
+    const { t } = useTranslation();
     const { id } = useParams();
     const user = useSelector((state) => state.auth.user);
     const navigate = useNavigate();
@@ -106,17 +107,17 @@ const ContractDetailPage = () => {
             return (
                 <EmptyState
                     icon="lock"
-                    title="Contract not available"
-                    description="It does not exist or you are not a party to it."
+                    title={t('contracts.detail.unavailableTitle')}
+                    description={t('contracts.detail.unavailableText')}
                     action={
                         <Link to="/contracts">
-                            <Button>Back to contracts</Button>
+                            <Button>{t('contracts.detail.backToContracts')}</Button>
                         </Link>
                     }
                 />
             );
         }
-        return <ErrorState title="Could not load this contract" onRetry={refetch} />;
+        return <ErrorState title={t('contracts.detail.loadError')} onRetry={refetch} />;
     }
 
     const { contract } = data;
@@ -133,7 +134,7 @@ const ContractDetailPage = () => {
     const pendingCancel = open && !!contract.cancelRequestedById;
     const iRequestedCancel = pendingCancel && contract.cancelRequestedById === user?.id;
     const unfinishedText =
-        unfinished > 0 ? `${unfinished} issue${unfinished === 1 ? ' is' : 's are'} not Done yet. ` : '';
+        unfinished > 0 ? t('contracts.confirm.complete.unfinished', { count: unfinished }) : '';
 
     // Escrow: mərhələlərdən hesablanır (ayrıca saxlanılmır)
     const milestones = contract.milestones ?? [];
@@ -157,42 +158,55 @@ const ContractDetailPage = () => {
     const openDisputes = (historyQ.data?.disputes ?? []).filter((d) => d.status === 'OPEN');
     // Şikayət hədəfi: bu müqavilə, qarşı tərəf və ya orijinal iş
     const reportTargets = [
-        { key: 'CONTRACT', label: 'This contract', id: contract.id },
-        ...(other?.id ? [{ key: 'USER', label: `${other.fullName} (the other party)`, id: other.id }] : []),
-        ...(contract.jobPostId ? [{ key: 'JOB', label: 'The original job post', id: contract.jobPostId }] : []),
+        { key: 'CONTRACT', label: t('contracts.report.targetContract'), id: contract.id },
+        ...(other?.id
+            ? [{ key: 'USER', label: t('contracts.report.targetUser', { name: other.fullName }), id: other.id }]
+            : []),
+        ...(contract.jobPostId
+            ? [{ key: 'JOB', label: t('contracts.report.targetJob'), id: contract.jobPostId }]
+            : []),
     ];
-    const reportTargetId = reportTargets.find((t) => t.key === reportTarget)?.id;
+    const reportTargetId = reportTargets.find((item) => item.key === reportTarget)?.id;
     const refundText =
-        lockedCents > 0 ? ` ${formatCents(lockedCents)} held in escrow is refunded to the client's wallet.` : '';
+        lockedCents > 0
+            ? ` ${t('contracts.confirm.refund', { amount: formatCents(lockedCents) })}`
+            : '';
     // Backend: bütün mərhələlər PAID olmayana qədər müqaviləni bitirmək olmur
     const completeBlocked = !allPaid;
     // Aktiv mərhələlər: frilanser FUNDED-i təhvil verir, client IN_REVIEW-u təsdiqləyir və ya geri qaytarır
     const fundedMilestone = milestones.find((m) => m.status === 'FUNDED');
     const reviewMilestone = milestones.find((m) => m.status === 'IN_REVIEW');
     const MS_ACTIONS = {
-        submit: { run: submitMilestone, success: 'Milestone submitted for review' },
-        approve: { run: approveMilestone, success: 'Milestone approved and paid' },
-        changes: { run: requestChanges, success: 'Changes requested' },
+        submit: { run: submitMilestone, success: t('contracts.toasts.submitted') },
+        approve: { run: approveMilestone, success: t('contracts.toasts.approved') },
+        changes: { run: requestChanges, success: t('contracts.toasts.changes') },
     };
     const msDialog = msAction
         ? {
               submit: {
-                  title: 'Submit for review?',
-                  confirmText: 'Submit for review',
+                  title: t('escrow.dialog.submit.title'),
+                  confirmText: t('escrow.dialog.submit.confirm'),
                   variant: 'primary',
-                  message: 'The client will review this milestone. If they do not respond, it is approved automatically after 7 days.',
+                  message: t('escrow.dialog.submit.message', { days: 7 }),
               },
               approve: {
-                  title: 'Approve and pay?',
-                  confirmText: 'Approve & pay',
+                  title: t('escrow.dialog.approve.title'),
+                  confirmText: t('escrow.dialog.approve.confirm'),
                   variant: 'primary',
-                  message: `${formatCents(msAction.milestone.amountCents)} is released to the freelancer. A 10% platform fee (${formatCents(calcCommissionCents(msAction.milestone.amountCents))}) is taken from the freelancer's payout. This cannot be undone. ${DEMO_MONEY_NOTE}`,
+                  message: t('escrow.dialog.approve.message', {
+                      amount: formatCents(msAction.milestone.amountCents),
+                      fee: formatCents(calcCommissionCents(msAction.milestone.amountCents)),
+                      note: t('common.demo.moneyNote'),
+                  }),
               },
               changes: {
-                  title: 'Request changes?',
-                  confirmText: 'Request changes',
+                  title: t('escrow.dialog.changes.title'),
+                  confirmText: t('escrow.dialog.changes.confirm'),
                   variant: 'secondary',
-                  message: 'The milestone goes back to the freelancer. The money stays in escrow.',
+                  message: t('escrow.dialog.changes.message', {
+                      used: msAction.milestone.revisionCount,
+                      max: msAction.milestone.maxRevisions,
+                  }),
               },
           }[msAction.type]
         : null;
@@ -203,7 +217,7 @@ const ContractDetailPage = () => {
             await MS_ACTIONS[type].run({ id: milestone.id, contractId: contract.id }).unwrap();
             toast.success(MS_ACTIONS[type].success);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Action failed'));
+            toast.error(getErrorMessage(err, t('contracts.toasts.actionFailed')));
         } finally {
             setMsAction(null);
         }
@@ -213,59 +227,61 @@ const ContractDetailPage = () => {
     const ACTIONS = {
         complete: {
             run: completeContract,
-            success: 'Contract completed',
-            title: 'Mark contract as completed?',
-            confirmText: 'Complete',
+            success: t('contracts.toasts.completed'),
+            title: t('contracts.confirm.complete.title'),
+            confirmText: t('contracts.confirm.complete.confirm'),
             variant: 'primary',
-            message: `${unfinishedText}All milestones are paid. The contract and its job will be marked as completed. This cannot be undone.`,
+            message: t('contracts.confirm.complete.message', { prefix: unfinishedText }),
         },
         cancel: {
             run: cancelContract,
-            success: 'Contract cancelled',
-            title: 'Cancel this contract?',
-            confirmText: 'Cancel contract',
+            success: t('contracts.toasts.cancelled'),
+            title: t('contracts.confirm.cancel.title'),
+            confirmText: t('contracts.confirm.cancel.confirm'),
             variant: 'danger',
-            message: `Work has not started yet, so you can cancel right away. The contract and its job will be cancelled.${refundText} This cannot be undone.`,
+            message: t('contracts.confirm.cancel.message', { refund: refundText }),
         },
         acceptCancel: {
             run: acceptCancellation,
-            success: 'Contract cancelled',
-            title: 'Agree to cancel this contract?',
-            confirmText: 'Agree and cancel',
+            success: t('contracts.toasts.cancelled'),
+            title: t('contracts.confirm.acceptCancel.title'),
+            confirmText: t('contracts.confirm.acceptCancel.confirm'),
             variant: 'danger',
-            message: `The contract and its job will be cancelled.${refundText} Milestones that are already paid stay paid. This cannot be undone.`,
+            message: t('contracts.confirm.acceptCancel.message', { refund: refundText }),
         },
         declineCancel: {
             run: declineCancellation,
-            success: 'Cancellation request declined, the contract continues',
-            title: 'Decline the cancellation request?',
-            confirmText: 'Decline',
+            success: t('contracts.toasts.cancelDeclined'),
+            title: t('contracts.confirm.declineCancel.title'),
+            confirmText: t('contracts.confirm.declineCancel.confirm'),
             variant: 'primary',
-            message: 'The contract stays open and work continues.',
+            message: t('contracts.confirm.declineCancel.message'),
         },
         withdrawCancel: {
             run: withdrawCancellation,
-            success: 'Cancellation request withdrawn',
-            title: 'Withdraw your cancellation request?',
-            confirmText: 'Withdraw request',
+            success: t('contracts.toasts.cancelWithdrawn'),
+            title: t('contracts.confirm.withdrawCancel.title'),
+            confirmText: t('contracts.confirm.withdrawCancel.confirm'),
             variant: 'primary',
-            message: 'The contract stays open and work continues.',
+            message: t('contracts.confirm.withdrawCancel.message'),
         },
         acceptOffer: {
             run: acceptContract,
-            success: 'Offer accepted, the contract is active',
-            title: 'Accept this contract offer?',
-            confirmText: 'Accept offer',
+            success: t('contracts.toasts.offerAccepted'),
+            title: t('contracts.confirm.acceptOffer.title'),
+            confirmText: t('contracts.confirm.acceptOffer.confirm'),
             variant: 'primary',
-            message: `The contract becomes active for ${formatMoney(contract.proposal?.bidAmount)} and you can start working. The other proposals for this job will be rejected.`,
+            message: t('contracts.confirm.acceptOffer.message', {
+                amount: formatMoney(contract.proposal?.bidAmount),
+            }),
         },
         declineOffer: {
             run: declineContract,
-            success: 'Offer declined',
-            title: 'Decline this contract offer?',
-            confirmText: 'Decline offer',
+            success: t('contracts.toasts.offerDeclined'),
+            title: t('contracts.confirm.declineOffer.title'),
+            confirmText: t('contracts.confirm.declineOffer.confirm'),
             variant: 'danger',
-            message: 'The client will be able to offer the job to another freelancer. You cannot undo this.',
+            message: t('contracts.confirm.declineOffer.message'),
         },
     };
     const current = action ? ACTIONS[action] : null;
@@ -279,7 +295,7 @@ const ContractDetailPage = () => {
             // Müqavilə bitdi: client-i dərhal qarşı tərəfi qiymətləndirməyə dəvət edirik ("Maybe later" ilə keçə bilər)
             if (completedNow) setReviewOpen(true);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Action failed'));
+            toast.error(getErrorMessage(err, t('contracts.toasts.actionFailed')));
         }
     };
 
@@ -294,10 +310,10 @@ const ContractDetailPage = () => {
     const handleSendRequest = async () => {
         try {
             await requestCancellation({ id: contract.id, reason: reason.trim() || undefined }).unwrap();
-            toast.success('Cancellation request sent');
+            toast.success(t('contracts.toasts.cancelRequestSent'));
             closeRequest();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not send the request'));
+            toast.error(getErrorMessage(err, t('contracts.toasts.cancelRequestError')));
         }
     };
 
@@ -308,7 +324,7 @@ const ContractDetailPage = () => {
             const res = await openConversation(other.id).unwrap();
             navigate(`/messages/${res.conversation.id}`);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not open the conversation'));
+            toast.error(getErrorMessage(err, t('contracts.toasts.conversationError')));
         }
     };
 
@@ -333,17 +349,17 @@ const ContractDetailPage = () => {
             if (reportFiles.length && res?.report?.id) {
                 try {
                     await uploadReportFiles({ reportId: res.report.id, files: reportFiles }).unwrap();
-                    toast.success('Report and evidence sent. An admin will review it.');
+                    toast.success(t('contracts.toasts.reportSentWithFiles'));
                 } catch (uploadErr) {
-                    toast.success('Report sent, but evidence upload failed. You can keep the files and contact support if needed.');
+                    toast.success(t('contracts.toasts.reportUploadFailed'));
                     console.error(uploadErr);
                 }
             } else {
-                toast.success('Report sent. An admin will review it.');
+                toast.success(t('contracts.toasts.reportSent'));
             }
             closeReport();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not send the report'));
+            toast.error(getErrorMessage(err, t('contracts.toasts.reportError')));
         }
     };
 
@@ -354,7 +370,7 @@ const ContractDetailPage = () => {
                 className="mb-4 inline-flex items-center gap-1 text-label-md text-secondary hover:text-primary-container"
             >
                 <Icon name="arrow_back" className="text-[18px]" />
-                Back to contracts
+                {t('contracts.detail.back')}
             </Link>
 
             <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -372,14 +388,16 @@ const ContractDetailPage = () => {
                 {other?.id && (
                     <Button variant="secondary" onClick={handleMessage} loading={openingChat}>
                         <Icon name="chat" className="text-[18px]" />
-                        Message
+                        {t('contracts.actions.message')}
                     </Button>
                 )}
 
                 {/* Ləğv düyməsi hər iki tərəf üçündür; gözləyən təklif varsa, əvəzinə aşağıdakı bannerdə düymələr olur */}
                 {(isClient || isFreelancer) && open && !pendingCancel && (
                     <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>
-                        {contract.workStarted ? 'Request cancellation' : 'Cancel contract'}
+                        {contract.workStarted
+                            ? t('contracts.actions.requestCancellation')
+                            : t('contracts.actions.cancelContract')}
                     </Button>
                 )}
 
@@ -387,7 +405,7 @@ const ContractDetailPage = () => {
                 {isFreelancer && open && fundedMilestone && (
                     <Button onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}>
                         <Icon name="outbox" className="text-[18px]" />
-                        Submit for review
+                        {t('contracts.actions.submitForReview')}
                     </Button>
                 )}
 
@@ -397,10 +415,10 @@ const ContractDetailPage = () => {
                             <Button
                                 variant="secondary"
                                 disabled
-                                title="Revision limit reached. Approve the work or open a dispute."
+                                title={t('contracts.actions.revisionLimitTitle')}
                             >
                                 <Icon name="undo" className="text-[18px]" />
-                                Revision limit reached
+                                {t('contracts.actions.revisionLimit')}
                             </Button>
                         ) : (
                             <Button
@@ -408,12 +426,12 @@ const ContractDetailPage = () => {
                                 onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}
                             >
                                 <Icon name="undo" className="text-[18px]" />
-                                Request changes
+                                {t('contracts.actions.requestChanges')}
                             </Button>
                         )}
                         <Button onClick={() => setMsAction({ type: 'approve', milestone: reviewMilestone })}>
                             <Icon name="task_alt" className="text-[18px]" />
-                            Approve &amp; pay
+                            {t('contracts.actions.approvePay')}
                         </Button>
                     </>
                 )}
@@ -422,10 +440,10 @@ const ContractDetailPage = () => {
                     <Button
                         onClick={() => setAction('complete')}
                         disabled={completeBlocked}
-                        title={completeBlocked ? 'Fund and approve every milestone first, or cancel the contract' : undefined}
+                        title={completeBlocked ? t('contracts.actions.completeBlockedTitle') : undefined}
                     >
                         <Icon name="task_alt" className="text-[18px]" />
-                        Complete contract
+                        {t('contracts.actions.completeContract')}
                     </Button>
                 )}
 
@@ -434,10 +452,10 @@ const ContractDetailPage = () => {
                     <Button
                         variant="ghost"
                         onClick={() => setReportOpen(true)}
-                        title="Report this contract, the other party or the job"
+                        title={t('contracts.actions.reportTitle')}
                     >
                         <Icon name="flag" className="text-[18px]" />
-                        Report
+                        {t('contracts.actions.report')}
                     </Button>
                 )}
                 </div>
@@ -446,19 +464,22 @@ const ContractDetailPage = () => {
             {pendingOffer && (
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-info-soft p-4 text-body-md text-info-ink">
                     <div className="min-w-0">
-                        <p className="font-semibold">Contract offer pending</p>
+                        <p className="font-semibold">{t('contracts.offer.title')}</p>
                         <p className="mt-1 break-words">
                             {isFreelancer
-                                ? `${contract.client?.fullName} offered you this contract for ${formatMoney(contract.proposal?.bidAmount)}. Accept it to start working.`
-                                : `Waiting for ${contract.freelancer?.fullName} to accept or decline this offer. Work starts only after they accept.`}
+                                ? t('contracts.offer.freelancerText', {
+                                      name: contract.client?.fullName,
+                                      amount: formatMoney(contract.proposal?.bidAmount),
+                                  })
+                                : t('contracts.offer.clientText', { name: contract.freelancer?.fullName })}
                         </p>
                     </div>
                     {canRespond && (
                         <div className="flex flex-wrap gap-2">
                             <Button variant="secondary" onClick={() => setAction('declineOffer')}>
-                                Decline
+                                {t('contracts.offer.decline')}
                             </Button>
-                            <Button onClick={() => setAction('acceptOffer')}>Accept offer</Button>
+                            <Button onClick={() => setAction('acceptOffer')}>{t('contracts.offer.accept')}</Button>
                         </div>
                     )}
                 </div>
@@ -469,21 +490,18 @@ const ContractDetailPage = () => {
                     <div className="min-w-0">
                         <p className="flex items-center gap-2 font-semibold">
                             <Icon name="report_problem" className="text-[18px]" />
-                            {openDisputes.length === 1
-                                ? 'A dispute is open on this contract'
-                                : `${openDisputes.length} disputes are open on this contract`}
+                            {t('contracts.disputes.open', { count: openDisputes.length })}
                         </p>
-                        <p className="mt-1 break-words">
-                            The escrowed money is frozen. Submit, approve, request-changes and automatic approval are
-                            paused until an admin resolves the dispute.
-                        </p>
+                        <p className="mt-1 break-words">{t('contracts.disputes.frozen')}</p>
                         {openDisputes[0]?.reason && (
-                            <p className="mt-1 break-words text-secondary">Reason: {openDisputes[0].reason}</p>
+                            <p className="mt-1 break-words text-secondary">
+                                {t('contracts.disputes.reason', { reason: openDisputes[0].reason })}
+                            </p>
                         )}
                     </div>
                     {tab !== 'escrow' && (
                         <Button size="sm" variant="secondary" onClick={() => selectTab('escrow')}>
-                            View in Escrow
+                            {t('contracts.disputes.viewInEscrow')}
                         </Button>
                     )}
                 </div>
@@ -493,13 +511,11 @@ const ContractDetailPage = () => {
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-warning-soft p-4 text-body-md text-warning-ink">
                     <p className="flex min-w-0 items-center gap-2">
                         <Icon name="lock" className="text-[18px]" />
-                        {isClient
-                            ? 'Escrow pending: fund a milestone to unlock the board. Until then cards stay in To do.'
-                            : 'Escrow pending: work starts once the client funds a milestone. You can plan cards in To do meanwhile.'}
+                        {isClient ? t('contracts.boardLocked.client') : t('contracts.boardLocked.freelancer')}
                     </p>
                     {isClient && tab !== 'escrow' && (
                         <Button size="sm" variant="secondary" onClick={() => selectTab('escrow')}>
-                            Open Escrow
+                            {t('contracts.boardLocked.openEscrow')}
                         </Button>
                     )}
                 </div>
@@ -509,26 +525,28 @@ const ContractDetailPage = () => {
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-error-container p-4 text-body-md text-on-surface">
                     <div className="min-w-0">
                         {iRequestedCancel ? (
-                            <p>You asked to cancel this contract. Waiting for {other?.fullName} to respond.</p>
+                            <p>{t('contracts.cancel.pendingMine', { name: other?.fullName })}</p>
                         ) : (
-                            <p>{other?.fullName} asked to cancel this contract.</p>
+                            <p>{t('contracts.cancel.pendingOther', { name: other?.fullName })}</p>
                         )}
                         {contract.cancelReason && (
-                            <p className="mt-1 break-words text-secondary">Reason: {contract.cancelReason}</p>
+                            <p className="mt-1 break-words text-secondary">
+                                {t('contracts.cancel.reason', { reason: contract.cancelReason })}
+                            </p>
                         )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {iRequestedCancel ? (
                             <Button variant="secondary" onClick={() => setAction('withdrawCancel')}>
-                                Withdraw request
+                                {t('contracts.cancel.withdraw')}
                             </Button>
                         ) : (
                             <>
                                 <Button variant="secondary" onClick={() => setAction('declineCancel')}>
-                                    Decline
+                                    {t('contracts.cancel.decline')}
                                 </Button>
                                 <Button variant="danger" onClick={() => setAction('acceptCancel')}>
-                                    Agree and cancel
+                                    {t('contracts.cancel.agree')}
                                 </Button>
                             </>
                         )}
@@ -539,37 +557,43 @@ const ContractDetailPage = () => {
             {isClient && open && completeBlocked && (
                 <p className="mb-6 flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
                     <Icon name="lock" className="text-[18px]" />
-                    The contract can be completed once every milestone is paid ({paidCount} of {milestoneTotal} paid so far).
+                    {t('contracts.completeBlocked', { paid: paidCount, total: milestoneTotal })}
                 </p>
             )}
 
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="p-5">
-                    <p className="text-caption uppercase tracking-wider text-secondary">Contract value</p>
+                    <p className="text-caption uppercase tracking-wider text-secondary">
+                        {t('contracts.summary.contractValue')}
+                    </p>
                     <p className="tabular mt-1 text-headline-md text-on-surface">
                         {formatMoney(contract.proposal?.bidAmount)}
                     </p>
-                    <p className="mt-1 text-caption text-secondary">Job budget {formatMoney(contract.jobPost?.budget)}</p>
+                    <p className="mt-1 text-caption text-secondary">
+                        {t('contracts.summary.jobBudget', { amount: formatMoney(contract.jobPost?.budget) })}
+                    </p>
                 </Card>
                 <Card className="flex items-center gap-3 p-5">
                     <Avatar name={other?.fullName} size="lg" />
                     <div className="min-w-0">
                         <p className="text-caption uppercase tracking-wider text-secondary">
-                            {isClient ? 'Freelancer' : 'Client'}
+                            {isClient ? t('contracts.card.freelancer') : t('contracts.card.client')}
                         </p>
                         <p className="truncate text-title-md text-on-surface">{other?.fullName}</p>
                         {other?.id && (
                             <Link to={`/users/${other.id}`} className="text-label-sm text-primary hover:underline">
-                                View profile
+                                {t('contracts.summary.viewProfile')}
                             </Link>
                         )}
                     </div>
                 </Card>
                 <Card className="p-5">
-                    <p className="text-caption uppercase tracking-wider text-secondary">Started</p>
+                    <p className="text-caption uppercase tracking-wider text-secondary">
+                        {t('contracts.summary.started')}
+                    </p>
                     <p className="mt-1 text-title-md text-on-surface">{formatDate(contract.createdAt)}</p>
                     <Link to={`/jobs/${contract.jobPostId}`} className="mt-1 inline-block text-label-sm text-primary hover:underline">
-                        View original job
+                        {t('contracts.summary.viewOriginalJob')}
                     </Link>
                 </Card>
             </div>
@@ -585,25 +609,25 @@ const ContractDetailPage = () => {
 
             <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-surface-container-low p-1" role="tablist">
                 {[
-                    { key: 'board', label: 'Board', icon: 'view_kanban' },
-                    { key: 'escrow', label: 'Escrow', icon: 'account_balance' },
-                ].map((t) => (
+                    { key: 'board', label: t('contracts.tabs.board'), icon: 'view_kanban' },
+                    { key: 'escrow', label: t('contracts.tabs.escrow'), icon: 'account_balance' },
+                ].map((item) => (
                     <button
-                        key={t.key}
+                        key={item.key}
                         type="button"
                         role="tab"
-                        aria-selected={tab === t.key}
-                        onClick={() => selectTab(t.key)}
+                        aria-selected={tab === item.key}
+                        onClick={() => selectTab(item.key)}
                         className={cn(
                             'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-1.5 text-label-md transition-all',
-                            tab === t.key
+                            tab === item.key
                                 ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
                                 : 'text-on-surface-variant hover:text-on-surface',
                         )}
                     >
-                        <Icon name={t.icon} className="text-[18px]" />
-                        {t.label}
-                        {t.key === 'escrow' && escrowAttention > 0 && (
+                        <Icon name={item.icon} className="text-[18px]" />
+                        {item.label}
+                        {item.key === 'escrow' && escrowAttention > 0 && (
                             <span className="rounded-full bg-primary-container px-1.5 text-caption font-semibold text-on-primary">
                                 {escrowAttention}
                             </span>
@@ -652,24 +676,23 @@ const ContractDetailPage = () => {
             <Modal
                 open={requestOpen}
                 onClose={closeRequest}
-                title="Request cancellation"
+                title={t('contracts.request.title')}
                 footer={
                     <>
                         <Button variant="secondary" onClick={closeRequest} disabled={requesting}>
-                            Keep contract
+                            {t('contracts.request.keep')}
                         </Button>
                         <Button variant="danger" onClick={handleSendRequest} loading={requesting}>
-                            Send request
+                            {t('contracts.request.send')}
                         </Button>
                     </>
                 }
             >
                 <p className="mb-3 text-body-md text-secondary">
-                    Work has already started, so {other?.fullName} has to agree before the contract is cancelled. Until they
-                    answer, the contract stays open.
+                    {t('contracts.request.body', { name: other?.fullName })}
                 </p>
                 <Textarea
-                    label="Reason (optional)"
+                    label={t('contracts.request.reasonLabel')}
                     rows={3}
                     maxLength={500}
                     value={reason}
@@ -692,11 +715,11 @@ const ContractDetailPage = () => {
             <Modal
                 open={reportOpen}
                 onClose={closeReport}
-                title="Send a report"
+                title={t('contracts.report.title')}
                 footer={
                     <>
                         <Button variant="secondary" onClick={closeReport} disabled={reporting}>
-                            Cancel
+                            {t('common.actions.cancel')}
                         </Button>
                         <Button
                             variant="danger"
@@ -704,48 +727,46 @@ const ContractDetailPage = () => {
                             loading={reporting || uploadingReportFiles}
                             disabled={reportReason.trim().length < 5 || !reportTargetId}
                         >
-                            Send report
+                            {t('contracts.report.send')}
                         </Button>
                     </>
                 }
             >
-                <p className="mb-3 text-body-md text-secondary">
-                    Reports are sent to platform admins. Use this for abuse, fraud or other serious problems.
-                </p>
+                <p className="mb-3 text-body-md text-secondary">{t('contracts.report.intro')}</p>
                 <Select
-                    label="What are you reporting?"
+                    label={t('contracts.report.what')}
                     value={reportTarget}
                     onChange={(e) => setReportTarget(e.target.value)}
-                    options={reportTargets.map((t) => ({ value: t.key, label: t.label }))}
+                    options={reportTargets.map((item) => ({ value: item.key, label: item.label }))}
                 />
                 <Textarea
                     className="mt-3"
-                    label="Reason"
+                    label={t('contracts.report.reason')}
                     rows={2}
                     maxLength={500}
                     value={reportReason}
                     onChange={(e) => setReportReason(e.target.value)}
-                    hint="At least 5 characters."
+                    hint={t('contracts.report.reasonHint')}
                 />
                 <Textarea
                     className="mt-3"
-                    label="Details (optional)"
+                    label={t('contracts.report.details')}
                     rows={4}
                     maxLength={2000}
                     value={reportDetails}
                     onChange={(e) => setReportDetails(e.target.value)}
                 />
                 <div className="mt-3">
-                    <p className="mb-1.5 block text-label-md text-on-surface">Evidence files (optional)</p>
+                    <p className="mb-1.5 block text-label-md text-on-surface">{t('contracts.report.evidence')}</p>
                     <FilePicker
                         purpose="REPORT_EVIDENCE"
                         target={{}}
                         files={reportFiles}
                         onFilesChange={setReportFiles}
                         showUploadButton={false}
-                        label="Choose evidence files"
+                        label={t('contracts.report.chooseFiles')}
                     />
-                    <p className="mt-1 text-caption text-secondary">Files are uploaded after the report is created.</p>
+                    <p className="mt-1 text-caption text-secondary">{t('contracts.report.filesNote')}</p>
                 </div>
             </Modal>
         </>

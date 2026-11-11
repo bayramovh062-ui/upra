@@ -1,9 +1,10 @@
 // "Demo / test pulu" mətnləri bir yerdə: Topbar, footer, qeydiyyat və pul təsdiqi pəncərələri eyni sözləri işlədir.
-// Mətn dəyişəndə yalnız bura toxunmaq kifayətdir.
-export const DEMO_BADGE = 'Demo · test money';
+// Mətn aktiv dilə görə `translate` ilə oxunur.
+import { translate } from '../i18n';
 
-export const DEMO_NOTICE =
-    'Upra is a demo project. All balances, escrow and payments are simulated test money; no real payments are made.';
+export const demoBadge = () => translate('common.demo.badge');
+
+export const demoNotice = () => translate('common.demo.notice');
 
 // Pul hərəkətini təsdiq edən pəncərələrin sonuna əlavə olunur
-export const DEMO_MONEY_NOTE = 'This is simulated test money.';
+export const demoMoneyNote = () => translate('common.demo.moneyNote');

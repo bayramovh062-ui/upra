@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useResendVerificationMutation } from '../features/auth/authApi';
+import { useTranslation } from '../features/locale/useTranslation';
+import { translateApiMessage } from '../i18n';
 import { Button, Icon } from './ui';
 
 const COOLDOWN_SECONDS = 60;
@@ -9,6 +11,7 @@ const COOLDOWN_SECONDS = 60;
 // Təsdiqlənməmiş hesab üçün üst xəbərdarlıq. `emailVerified === false` yoxlanılır:
 // sahəsi olmayan köhnə saxlanmış user obyektində (undefined) banner görünmür.
 const EmailVerificationBanner = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     const [resend, { isLoading }] = useResendVerificationMutation();
     const [cooldown, setCooldown] = useState(0);
@@ -24,10 +27,10 @@ const EmailVerificationBanner = () => {
     const handleResend = async () => {
         try {
             const data = await resend().unwrap();
-            toast.success(data.message || 'Verification email sent.');
+            toast.success(data.message ? translateApiMessage(data.message) : t('shell.emailBanner.sent'));
             if (!data.alreadyVerified) setCooldown(COOLDOWN_SECONDS);
         } catch (err) {
-            toast.error(err?.data?.message || 'Could not send the email. Please try again later.');
+            toast.error(err?.data?.message ? translateApiMessage(err.data.message) : t('shell.emailBanner.failed'));
         }
     };
 
@@ -39,11 +42,8 @@ const EmailVerificationBanner = () => {
             <div className="flex items-start gap-3">
                 <Icon name="mark_email_unread" className="mt-0.5 text-[22px]" />
                 <div>
-                    <p className="text-title-md">Confirm your email address</p>
-                    <p className="text-body-md">
-                        We sent a link to <span className="font-semibold">{user.email}</span>. Until you confirm
-                        it, you cannot post jobs or send proposals.
-                    </p>
+                    <p className="text-title-md">{t('shell.emailBanner.title')}</p>
+                    <p className="text-body-md">{t('shell.emailBanner.body', { email: user.email })}</p>
                 </div>
             </div>
             <Button
@@ -54,7 +54,9 @@ const EmailVerificationBanner = () => {
                 onClick={handleResend}
                 className="shrink-0"
             >
-                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend email'}
+                {cooldown > 0
+                    ? t('shell.emailBanner.resendIn', { seconds: cooldown })
+                    : t('shell.emailBanner.resend')}
             </Button>
         </div>
     );

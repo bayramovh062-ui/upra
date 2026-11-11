@@ -11,12 +11,14 @@ import {
     useMarkConversationReadMutation,
     useSendMessageMutation,
 } from '../features/chat/chatApi';
+import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
 import { getErrorMessage, timeAgo } from '../lib/format';
 
 const badgeText = (count) => (count > 9 ? '9+' : String(count));
 
 const ConversationRow = ({ conversation, active, onSelect }) => {
+    const { t } = useTranslation();
     const other = conversation.otherUser;
     return (
         <button
@@ -37,7 +39,7 @@ const ConversationRow = ({ conversation, active, onSelect }) => {
                 </span>
                 <span className="mt-0.5 flex items-center justify-between gap-2">
                     <span className="truncate text-label-md text-secondary">
-                        {conversation.lastMessage?.body ?? 'No messages yet'}
+                        {conversation.lastMessage?.body ?? t('chat.list.noMessages')}
                     </span>
                     {conversation.unreadCount > 0 && (
                         <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-primary-container px-1 text-[10px] font-bold leading-none text-on-primary">
@@ -51,6 +53,7 @@ const ConversationRow = ({ conversation, active, onSelect }) => {
 };
 
 const ConversationList = ({ conversations, selectedId, isLoading, isError, onRetry, onSelect }) => {
+    const { t } = useTranslation();
     if (isLoading) {
         return (
             <div className="divide-y divide-line">
@@ -68,7 +71,11 @@ const ConversationList = ({ conversations, selectedId, isLoading, isError, onRet
     }
 
     if (isError) {
-        return <div className="p-4"><ErrorState title="Could not load conversations" onRetry={onRetry} /></div>;
+        return (
+            <div className="p-4">
+                <ErrorState title={t('chat.list.loadError')} onRetry={onRetry} />
+            </div>
+        );
     }
 
     if (conversations.length === 0) {
@@ -76,8 +83,8 @@ const ConversationList = ({ conversations, selectedId, isLoading, isError, onRet
             <div className="p-4">
                 <EmptyState
                     icon="chat_bubble"
-                    title="No conversations yet"
-                    description="Open a contract and use Message to start talking with the other party."
+                    title={t('chat.list.emptyTitle')}
+                    description={t('chat.list.emptyText')}
                 />
             </div>
         );
@@ -114,6 +121,7 @@ const MessageBubble = ({ message, mine }) => (
 );
 
 const ChatThread = ({ conversationId, onBack }) => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     const [before, setBefore] = useState(undefined);
     const [body, setBody] = useState('');
@@ -152,7 +160,7 @@ const ChatThread = ({ conversationId, onBack }) => {
             await sendMessage({ id: conversationId, body: text }).unwrap();
             setBody('');
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not send the message'));
+            toast.error(getErrorMessage(err, t('chat.thread.sendError')));
         }
     };
 
@@ -169,7 +177,7 @@ const ChatThread = ({ conversationId, onBack }) => {
                 <button
                     type="button"
                     onClick={onBack}
-                    aria-label="Back to conversations"
+                    aria-label={t('chat.thread.back')}
                     className="rounded-lg p-1.5 text-secondary hover:bg-surface-container-high hover:text-on-surface lg:hidden"
                 >
                     <Icon name="arrow_back" />
@@ -177,15 +185,15 @@ const ChatThread = ({ conversationId, onBack }) => {
                 {conversationQ.isLoading ? (
                     <Skeleton className="h-9 w-48" />
                 ) : conversationQ.isError ? (
-                    <span className="text-body-md text-secondary">Conversation unavailable</span>
+                    <span className="text-body-md text-secondary">{t('chat.thread.unavailable')}</span>
                 ) : (
                     <>
                         <Avatar name={other?.fullName} src={other?.avatarUrl} />
                         <div className="min-w-0">
                             <p className="truncate text-body-md-medium text-on-surface">{other?.fullName}</p>
                             <p className="text-caption text-secondary">
-                                {other?.role === 'CLIENT' ? 'Client' : 'Freelancer'}
-                                {other?.isDeleted ? ' - account deleted' : ''}
+                                {other?.role === 'CLIENT' ? t('chat.thread.client') : t('chat.thread.freelancer')}
+                                {other?.isDeleted ? t('chat.thread.deleted') : ''}
                             </p>
                         </div>
                     </>
@@ -200,13 +208,15 @@ const ChatThread = ({ conversationId, onBack }) => {
                         <Skeleton className="h-12 w-3/5" />
                     </div>
                 ) : messagesQ.isError ? (
-                    <ErrorState title="Could not load messages" onRetry={messagesQ.refetch} />
+                    <ErrorState title={t('chat.thread.loadError')} onRetry={messagesQ.refetch} />
                 ) : messages.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-center">
                         <div>
-                            <p className="text-body-md-medium text-on-surface">No messages yet</p>
+                            <p className="text-body-md-medium text-on-surface">{t('chat.thread.emptyTitle')}</p>
                             <p className="mt-1 text-label-md text-secondary">
-                                Say hello to {other?.fullName ?? 'the other party'}.
+                                {t('chat.thread.emptyText', {
+                                    name: other?.fullName ?? t('chat.thread.otherParty'),
+                                })}
                             </p>
                         </div>
                     </div>
@@ -220,7 +230,7 @@ const ChatThread = ({ conversationId, onBack }) => {
                                     onClick={() => setBefore(messages[0].id)}
                                     loading={messagesQ.isFetching}
                                 >
-                                    Load earlier messages
+                                    {t('chat.thread.loadEarlier')}
                                 </Button>
                             </div>
                         )}
@@ -240,12 +250,14 @@ const ChatThread = ({ conversationId, onBack }) => {
                         rows={2}
                         maxLength={MAX_MESSAGE_LENGTH}
                         disabled={Boolean(other?.isDeleted)}
-                        placeholder={other?.isDeleted ? 'This account was deleted.' : 'Write a message...'}
+                        placeholder={
+                            other?.isDeleted ? t('chat.thread.deletedPlaceholder') : t('chat.thread.placeholder')
+                        }
                         className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-line bg-surface-container-lowest px-3.5 py-2.5 text-body-md text-on-surface shadow-sm placeholder:text-secondary/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container disabled:cursor-not-allowed disabled:bg-surface-container-low"
                     />
                     <Button type="submit" loading={sending} disabled={!body.trim() || Boolean(other?.isDeleted)}>
                         <Icon name="send" className="text-[18px]" />
-                        Send
+                        {t('chat.thread.send')}
                     </Button>
                 </div>
                 {body.length > MAX_MESSAGE_LENGTH - 200 && (
@@ -259,6 +271,7 @@ const ChatThread = ({ conversationId, onBack }) => {
 };
 
 const MessagesPage = () => {
+    const { t } = useTranslation();
     const { conversationId } = useParams();
     const navigate = useNavigate();
     const { data, isLoading, isError, refetch } = useGetConversationsQuery();
@@ -266,10 +279,7 @@ const MessagesPage = () => {
 
     return (
         <>
-            <PageHeader
-                title="Messages"
-                description="One conversation per client and freelancer. History stays available after a contract ends."
-            />
+            <PageHeader title={t('chat.page.title')} description={t('chat.page.description')} />
 
             <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
                 <Card className={cn('overflow-hidden', conversationId && 'hidden lg:block')}>
@@ -294,8 +304,8 @@ const MessagesPage = () => {
                         <div className="flex w-full items-center justify-center p-6">
                             <EmptyState
                                 icon="forum"
-                                title="Select a conversation"
-                                description="Choose a conversation on the left, or open a contract and use Message."
+                                title={t('chat.select.title')}
+                                description={t('chat.select.text')}
                             />
                         </div>
                     )}

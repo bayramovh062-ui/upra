@@ -1,12 +1,22 @@
 import { z } from 'zod';
 
-export const issueSchema = z.object({
-    title: z.string().trim().min(3, 'Title must be at least 3 characters').max(200, 'Title is too long'),
-    description: z.string().trim().max(2000, 'Description is too long').optional(),
-    priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-    assigneeId: z.string().optional(), // '' = təyin olunmayıb
-});
+export const createIssueSchema = (t) =>
+    z.object({
+        title: z
+            .string()
+            .trim()
+            .min(3, t('validation.issue.titleMin3'))
+            .max(200, t('validation.issue.titleMax200')),
+        description: z.string().trim().max(2000, t('validation.issue.descriptionMax2000')).optional(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+        assigneeId: z.string().optional(), // '' = təyin olunmayıb
+    });
 
-export const commentSchema = z.object({
-    body: z.string().trim().min(1, 'Write something first').max(1000, 'Comment is too long'),
-});
+export const createCommentSchema = (t) =>
+    z.object({
+        body: z
+            .string()
+            .trim()
+            .min(1, t('validation.issue.commentRequired'))
+            .max(1000, t('validation.issue.commentMax1000')),
+    });

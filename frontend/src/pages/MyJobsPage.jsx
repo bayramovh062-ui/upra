@@ -13,17 +13,11 @@ import {
     StatusBadge,
 } from '../components/ui';
 import { useDeleteJobMutation, useGetMyJobsQuery } from '../features/jobs/jobsApi';
-import { formatMoney, getErrorMessage, timeAgo } from '../lib/format';
+import { useTranslation } from '../features/locale/useTranslation';
+import { formatMoney, getErrorMessage } from '../lib/format';
 import { cn } from '../lib/cn';
 
-const TABS = [
-    { key: 'ALL', label: 'All' },
-    { key: 'DRAFT', label: 'Drafts' },
-    { key: 'OPEN', label: 'Open' },
-    { key: 'IN_PROGRESS', label: 'In progress' },
-    { key: 'COMPLETED', label: 'Completed' },
-    { key: 'CANCELLED', label: 'Cancelled' },
-];
+const TAB_KEYS = ['ALL', 'DRAFT', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
 const IconLink = ({ to, label, icon }) => (
     <Link
@@ -38,10 +32,11 @@ const IconLink = ({ to, label, icon }) => (
 
 // Client: "My jobs" cədvəli (Stitch client dashboard-dakı My jobs bölməsinin tam səhifə variantı)
 const MyJobsPage = () => {
+    const { t, timeAgo } = useTranslation();
     // Tab URL-də saxlanır (?tab=DRAFT): qaralama saxlayandan sonra birbaşa Drafts tab-ına düşür
     const [searchParams, setSearchParams] = useSearchParams();
     const tabParam = searchParams.get('tab');
-    const tab = TABS.some((t) => t.key === tabParam) ? tabParam : 'ALL';
+    const tab = TAB_KEYS.includes(tabParam) ? tabParam : 'ALL';
     const setTab = (key) => setSearchParams(key === 'ALL' ? {} : { tab: key }, { replace: true });
     const [jobToCancel, setJobToCancel] = useState(null);
 
@@ -55,9 +50,13 @@ const MyJobsPage = () => {
     const confirmCancel = async () => {
         try {
             await deleteJob(jobToCancel.id).unwrap();
-            toast.success(jobToCancel.status === 'DRAFT' ? 'Draft discarded' : 'Job cancelled');
+            toast.success(
+                jobToCancel.status === 'DRAFT'
+                    ? t('jobs.myJobs.toastDraftDiscarded')
+                    : t('jobs.myJobs.toastJobCancelled')
+            );
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not cancel the job'));
+            toast.error(getErrorMessage(err, t('jobs.myJobs.errorCancel')));
         } finally {
             setJobToCancel(null);
         }
@@ -66,33 +65,33 @@ const MyJobsPage = () => {
     return (
         <>
             <PageHeader
-                title="My jobs"
-                description="Everything you have posted, with the number of proposals each job received."
+                title={t('jobs.myJobs.title')}
+                description={t('jobs.myJobs.description')}
                 action={
                     <Link to="/client/jobs/new">
                         <Button>
                             <Icon name="add" />
-                            Post a new job
+                            {t('jobs.myJobs.postNew')}
                         </Button>
                     </Link>
                 }
             />
 
             <div className="mb-4 flex gap-1 overflow-x-auto">
-                {TABS.map((t) => (
+                {TAB_KEYS.map((key) => (
                     <button
-                        key={t.key}
+                        key={key}
                         type="button"
-                        onClick={() => setTab(t.key)}
+                        onClick={() => setTab(key)}
                         className={cn(
                             'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-md transition-colors',
-                            tab === t.key
+                            tab === key
                                 ? 'bg-inverse-surface font-medium text-on-primary shadow-sm'
                                 : 'bg-surface-container-low text-secondary hover:bg-surface-container hover:text-on-surface'
                         )}
                     >
-                        {t.label}
-                        {!isLoading && <span className="tabular text-caption opacity-80">{countOf(t.key)}</span>}
+                        {t(`jobs.myJobs.tabs.${key}`)}
+                        {!isLoading && <span className="tabular text-caption opacity-80">{countOf(key)}</span>}
                     </button>
                 ))}
             </div>
@@ -104,22 +103,20 @@ const MyJobsPage = () => {
                     ))}
                 </Card>
             ) : isError ? (
-                <ErrorState title="Could not load your jobs" onRetry={refetch} />
+                <ErrorState title={t('jobs.myJobs.loadError')} onRetry={refetch} />
             ) : visible.length === 0 ? (
                 <EmptyState
                     icon="work"
-                    title={tab === 'ALL' ? 'You have not posted any jobs yet' : 'No jobs in this tab'}
+                    title={tab === 'ALL' ? t('jobs.myJobs.emptyAllTitle') : t('jobs.myJobs.emptyTabTitle')}
                     description={
-                        tab === 'ALL'
-                            ? 'Post your first job and freelancers will start sending proposals.'
-                            : 'Jobs with this status will show up here.'
+                        tab === 'ALL' ? t('jobs.myJobs.emptyAllText') : t('jobs.myJobs.emptyTabText')
                     }
                     action={
                         tab === 'ALL' && (
                             <Link to="/client/jobs/new">
                                 <Button>
                                     <Icon name="add" />
-                                    Post a job
+                                    {t('jobs.myJobs.postJob')}
                                 </Button>
                             </Link>
                         )
@@ -131,11 +128,11 @@ const MyJobsPage = () => {
                         <table className="w-full min-w-[720px] text-left">
                             <thead>
                                 <tr className="border-b border-line bg-surface-container-low text-label-sm uppercase tracking-wider text-secondary">
-                                    <th className="px-5 py-3 font-semibold">Job</th>
-                                    <th className="px-5 py-3 font-semibold">Status</th>
-                                    <th className="px-5 py-3 text-right font-semibold">Budget</th>
-                                    <th className="px-5 py-3 text-right font-semibold">Proposals</th>
-                                    <th className="px-5 py-3 text-right font-semibold">Actions</th>
+                                    <th className="px-5 py-3 font-semibold">{t('jobs.myJobs.tableJob')}</th>
+                                    <th className="px-5 py-3 font-semibold">{t('jobs.myJobs.tableStatus')}</th>
+                                    <th className="px-5 py-3 text-right font-semibold">{t('jobs.myJobs.tableBudget')}</th>
+                                    <th className="px-5 py-3 text-right font-semibold">{t('jobs.myJobs.tableProposals')}</th>
+                                    <th className="px-5 py-3 text-right font-semibold">{t('jobs.myJobs.tableActions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -156,7 +153,9 @@ const MyJobsPage = () => {
                                                     {job.title}
                                                 </Link>
                                                 <p className="text-caption text-secondary">
-                                                    {isDraft ? 'Saved' : 'Posted'} {timeAgo(job.createdAt)}
+                                                    {isDraft
+                                                        ? t('jobs.detail.savedAt', { time: timeAgo(job.createdAt) })
+                                                        : t('jobs.detail.postedAt', { time: timeAgo(job.createdAt) })}
                                                 </p>
                                             </td>
                                             <td className="px-5 py-4">
@@ -173,7 +172,7 @@ const MyJobsPage = () => {
                                                     {!isDraft && (
                                                         <IconLink
                                                             to={`/client/jobs/${job.id}/proposals`}
-                                                            label="View proposals"
+                                                            label={t('jobs.myJobs.viewProposals')}
                                                             icon="inbox"
                                                         />
                                                     )}
@@ -181,13 +180,21 @@ const MyJobsPage = () => {
                                                         <>
                                                             <IconLink
                                                                 to={`/client/jobs/${job.id}/edit`}
-                                                                label="Edit job"
+                                                                label={t('jobs.detail.editJob')}
                                                                 icon="edit"
                                                             />
                                                             <button
                                                                 type="button"
-                                                                title={isDraft ? 'Discard draft' : 'Cancel job'}
-                                                                aria-label={isDraft ? 'Discard draft' : 'Cancel job'}
+                                                                title={
+                                                                    isDraft
+                                                                        ? t('jobs.detail.discardDraft')
+                                                                        : t('jobs.detail.cancelJob')
+                                                                }
+                                                                aria-label={
+                                                                    isDraft
+                                                                        ? t('jobs.detail.discardDraft')
+                                                                        : t('jobs.detail.cancelJob')
+                                                                }
                                                                 onClick={() => setJobToCancel(job)}
                                                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-error-container hover:text-error"
                                                             >
@@ -212,13 +219,21 @@ const MyJobsPage = () => {
                 onConfirm={confirmCancel}
                 loading={cancelling}
                 variant="danger"
-                title={jobToCancel?.status === 'DRAFT' ? 'Discard this draft?' : 'Cancel this job?'}
+                title={
+                    jobToCancel?.status === 'DRAFT'
+                        ? t('jobs.myJobs.confirmDiscardTitle')
+                        : t('jobs.myJobs.confirmCancelTitle')
+                }
                 message={
                     jobToCancel?.status === 'DRAFT'
-                        ? `The draft “${jobToCancel?.title ?? ''}” will be discarded. This cannot be undone.`
-                        : `“${jobToCancel?.title ?? ''}” will be closed and freelancers can no longer send proposals. This cannot be undone.`
+                        ? t('jobs.myJobs.confirmDiscardText', { title: jobToCancel?.title ?? '' })
+                        : t('jobs.myJobs.confirmCancelText', { title: jobToCancel?.title ?? '' })
                 }
-                confirmText={jobToCancel?.status === 'DRAFT' ? 'Discard draft' : 'Cancel job'}
+                confirmText={
+                    jobToCancel?.status === 'DRAFT'
+                        ? t('jobs.detail.discardDraft')
+                        : t('jobs.detail.cancelJob')
+                }
             />
         </>
     );

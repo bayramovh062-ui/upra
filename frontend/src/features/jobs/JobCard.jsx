@@ -3,11 +3,13 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Avatar, Button, Card, Icon, StatusBadge } from '../../components/ui';
 import { cn } from '../../lib/cn';
-import { formatDate, formatMoney, getErrorMessage, timeAgo } from '../../lib/format';
+import { formatDate, getErrorMessage } from '../../lib/format';
+import { useTranslation } from '../locale/useTranslation';
 import { experienceLabel, paymentLabel } from '../../lib/labels';
 import { useSaveJobMutation, useUnsaveJobMutation } from './jobsApi';
 
 const BookmarkButton = ({ job }) => {
+    const { t } = useTranslation();
     const [saveJob, { isLoading: saving }] = useSaveJobMutation();
     const [unsaveJob, { isLoading: unsaving }] = useUnsaveJobMutation();
     const isSaved = Boolean(job.isSaved);
@@ -16,7 +18,7 @@ const BookmarkButton = ({ job }) => {
         try {
             await (isSaved ? unsaveJob(job.id) : saveJob(job.id)).unwrap();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update saved jobs'));
+            toast.error(getErrorMessage(err, t('jobs.card.saveError')));
         }
     };
 
@@ -26,7 +28,7 @@ const BookmarkButton = ({ job }) => {
             onClick={toggle}
             disabled={saving || unsaving}
             aria-pressed={isSaved}
-            title={isSaved ? 'Remove from saved jobs' : 'Save job'}
+            title={isSaved ? t('jobs.card.removeSaved') : t('jobs.card.saveJob')}
             className={cn(
                 'flex items-center justify-center rounded-lg p-2 transition-colors disabled:opacity-60',
                 isSaved
@@ -44,6 +46,7 @@ const BookmarkButton = ({ job }) => {
 //        category, skills: [{id,name,slug}], isSaved?, matchScore?, client, _count: { proposals } }
 // mySkillSlugs: giriş edən frilanserin bacarıqları (uyğun gələnlər vurğulanır)
 const JobCard = ({ job, mySkillSlugs }) => {
+    const { t, timeAgo, formatCurrency } = useTranslation();
     const role = useSelector((state) => state.auth.user?.role);
     const isFreelancer = role === 'FREELANCER';
     const proposals = job._count?.proposals ?? 0;
@@ -70,10 +73,12 @@ const JobCard = ({ job, mySkillSlugs }) => {
                         {isFreelancer && job.matchScore > 0 && (
                             <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success-ink">
                                 <Icon name="auto_awesome" className="text-[12px]" />
-                                {job.matchScore}% match
+                                {t('jobs.card.match', { score: job.matchScore })}
                             </span>
                         )}
-                        <span className="text-caption text-secondary">Posted {timeAgo(job.createdAt)}</span>
+                        <span className="text-caption text-secondary">
+                            {t('jobs.card.posted', { time: timeAgo(job.createdAt) })}
+                        </span>
                     </div>
                     <Link
                         to={`/jobs/${job.id}`}
@@ -83,8 +88,8 @@ const JobCard = ({ job, mySkillSlugs }) => {
                     </Link>
                 </div>
                 <div className="shrink-0 sm:text-right">
-                    <p className="tabular text-headline-md text-on-surface">{formatMoney(job.budget)}</p>
-                    <p className="text-caption text-secondary">Fixed budget</p>
+                    <p className="tabular text-headline-md text-on-surface">{formatCurrency(job.budget)}</p>
+                    <p className="text-caption text-secondary">{t('jobs.card.fixedBudget')}</p>
                 </div>
             </div>
 
@@ -130,19 +135,19 @@ const JobCard = ({ job, mySkillSlugs }) => {
                     {job.deadline && (
                         <span className="flex items-center gap-1">
                             <Icon name="event" className="text-[15px]" />
-                            Due {formatDate(job.deadline)}
+                            {t('jobs.card.due', { date: formatDate(job.deadline) })}
                         </span>
                     )}
                     <span className="flex items-center gap-1">
                         <Icon name="send" className="text-[15px]" />
-                        {proposals} {proposals === 1 ? 'proposal' : 'proposals'}
+                        {t('jobs.card.proposals', { count: proposals })}
                     </span>
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
                     {isFreelancer && <BookmarkButton job={job} />}
                     <Link to={`/jobs/${job.id}`}>
                         <Button size="sm">
-                            View job
+                            {t('jobs.card.viewJob')}
                             <Icon name="arrow_forward" className="text-[16px]" />
                         </Button>
                     </Link>

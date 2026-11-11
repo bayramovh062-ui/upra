@@ -3,13 +3,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { Button, Input, Modal, Select, Textarea } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
 import { getErrorMessage } from '../../lib/format';
-import { issueSchema } from '../../validations/issueSchema';
+import { createIssueSchema } from '../../validations/issueSchema';
 import { useCreateIssueMutation } from './issuesApi';
-import { PRIORITY_OPTIONS, assigneeOptions } from './issueOptions';
+import { assigneeOptions, priorityOptions } from './issueOptions';
 
 // Yeni tapşırıq (həmişə TODO sütununun sonuna düşür, bunu backend edir)
 const IssueFormModal = ({ open, onClose, contract }) => {
+    const { t } = useTranslation();
     const [createIssue, { isLoading }] = useCreateIssueMutation();
     const {
         register,
@@ -17,7 +19,7 @@ const IssueFormModal = ({ open, onClose, contract }) => {
         reset,
         formState: { errors },
     } = useForm({
-        resolver: zodResolver(issueSchema),
+        resolver: zodResolver(createIssueSchema(t)),
         defaultValues: { title: '', description: '', priority: 'MEDIUM', assigneeId: '' },
     });
 
@@ -31,43 +33,43 @@ const IssueFormModal = ({ open, onClose, contract }) => {
         if (values.assigneeId) body.assigneeId = values.assigneeId;
         try {
             await createIssue(body).unwrap();
-            toast.success('Issue created');
+            toast.success(t('issues.toasts.created'));
             onClose();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not create the issue'));
+            toast.error(getErrorMessage(err, t('issues.toasts.createError')));
         }
     };
 
     return (
-        <Modal open={open} onClose={onClose} title="Create issue" className="max-w-lg">
+        <Modal open={open} onClose={onClose} title={t('issues.create.title')} className="max-w-lg">
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
                 <Input
-                    label="Title"
-                    placeholder="What needs to be done?"
+                    label={t('issues.create.titleLabel')}
+                    placeholder={t('issues.create.titlePlaceholder')}
                     error={errors.title?.message}
                     {...register('title')}
                 />
                 <Textarea
                     rows={4}
-                    placeholder="Add details (optional)"
+                    placeholder={t('issues.create.descriptionPlaceholder')}
                     error={errors.description?.message}
                     {...register('description')}
                 />
                 <div className="grid grid-cols-2 gap-3">
-                    <Select label="Priority" options={PRIORITY_OPTIONS} {...register('priority')} />
+                    <Select label={t('issues.form.priority')} options={priorityOptions()} {...register('priority')} />
                     <Select
-                        label="Assignee"
-                        placeholder="Unassigned"
+                        label={t('issues.form.assignee')}
+                        placeholder={t('issues.form.unassigned')}
                         options={assigneeOptions(contract)}
                         {...register('assigneeId')}
                     />
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        {t('common.actions.cancel')}
                     </Button>
                     <Button type="submit" loading={isLoading}>
-                        Create issue
+                        {t('issues.create.submit')}
                     </Button>
                 </div>
             </form>

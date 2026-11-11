@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
 import { Avatar, Button, EmptyState, ErrorState, Icon, Modal, Skeleton, StatusBadge } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
 import { cn } from '../../lib/cn';
 import { getErrorMessage } from '../../lib/format';
 import IssueDrawer from './IssueDrawer';
@@ -10,9 +11,9 @@ import { useGetIssuesQuery, useMoveIssueMutation } from './issuesApi';
 import useIssueSocket from './useIssueSocket';
 
 const COLUMNS = [
-    { status: 'TODO', title: 'To do', dot: 'bg-outline' },
-    { status: 'IN_PROGRESS', title: 'In progress', dot: 'bg-primary-container' },
-    { status: 'DONE', title: 'Done', dot: 'bg-emerald-500' },
+    { status: 'TODO', labelKey: 'issues.board.todo', dot: 'bg-outline' },
+    { status: 'IN_PROGRESS', labelKey: 'issues.board.inProgress', dot: 'bg-primary-container' },
+    { status: 'DONE', labelKey: 'issues.board.done', dot: 'bg-emerald-500' },
 ];
 
 // Float position: iki qonşunun ortası. Sütun boşdursa 1000.
@@ -29,53 +30,57 @@ const MOVE_OPTIONS = {
     DONE: ['TODO', 'IN_PROGRESS'],
 };
 
-const columnTitle = (status) => COLUMNS.find((c) => c.status === status)?.title || status;
+const columnLabelKey = (status) => COLUMNS.find((c) => c.status === status)?.labelKey;
 
-const IssueCard = ({ issue, onOpen, onMove, readOnly, moving }) => (
-    <div className="flex w-full flex-col gap-3">
-        <button type="button" onClick={() => onOpen(issue.id)} className="flex w-full flex-col gap-3 text-left">
-            <p className="break-words text-body-md-medium text-on-surface">{issue.title}</p>
-            <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                    <StatusBadge status={issue.priority} />
-                    {(issue.comments?.length ?? 0) > 0 && (
-                        <span className="flex items-center gap-0.5 text-caption text-secondary">
-                            <Icon name="chat_bubble_outline" className="text-[14px]" />
-                            {issue.comments.length}
+const IssueCard = ({ issue, onOpen, onMove, readOnly, moving }) => {
+    const { t } = useTranslation();
+    return (
+        <div className="flex w-full flex-col gap-3">
+            <button type="button" onClick={() => onOpen(issue.id)} className="flex w-full flex-col gap-3 text-left">
+                <p className="break-words text-body-md-medium text-on-surface">{issue.title}</p>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <StatusBadge status={issue.priority} />
+                        {(issue.comments?.length ?? 0) > 0 && (
+                            <span className="flex items-center gap-0.5 text-caption text-secondary">
+                                <Icon name="chat_bubble_outline" className="text-[14px]" />
+                                {issue.comments.length}
+                            </span>
+                        )}
+                    </div>
+                    {issue.assignee ? (
+                        <Avatar name={issue.assignee.fullName} size="sm" />
+                    ) : (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-line text-secondary">
+                            <Icon name="person" className="text-[16px]" />
                         </span>
                     )}
                 </div>
-                {issue.assignee ? (
-                    <Avatar name={issue.assignee.fullName} size="sm" />
-                ) : (
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-line text-secondary">
-                        <Icon name="person" className="text-[16px]" />
-                    </span>
-                )}
-            </div>
-        </button>
-        {!readOnly && (
-            <div className="flex justify-end md:hidden">
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onMove(issue);
-                    }}
-                    disabled={moving}
-                >
-                    <Icon name="swap_horiz" className="text-[16px]" />
-                    Move to…
-                </Button>
-            </div>
-        )}
-    </div>
-);
+            </button>
+            {!readOnly && (
+                <div className="flex justify-end md:hidden">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onMove(issue);
+                        }}
+                        disabled={moving}
+                    >
+                        <Icon name="swap_horiz" className="text-[16px]" />
+                        {t('issues.card.moveTo')}
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
+};
 
 // readOnly: contract ACTIVE deyilsə sürüşdürmə və yaratma söndürülür (backend də 400 qaytarır)
 const KanbanBoard = ({ contract, readOnly }) => {
+    const { t } = useTranslation();
     const { data, isLoading, isError, refetch } = useGetIssuesQuery(contract.id);
     const [moveIssue, { isLoading: moving }] = useMoveIssueMutation();
     const live = useIssueSocket(contract.id);
@@ -102,7 +107,7 @@ const KanbanBoard = ({ contract, readOnly }) => {
             await moveIssue({ id: issue.id, contractId: contract.id, status, position }).unwrap();
             setMoveTarget(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not move the issue'));
+            toast.error(getErrorMessage(err, t('issues.toasts.moveError')));
         }
     };
 
@@ -125,7 +130,7 @@ const KanbanBoard = ({ contract, readOnly }) => {
             }).unwrap();
         } catch (err) {
             // optimistic dəyişiklik avtomatik geri qaytarılır
-            toast.error(getErrorMessage(err, 'Could not move the issue'));
+            toast.error(getErrorMessage(err, t('issues.toasts.moveError')));
         }
     };
 
@@ -139,16 +144,19 @@ const KanbanBoard = ({ contract, readOnly }) => {
         );
     }
 
-    if (isError) return <ErrorState title="Could not load the board" onRetry={refetch} />;
+    if (isError) return <ErrorState title={t('issues.board.loadError')} onRetry={refetch} />;
 
     return (
         <>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-headline-sm text-on-surface">
                     <Icon name="view_kanban" className="text-[22px] text-primary-container" />
-                    Project board
+                    {t('issues.board.projectBoard')}
                     <span className="text-label-md font-normal text-secondary">
-                        {issues.filter((i) => i.status === 'DONE').length} / {issues.length} done
+                        {t('issues.board.doneCount', {
+                            done: issues.filter((i) => i.status === 'DONE').length,
+                            total: issues.length,
+                        })}
                     </span>
                     <span
                         className={cn(
@@ -157,13 +165,13 @@ const KanbanBoard = ({ contract, readOnly }) => {
                         )}
                     >
                         <span className={cn('h-1.5 w-1.5 rounded-full', live ? 'bg-emerald-500' : 'bg-outline')} />
-                        {live ? 'Live' : 'Offline'}
+                        {live ? t('issues.board.live') : t('issues.board.offline')}
                     </span>
                 </h2>
                 {!readOnly && (
                     <Button onClick={() => setCreateOpen(true)}>
                         <Icon name="add" className="text-[18px]" />
-                        Create issue
+                        {t('issues.board.create')}
                     </Button>
                 )}
             </div>
@@ -172,8 +180,10 @@ const KanbanBoard = ({ contract, readOnly }) => {
                 <div className="mb-4">
                     <EmptyState
                         icon="checklist"
-                        title="No issues yet"
-                        description={readOnly ? 'This contract is closed.' : 'Create the first issue to start planning the work.'}
+                        title={t('issues.board.emptyTitle')}
+                        description={
+                            readOnly ? t('issues.board.emptyClosed') : t('issues.board.emptyText')
+                        }
                     />
                 </div>
             )}
@@ -188,7 +198,7 @@ const KanbanBoard = ({ contract, readOnly }) => {
                             <div className="mb-3 flex items-center gap-2 px-1">
                                 <span className={cn('h-2 w-2 rounded-full', col.dot)} />
                                 <h3 className="text-label-md font-semibold uppercase tracking-wider text-on-surface-variant">
-                                    {col.title}
+                                    {t(col.labelKey)}
                                 </h3>
                                 <span className="tabular text-caption text-secondary">{byStatus[col.status].length}</span>
                             </div>
@@ -244,14 +254,18 @@ const KanbanBoard = ({ contract, readOnly }) => {
             <Modal
                 open={!!moveTarget}
                 onClose={() => setMoveTarget(null)}
-                title={moveTarget ? `Move “${moveTarget.title}”` : 'Move issue'}
+                title={
+                    moveTarget
+                        ? t('issues.move.title', { title: moveTarget.title })
+                        : t('issues.move.titleFallback')
+                }
                 footer={
                     <Button variant="secondary" onClick={() => setMoveTarget(null)} disabled={moving}>
-                        Cancel
+                        {t('common.actions.cancel')}
                     </Button>
                 }
             >
-                <p className="mb-3 text-body-md text-secondary">Choose a column for this card.</p>
+                <p className="mb-3 text-body-md text-secondary">{t('issues.move.text')}</p>
                 <div className="flex flex-col gap-2">
                     {(MOVE_OPTIONS[moveTarget?.status] || []).map((status) => (
                         <Button
@@ -262,7 +276,7 @@ const KanbanBoard = ({ contract, readOnly }) => {
                             onClick={() => moveToStatus(moveTarget, status)}
                         >
                             <Icon name="drive_file_move" className="text-[18px]" />
-                            Move to {columnTitle(status)}
+                            {t('issues.move.to', { column: t(columnLabelKey(status)) })}
                         </Button>
                     ))}
                 </div>
@@ -280,4 +294,3 @@ const KanbanBoard = ({ contract, readOnly }) => {
 };
 
 export default KanbanBoard;
-

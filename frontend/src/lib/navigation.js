@@ -1,30 +1,38 @@
 // Sidebar menyusu rola görə. Yeni səhifə əlavə edəndə yalnız bura bir sətir yaz.
-// icon: Material Symbols adı (Icon.jsx köhnə adları da başa düşür)
-export const NAV_ITEMS = {
+// labelKey i18n açarıdır; yazı `navItems` ilə aktiv dilə çevrilir.
+import { translate } from '../i18n';
+
+const NAV_ITEM_DEFS = {
     CLIENT: [
-        { to: '/client/dashboard', label: 'Dashboard', icon: 'dashboard' },
-        { to: '/client/jobs', label: 'My jobs', icon: 'work' },
-        { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
-        { to: '/messages', label: 'Messages', icon: 'chat' },
-        { to: '/settings', label: 'Settings', icon: 'settings' },
+        { to: '/client/dashboard', labelKey: 'nav.items.dashboard', icon: 'dashboard' },
+        { to: '/client/jobs', labelKey: 'nav.items.myJobs', icon: 'work' },
+        { to: '/contracts', labelKey: 'nav.items.contracts', icon: 'verified_user' },
+        { to: '/messages', labelKey: 'nav.items.messages', icon: 'chat' },
+        { to: '/settings', labelKey: 'nav.items.settings', icon: 'settings' },
     ],
     FREELANCER: [
-        { to: '/freelancer/dashboard', label: 'Dashboard', icon: 'dashboard' },
-        { to: '/jobs', label: 'Find work', icon: 'search' },
-        { to: '/freelancer/proposals', label: 'My proposals', icon: 'description' },
-        { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
-        { to: '/messages', label: 'Messages', icon: 'chat' },
-        { to: '/settings', label: 'Settings', icon: 'settings' },
+        { to: '/freelancer/dashboard', labelKey: 'nav.items.dashboard', icon: 'dashboard' },
+        { to: '/jobs', labelKey: 'nav.items.findWork', icon: 'search' },
+        { to: '/freelancer/proposals', labelKey: 'nav.items.myProposals', icon: 'description' },
+        { to: '/contracts', labelKey: 'nav.items.contracts', icon: 'verified_user' },
+        { to: '/messages', labelKey: 'nav.items.messages', icon: 'chat' },
+        { to: '/settings', labelKey: 'nav.items.settings', icon: 'settings' },
     ],
     ADMIN: [
-        { to: '/admin/disputes', label: 'Disputes', icon: 'report_problem' },
-        { to: '/admin/reports', label: 'Reports', icon: 'flag' },
-        { to: '/admin/users', label: 'Users', icon: 'group' },
-        { to: '/contracts', label: 'Contracts', icon: 'verified_user' },
-        { to: '/messages', label: 'Messages', icon: 'chat' },
-        { to: '/settings', label: 'Settings', icon: 'settings' },
+        { to: '/admin/disputes', labelKey: 'nav.items.disputes', icon: 'report_problem' },
+        { to: '/admin/reports', labelKey: 'nav.items.reports', icon: 'flag' },
+        { to: '/admin/users', labelKey: 'nav.items.users', icon: 'group' },
+        { to: '/contracts', labelKey: 'nav.items.contracts', icon: 'verified_user' },
+        { to: '/messages', labelKey: 'nav.items.messages', icon: 'chat' },
+        { to: '/settings', labelKey: 'nav.items.settings', icon: 'settings' },
     ],
 };
+
+export const navItems = (role) =>
+    (NAV_ITEM_DEFS[role] || []).map(({ labelKey, ...item }) => ({
+        ...item,
+        label: translate(labelKey),
+    }));
 
 // Rola görə əsas səhifə (login-dən sonra və /dashboard üçün)
 export const getDashboardPath = (role) => {

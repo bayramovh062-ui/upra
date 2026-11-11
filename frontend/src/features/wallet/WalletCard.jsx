@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Card, ErrorState, Icon, Skeleton } from '../../components/ui';
 import { formatCents } from '../../lib/format';
+import { useTranslation } from '../locale/useTranslation';
 import TopUpModal from './TopUpModal';
 import WithdrawModal from './WithdrawModal';
 import { useGetWalletQuery } from './walletApi';
@@ -20,12 +21,13 @@ const Balance = ({ label, hint, value, icon }) => (
 // Client pul əlavə edir və çıxarır, frilanser yalnız çıxarır (qazancı available-a düşür).
 // escrowCents: frilanserin pul kisəsində kilidli pul olmur, gözləyən məbləğ müqavilələrdən hesablanıb verilir.
 const WalletCard = ({ isClient, escrowCents }) => {
+    const { t } = useTranslation();
     const walletQ = useGetWalletQuery();
     const [topUpOpen, setTopUpOpen] = useState(false);
     const [withdrawOpen, setWithdrawOpen] = useState(false);
 
     if (walletQ.isError) {
-        return <ErrorState title="Could not load your wallet" onRetry={walletQ.refetch} />;
+        return <ErrorState title={t('wallet.card.loadError')} onRetry={walletQ.refetch} />;
     }
 
     const wallet = walletQ.data?.wallet;
@@ -37,15 +39,15 @@ const WalletCard = ({ isClient, escrowCents }) => {
                 <div>
                     <h2 className="flex items-center gap-2 text-headline-sm text-on-surface">
                         <Icon name="account_balance_wallet" className="text-[22px] text-primary-container" />
-                        Wallet
+                        {t('wallet.card.title')}
                     </h2>
-                    <p className="text-caption text-secondary">Demo balance in USD. No real payments are made.</p>
+                    <p className="text-caption text-secondary">{t('wallet.card.demoNote')}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {isClient && (
                         <Button size="sm" onClick={() => setTopUpOpen(true)}>
                             <Icon name="add_card" className="text-[16px]" />
-                            Add demo funds
+                            {t('wallet.card.addFunds')}
                         </Button>
                     )}
                     <Button
@@ -55,7 +57,7 @@ const WalletCard = ({ isClient, escrowCents }) => {
                         disabled={loading || !wallet || wallet.availableCents <= 0}
                     >
                         <Icon name="north_east" className="text-[16px]" />
-                        Withdraw
+                        {t('wallet.card.withdraw')}
                     </Button>
                 </div>
             </div>
@@ -68,16 +70,16 @@ const WalletCard = ({ isClient, escrowCents }) => {
             ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Balance
-                        label="Available"
+                        label={t('wallet.card.available')}
                         icon="savings"
                         value={formatCents(wallet?.availableCents ?? 0)}
-                        hint={isClient ? 'Ready to fund milestones' : 'Ready to withdraw'}
+                        hint={t(isClient ? 'wallet.card.availableClientHint' : 'wallet.card.availableFreelancerHint')}
                     />
                     <Balance
-                        label="In escrow"
+                        label={t('wallet.card.inEscrow')}
                         icon="lock"
                         value={formatCents(escrowCents ?? wallet?.lockedCents ?? 0)}
-                        hint={isClient ? 'Funded, waiting for approval' : 'Funded by clients, not paid yet'}
+                        hint={t(isClient ? 'wallet.card.escrowClientHint' : 'wallet.card.escrowFreelancerHint')}
                     />
                 </div>
             )}

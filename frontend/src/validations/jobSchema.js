@@ -18,55 +18,58 @@ const PAYMENTS = ['MILESTONES', 'LUMP_SUM'];
 export const minDeadlineValue = () =>
     new Date(Date.now() + MIN_DEADLINE_DAYS * DAY_MS).toISOString().slice(0, 10);
 
-// Hər addımda yoxlanan sahələr (Next basanda yalnız cari addım yoxlanır)
+// Hər addımda yoxlanan sahələr (Next basanda yalnız cari addım yoxlanır).
+// `titleKey` tərcümə açarıdır; JobForm onu `t` ilə oxuyur.
 export const STEPS = [
-    { key: 'basics', title: 'Basics', fields: ['title', 'categoryId', 'experienceLevel'] },
-    { key: 'scope', title: 'Scope', fields: ['description', 'skills'] },
-    { key: 'budget', title: 'Budget & timeline', fields: ['budget', 'paymentStructure', 'deadline'] },
+    { key: 'basics', titleKey: 'jobs.form.steps.basics', fields: ['title', 'categoryId', 'experienceLevel'] },
+    { key: 'scope', titleKey: 'jobs.form.steps.scope', fields: ['description', 'skills'] },
+    { key: 'budget', titleKey: 'jobs.form.steps.budget', fields: ['budget', 'paymentStructure', 'deadline'] },
 ];
 
 // initialDeadline: redaktədə elanın köhnə son tarixi. İstifadəçi ona toxunmayıbsa,
 // tarix artıq 7 gündən yaxın olsa belə yoxlamadan keçir (backend də göndərilməyən sahəni yoxlamır).
-export const createJobSchemas = ({ initialDeadline = '' } = {}) => {
+export const createJobSchemas = ({ initialDeadline = '', t }) => {
     const title = z
-        .string({ error: 'Title is required' })
+        .string({ error: t('validation.job.titleRequired') })
         .trim()
-        .min(5, 'Title must be at least 5 characters')
-        .max(120, 'Title must be at most 120 characters');
+        .min(5, t('validation.job.titleMin5'))
+        .max(120, t('validation.job.titleMax120'));
 
     const description = z
-        .string({ error: 'Description is required' })
+        .string({ error: t('validation.job.descriptionRequired') })
         .trim()
-        .min(20, 'Description must be at least 20 characters')
-        .max(3000, 'Description must be at most 3,000 characters');
+        .min(20, t('validation.job.descriptionMin20'))
+        .max(3000, t('validation.job.descriptionMax3000'));
 
     // budget inputda register('budget', { valueAsNumber: true }) ilə rəqəmə çevrilir, boş olanda NaN gəlir
     const budget = z
-        .number({ error: 'Budget must be a number' })
-        .positive('Budget must be greater than 0')
-        .max(10_000_000, 'Budget is too large');
+        .number({ error: t('validation.job.budgetNumber') })
+        .positive(t('validation.job.budgetPositive'))
+        .max(10_000_000, t('validation.job.budgetMax'));
 
-    const paymentStructure = z.enum(PAYMENTS, { error: 'Choose a payment structure' });
+    const paymentStructure = z.enum(PAYMENTS, { error: t('validation.job.paymentStructureRequired') });
 
     const deadline = z
         .string()
-        .regex(/^(\d{4}-\d{2}-\d{2})?$/, 'Enter a valid date')
+        .regex(/^(\d{4}-\d{2}-\d{2})?$/, t('validation.job.deadlineInvalid'))
         .optional()
         .refine(
             (value) => !value || value === initialDeadline || value >= minDeadlineValue(),
-            `Deadline must be at least ${MIN_DEADLINE_DAYS} days from today`
+            t('validation.job.deadlineMin', { days: MIN_DEADLINE_DAYS })
         );
 
     const common = { title, description, budget, paymentStructure, deadline };
-    const tooManySkills = `You can add at most ${MAX_JOB_SKILLS} skills`;
+    const tooManySkills = t('validation.job.skillsMax', { max: MAX_JOB_SKILLS });
 
     const jobSchema = z.object({
         ...common,
-        categoryId: z.string({ error: 'Choose a category' }).min(1, 'Choose a category'),
-        experienceLevel: z.enum(LEVELS, { error: 'Choose an experience level' }),
+        categoryId: z
+            .string({ error: t('validation.job.categoryRequired') })
+            .min(1, t('validation.job.categoryRequired')),
+        experienceLevel: z.enum(LEVELS, { error: t('validation.job.experienceRequired') }),
         skills: z
             .array(z.string())
-            .min(1, 'Add at least one skill')
+            .min(1, t('validation.job.skillsMin'))
             .max(MAX_JOB_SKILLS, tooManySkills),
     });
 

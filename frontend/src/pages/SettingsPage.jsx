@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
@@ -27,16 +27,21 @@ import {
 } from '../features/auth/authApi';
 import { useUploadAvatarMutation } from '../features/attachments/attachmentsApi';
 import { useLogout } from '../features/auth/useLogout';
+import { useTranslation } from '../features/locale/useTranslation';
 import SkillPicker from '../features/taxonomy/SkillPicker';
 import { cn } from '../lib/cn';
 import { formatDate, getErrorMessage } from '../lib/format';
-import { AVAILABILITY_OPTIONS, TIMEZONES } from '../lib/labels';
-import { passwordSchema, professionalSchema, profileSchema } from '../validations/settingsSchema';
+import { availabilityOptions, TIMEZONES } from '../lib/labels';
+import {
+    createPasswordSchema,
+    createProfessionalSchema,
+    createProfileSchema,
+} from '../validations/settingsSchema';
 
 // Boş sahə backend-ə "" kimi gedir və orada null olur
 const toFormText = (value) => value ?? '';
 
-const SaveButton = ({ loading, disabled, children = 'Save changes' }) => (
+const SaveButton = ({ loading, disabled, children }) => (
     <div className="flex justify-end">
         <Button type="submit" loading={loading} disabled={disabled}>
             {children}
@@ -46,10 +51,12 @@ const SaveButton = ({ loading, disabled, children = 'Save changes' }) => (
 
 // Şəxsi məlumat: ad, avatar (Plan P3 fayl yükləmə + URL fallback), məkan, saat qurşağı (hər iki rol)
 const ProfileForm = ({ user }) => {
+    const { t } = useTranslation();
     const [updateMe, { isLoading }] = useUpdateMeMutation();
     const [uploadAvatar, { isLoading: uploadingAvatar }] = useUploadAvatarMutation();
     const fileRef = useRef(null);
     const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+    const resolver = useMemo(() => zodResolver(createProfileSchema(t)), [t]);
     const {
         register,
         handleSubmit,
@@ -57,7 +64,7 @@ const ProfileForm = ({ user }) => {
         control,
         formState: { errors, isDirty },
     } = useForm({
-        resolver: zodResolver(profileSchema),
+        resolver,
         defaultValues: {
             fullName: user.fullName,
             avatarUrl: toFormText(user.avatarUrl),
@@ -73,10 +80,10 @@ const ProfileForm = ({ user }) => {
     const onSubmit = async (values) => {
         try {
             await updateMe(values).unwrap();
-            toast.success('Personal information updated');
+            toast.success(t('settings.profile.saved'));
             reset(values);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update your profile'));
+            toast.error(getErrorMessage(err, t('settings.profile.saveError')));
         }
     };
 
@@ -90,19 +97,19 @@ const ProfileForm = ({ user }) => {
             if (url) {
                 reset({ ...control._formValues, avatarUrl: url }, { keepDirtyValues: true, keepDefaultValues: true });
             }
-            toast.success('Avatar uploaded');
+            toast.success(t('settings.profile.avatarUploaded'));
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not upload avatar'));
+            toast.error(getErrorMessage(err, t('settings.profile.avatarError')));
         }
     };
 
     return (
         <Card>
-            <CardHeader title="Personal information" />
+            <CardHeader title={t('settings.profile.title')} />
             <CardBody>
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                        <button type="button" onClick={() => setAvatarModalOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label="View profile photo">
+                        <button type="button" onClick={() => setAvatarModalOpen(true)} className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" aria-label={t('settings.profile.viewPhoto')}>
                             <Avatar name={fullName} src={errors.avatarUrl ? null : avatarPreview} size="xl" />
                             {avatarPreview && (
                                 <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
@@ -111,42 +118,46 @@ const ProfileForm = ({ user }) => {
                             )}
                         </button>
                         <div className="flex flex-wrap items-center gap-3 text-body-md text-secondary">
-                            <Badge>{user.role === 'CLIENT' ? 'Client' : 'Freelancer'}</Badge>
-                            {user.createdAt && <span>Member since {formatDate(user.createdAt)}</span>}
+                            <Badge>{t(`common.roles.${user.role}`)}</Badge>
+                            {user.createdAt && (
+                                <span>{t('settings.memberSince', { date: formatDate(user.createdAt) })}</span>
+                            )}
                             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={onAvatarFile} />
                             <Button type="button" variant="secondary" size="sm" loading={uploadingAvatar} onClick={() => fileRef.current?.click()}>
                                 <Icon name="upload" className="text-[16px]" />
-                                Upload photo
+                                {t('settings.profile.uploadPhoto')}
                             </Button>
                         </div>
                     </div>
-                    <Input label="Full name" error={errors.fullName?.message} {...register('fullName')} />
-                    <Input label="Email" value={user.email ?? ''} disabled readOnly hint="Email cannot be changed" />
+                    <Input label={t('settings.profile.fullName')} error={errors.fullName?.message} {...register('fullName')} />
+                    <Input label={t('settings.profile.email')} value={user.email ?? ''} disabled readOnly hint={t('settings.profile.emailHint')} />
                     <Input
-                        label="Avatar URL (optional)"
+                        label={t('settings.profile.avatarUrl')}
                         type="url"
-                        placeholder="https://example.com/photo.jpg"
-                        hint="Use Upload photo (stored securely) or paste an image URL. Leave empty to show your initials."
+                        placeholder={t('settings.profile.avatarPlaceholder')}
+                        hint={t('settings.profile.avatarHint')}
                         error={errors.avatarUrl?.message}
                         {...register('avatarUrl')}
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Input
-                            label="Location"
-                            placeholder="City, Country"
+                            label={t('settings.profile.location')}
+                            placeholder={t('settings.profile.locationPlaceholder')}
                             icon="location_on"
                             error={errors.location?.message}
                             {...register('location')}
                         />
                         <Select
-                            label="Time zone"
-                            placeholder="Not set"
+                            label={t('settings.profile.timezone')}
+                            placeholder={t('settings.profile.timezonePlaceholder')}
                             options={timezoneOptions}
                             error={errors.timezone?.message}
                             {...register('timezone')}
                         />
                     </div>
-                    <SaveButton loading={isLoading} disabled={!isDirty} />
+                    <SaveButton loading={isLoading} disabled={!isDirty}>
+                        {t('settings.saveChanges')}
+                    </SaveButton>
                 </form>
 
                 <AvatarModal
@@ -156,7 +167,7 @@ const ProfileForm = ({ user }) => {
                     name={fullName}
                     editable={Boolean(avatarPreview)}
                     onSave={() => {
-                        toast('Framing preview applied locally. Saving a cropped avatar requires a backend crop endpoint.', { icon: 'ℹ️' });
+                        toast(t('settings.profile.framingInfo'), { icon: 'ℹ️' });
                         setAvatarModalOpen(false);
                     }}
                 />
@@ -167,8 +178,10 @@ const ProfileForm = ({ user }) => {
 
 // Peşəkar məlumat: başlıq və bio hər iki rol üçün, saat haqqı və əlçatanlıq yalnız frilanser üçün
 const ProfessionalForm = ({ user }) => {
+    const { t } = useTranslation();
     const isFreelancer = user.role === 'FREELANCER';
     const [updateMe, { isLoading }] = useUpdateMeMutation();
+    const resolver = useMemo(() => zodResolver(createProfessionalSchema(t)), [t]);
     const {
         register,
         handleSubmit,
@@ -176,7 +189,7 @@ const ProfessionalForm = ({ user }) => {
         control,
         formState: { errors, isDirty },
     } = useForm({
-        resolver: zodResolver(professionalSchema),
+        resolver,
         defaultValues: {
             headline: toFormText(user.headline),
             bio: toFormText(user.bio),
@@ -195,55 +208,61 @@ const ProfessionalForm = ({ user }) => {
         }
         try {
             await updateMe(body).unwrap();
-            toast.success('Professional information updated');
+            toast.success(t('settings.professional.saved'));
             reset(values);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update your profile'));
+            toast.error(getErrorMessage(err, t('settings.professional.saveError')));
         }
     };
 
     return (
         <Card>
-            <CardHeader title="Professional information" />
+            <CardHeader title={t('settings.professional.title')} />
             <CardBody>
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
                     <Input
-                        label="Professional headline"
-                        placeholder={isFreelancer ? 'e.g. Senior React & Node.js developer' : 'e.g. Product lead at Acme'}
+                        label={t('settings.professional.headline')}
+                        placeholder={t(
+                            isFreelancer
+                                ? 'settings.professional.headlinePlaceholderFreelancer'
+                                : 'settings.professional.headlinePlaceholderClient'
+                        )}
                         error={errors.headline?.message}
                         {...register('headline')}
                     />
                     <Textarea
-                        label="Biography"
+                        label={t('settings.professional.bio')}
                         rows={6}
-                        placeholder="Tell others about your experience, what you work on and how you like to collaborate."
-                        hint={`${bioLength}/1000 characters`}
+                        placeholder={t('settings.professional.bioPlaceholder')}
+                        hint={t('settings.professional.bioCount', { count: bioLength })}
                         error={errors.bio?.message}
                         {...register('bio')}
                     />
                     {isFreelancer && (
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Input
-                                label="Hourly rate (USD)"
+                                label={t('settings.professional.hourlyRate')}
                                 type="number"
                                 inputMode="decimal"
                                 min="0"
                                 step="0.01"
-                                placeholder="e.g. 45"
+                                placeholder={t('settings.professional.hourlyRatePlaceholder')}
                                 icon="payments"
-                                hint="Leave empty to hide your rate"
+                                hint={t('settings.professional.hourlyRateHint')}
                                 error={errors.hourlyRate?.message}
                                 {...register('hourlyRate')}
                             />
                             <Select
-                                label="Availability"
-                                options={AVAILABILITY_OPTIONS}
+                                label={t('settings.professional.availability')}
+                                options={availabilityOptions()}
                                 error={errors.availability?.message}
                                 {...register('availability')}
                             />
                         </div>
                     )}
-                    <SaveButton loading={isLoading} disabled={!isDirty} />
+                    <SaveButton loading={isLoading} disabled={!isDirty}>
+                        {t('settings.saveChanges')}
+                    </SaveButton>
                 </form>
             </CardBody>
         </Card>
@@ -252,36 +271,37 @@ const ProfessionalForm = ({ user }) => {
 
 // Görünürlük: dərhal yadda saxlanılır. Gizli profildə başqaları yalnız ad və rolu görür
 const VisibilityForm = ({ user }) => {
+    const { t } = useTranslation();
     const [updateMe, { isLoading }] = useUpdateMeMutation();
     const isPublic = user.profilePublic !== false;
 
     const toggle = async () => {
         try {
             await updateMe({ profilePublic: !isPublic }).unwrap();
-            toast.success(isPublic ? 'Your profile is now private' : 'Your profile is now public');
+            toast.success(isPublic ? t('settings.visibility.becamePrivate') : t('settings.visibility.becamePublic'));
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update profile visibility'));
+            toast.error(getErrorMessage(err, t('settings.visibility.error')));
         }
     };
 
     return (
         <Card>
-            <CardHeader title="Profile visibility" />
+            <CardHeader title={t('settings.visibility.title')} />
             <CardBody>
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-body-md font-medium text-on-surface">Public profile</p>
+                        <p className="text-body-md font-medium text-on-surface">{t('settings.visibility.public')}</p>
                         <p className="mt-1 max-w-md text-body-md text-secondary">
                             {isPublic
-                                ? 'Other Upra members can see your headline, biography, skills, rate, location and stats.'
-                                : 'Your profile is private. Other members only see your name and role.'}
+                                ? t('settings.visibility.publicDescription')
+                                : t('settings.visibility.privateDescription')}
                         </p>
                     </div>
                     <button
                         type="button"
                         role="switch"
                         aria-checked={isPublic}
-                        aria-label="Public profile"
+                        aria-label={t('settings.visibility.public')}
                         onClick={toggle}
                         disabled={isLoading}
                         className={cn(
@@ -306,6 +326,7 @@ const VisibilityForm = ({ user }) => {
 
 // Frilanserin bacarıqları: "Matched to your skills" tab-ı və elanlardakı uyğunluq faizi bunlara əsaslandırılır
 const SkillsForm = ({ user }) => {
+    const { t } = useTranslation();
     const [updateMe, { isLoading }] = useUpdateMeMutation();
     const saved = (user.skills ?? []).map((s) => (typeof s === 'string' ? s : s.name));
     const [skills, setSkills] = useState(saved);
@@ -316,23 +337,21 @@ const SkillsForm = ({ user }) => {
     const onSave = async () => {
         try {
             await updateMe({ skills }).unwrap();
-            toast.success('Skills updated');
+            toast.success(t('settings.skills.saved'));
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update your skills'));
+            toast.error(getErrorMessage(err, t('settings.skills.error')));
         }
     };
 
     return (
         <Card>
-            <CardHeader title="Skills" />
+            <CardHeader title={t('settings.skills.title')} />
             <CardBody className="flex flex-col gap-4">
-                <p className="text-body-md text-secondary">
-                    Add the skills you work with. Jobs that require them are shown under "Matched to your skills".
-                </p>
+                <p className="text-body-md text-secondary">{t('settings.skills.description')}</p>
                 <SkillPicker value={skills} onChange={setSkills} max={15} />
                 <div className="flex justify-end">
                     <Button onClick={onSave} loading={isLoading} disabled={!dirty}>
-                        Save skills
+                        {t('settings.skills.save')}
                     </Button>
                 </div>
             </CardBody>
@@ -341,53 +360,55 @@ const SkillsForm = ({ user }) => {
 };
 
 const PasswordForm = () => {
+    const { t } = useTranslation();
     const [updatePassword, { isLoading }] = useUpdatePasswordMutation();
+    const resolver = useMemo(() => zodResolver(createPasswordSchema(t)), [t]);
     const {
         register,
         handleSubmit,
         reset,
         formState: { errors },
     } = useForm({
-        resolver: zodResolver(passwordSchema),
+        resolver,
         defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
     });
 
     const onSubmit = async ({ currentPassword, newPassword }) => {
         try {
             await updatePassword({ currentPassword, newPassword }).unwrap();
-            toast.success('Password updated');
+            toast.success(t('settings.password.saved'));
             reset();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update the password'));
+            toast.error(getErrorMessage(err, t('settings.password.error')));
         }
     };
 
     return (
         <Card>
-            <CardHeader title="Password" />
+            <CardHeader title={t('settings.password.title')} />
             <CardBody>
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
                     <PasswordInput
-                        label="Current password"
+                        label={t('settings.password.current')}
                         autoComplete="current-password"
                         error={errors.currentPassword?.message}
                         {...register('currentPassword')}
                     />
                     <PasswordInput
-                        label="New password"
+                        label={t('settings.password.new')}
                         autoComplete="new-password"
                         error={errors.newPassword?.message}
                         {...register('newPassword')}
                     />
                     <PasswordInput
-                        label="Confirm new password"
+                        label={t('settings.password.confirm')}
                         autoComplete="new-password"
                         error={errors.confirmPassword?.message}
                         {...register('confirmPassword')}
                     />
                     <div className="flex justify-end">
                         <Button type="submit" loading={isLoading}>
-                            Update password
+                            {t('settings.password.update')}
                         </Button>
                     </div>
                 </form>
@@ -398,6 +419,7 @@ const PasswordForm = () => {
 
 // Hesabı silmə: parol təsdiqi ilə. Aktiv müqavilə varsa backend 400 qaytarır və mesajı toast-da göstərilir.
 const DangerZone = () => {
+    const { t } = useTranslation();
     const [deleteAccount, { isLoading }] = useDeleteAccountMutation();
     const logout = useLogout();
     const [open, setOpen] = useState(false);
@@ -411,26 +433,22 @@ const DangerZone = () => {
     const onConfirm = async () => {
         try {
             await deleteAccount({ password }).unwrap();
-            toast.success('Your account has been deleted');
+            toast.success(t('settings.danger.deleted'));
             logout();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not delete the account'));
+            toast.error(getErrorMessage(err, t('settings.danger.error')));
         }
     };
 
     return (
         <>
             <Card className="border-error">
-                <CardHeader title="Danger zone" />
+                <CardHeader title={t('settings.danger.title')} />
                 <CardBody>
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <p className="max-w-md text-body-md text-secondary">
-                            Deleting your account cannot be undone. Your contract history stays visible to the other
-                            party, but your personal data is removed. Active contracts must be completed or cancelled
-                            first.
-                        </p>
+                        <p className="max-w-md text-body-md text-secondary">{t('settings.danger.description')}</p>
                         <Button variant="danger" onClick={() => setOpen(true)}>
-                            Delete account
+                            {t('settings.danger.deleteAccount')}
                         </Button>
                     </div>
                 </CardBody>
@@ -439,20 +457,20 @@ const DangerZone = () => {
             <Modal
                 open={open}
                 onClose={close}
-                title="Delete your account?"
+                title={t('settings.danger.modalTitle')}
                 footer={
                     <>
                         <Button variant="secondary" onClick={close} disabled={isLoading}>
-                            Cancel
+                            {t('common.actions.cancel')}
                         </Button>
                         <Button variant="danger" onClick={onConfirm} loading={isLoading} disabled={!password}>
-                            Delete account
+                            {t('settings.danger.deleteAccount')}
                         </Button>
                     </>
                 }
             >
                 <PasswordInput
-                    label="Confirm with your password"
+                    label={t('settings.danger.confirmWithPassword')}
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -463,6 +481,7 @@ const DangerZone = () => {
 };
 
 const SettingsPage = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     if (!user) return null;
 
@@ -473,13 +492,13 @@ const SettingsPage = () => {
     return (
         <>
             <PageHeader
-                title="Settings"
-                description="Manage your profile, visibility, password and account."
+                title={t('settings.page.title')}
+                description={t('settings.page.description')}
                 action={
                     <Link to={`/users/${user.id}`}>
                         <Button variant="secondary">
                             <Icon name="visibility" className="text-[18px]" />
-                            View public profile
+                            {t('settings.page.viewPublicProfile')}
                         </Button>
                     </Link>
                 }

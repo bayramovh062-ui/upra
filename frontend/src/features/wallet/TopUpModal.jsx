@@ -2,6 +2,8 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, Input, Modal } from '../../components/ui';
 import { getErrorMessage } from '../../lib/format';
+import { formatNumber } from '../../i18n';
+import { useTranslation } from '../locale/useTranslation';
 import { useTopUpWalletMutation } from './walletApi';
 
 const MAX_TOPUP_DOLLARS = 5000; // backend: MAX_TOPUP_CENTS = 500000
@@ -9,6 +11,7 @@ const QUICK_AMOUNTS = [100, 500, 1000];
 
 // DEMO: real ödəniş yoxdur, yalnız simulyasiya edilmiş balans əlavə edir
 const TopUpModal = ({ open, onClose }) => {
+    const { t } = useTranslation();
     const [amount, setAmount] = useState('');
     const [error, setError] = useState('');
     const [topUp, { isLoading }] = useTopUpWalletMutation();
@@ -22,21 +25,21 @@ const TopUpModal = ({ open, onClose }) => {
     const submit = async () => {
         const dollars = Number(amount);
         if (!amount || Number.isNaN(dollars) || dollars <= 0) {
-            setError('Enter an amount greater than 0');
+            setError(t('wallet.topUp.amountInvalid'));
             return;
         }
         if (dollars > MAX_TOPUP_DOLLARS) {
-            setError(`Demo top-up is limited to $${MAX_TOPUP_DOLLARS} per request`);
+            setError(t('wallet.topUp.limit', { max: formatNumber(MAX_TOPUP_DOLLARS) }));
             return;
         }
 
         try {
             // Float xətasının qarşısı: dollar -> sent yuvarlaqlaşdırılır (məs. 19.99 * 100 = 1998.9999...)
             await topUp({ amountCents: Math.round(dollars * 100) }).unwrap();
-            toast.success('Demo funds added to your wallet');
+            toast.success(t('wallet.topUp.success'));
             close();
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not add funds'));
+            toast.error(getErrorMessage(err, t('wallet.topUp.error')));
         }
     };
 
@@ -44,23 +47,23 @@ const TopUpModal = ({ open, onClose }) => {
         <Modal
             open={open}
             onClose={close}
-            title="Add demo funds"
+            title={t('wallet.topUp.title')}
             footer={
                 <>
                     <Button variant="secondary" onClick={close} disabled={isLoading}>
-                        Cancel
+                        {t('common.actions.cancel')}
                     </Button>
                     <Button onClick={submit} loading={isLoading}>
-                        Add funds
+                        {t('wallet.topUp.submit')}
                     </Button>
                 </>
             }
         >
             <p className="mb-3 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
-                Demo only: this is simulated money, no real payment is made.
+                {t('wallet.topUp.demoNote')}
             </p>
             <Input
-                label="Amount (USD)"
+                label={t('wallet.topUp.amount')}
                 type="number"
                 min="0"
                 step="0.01"

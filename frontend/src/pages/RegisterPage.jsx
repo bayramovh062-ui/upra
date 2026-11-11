@@ -1,38 +1,33 @@
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { registerSchema } from '../validations/authSchema';
+import { createRegisterSchema } from '../validations/authSchema';
 import { useRegisterMutation } from '../features/auth/authApi';
+import { useTranslation } from '../features/locale/useTranslation';
 import { Button, Icon, Input, PasswordInput } from '../components/ui';
 import { FieldError } from '../components/ui/Input';
-import { DEMO_NOTICE } from '../lib/demo';
+import { demoNotice } from '../lib/demo';
 
 const ROLES = [
-    {
-        value: 'CLIENT',
-        icon: 'corporate_fare',
-        title: 'Client — I want to hire',
-        description: 'Post jobs, review proposals and manage the project board.',
-    },
-    {
-        value: 'FREELANCER',
-        icon: 'terminal',
-        title: 'Freelancer — I want to work',
-        description: 'Find jobs, send proposals and deliver work on a Kanban board.',
-    },
+    { value: 'CLIENT', icon: 'corporate_fare' },
+    { value: 'FREELANCER', icon: 'terminal' },
 ];
 
 const RegisterPage = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [registerUser, { isLoading }] = useRegisterMutation();
+
+    const schema = useMemo(() => createRegisterSchema(t), [t]);
 
     const {
         register,
         handleSubmit,
         formState: { errors },
     } = useForm({
-        resolver: zodResolver(registerSchema),
+        resolver: zodResolver(schema),
         defaultValues: {
             fullName: '',
             email: '',
@@ -49,41 +44,39 @@ const RegisterPage = () => {
             const { confirmPassword, ...registerData } = formData;
             // Token və user Redux-a authApi-dəki onQueryStarted ilə yazılır
             await registerUser(registerData).unwrap();
-            toast.success('Account created successfully!');
+            toast.success(t('auth.register.success'));
             navigate('/dashboard', { replace: true });
         } catch (err) {
-            toast.error(err?.data?.message || 'Registration failed');
+            toast.error(err?.data?.message || t('auth.register.errorFallback'));
         }
     };
 
     return (
         <>
             <div className="mb-6 flex justify-end text-body-md text-secondary">
-                Already have an account?
+                {t('auth.register.haveAccount')}
                 <Link
                     to="/login"
                     className="ml-1.5 font-semibold text-primary transition-colors hover:text-surface-tint"
                 >
-                    Sign in
+                    {t('auth.register.signIn')}
                 </Link>
             </div>
 
             <div className="mx-auto my-auto w-full max-w-xl">
                 <div className="mb-8">
-                    <h2 className="mb-2 text-headline-lg text-on-surface">Create your Upra account</h2>
-                    <p className="text-body-md text-secondary">
-                        Start hiring talent or finding projects. You can pick one role per account.
-                    </p>
+                    <h2 className="mb-2 text-headline-lg text-on-surface">{t('auth.register.title')}</h2>
+                    <p className="text-body-md text-secondary">{t('auth.register.subtitle')}</p>
                     <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
                         <Icon name="science" className="mt-0.5 shrink-0 text-[18px]" />
-                        {DEMO_NOTICE}
+                        {demoNotice()}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
                     <fieldset>
                         <legend className="mb-2 text-label-sm font-semibold uppercase tracking-wider text-on-surface">
-                            Account type
+                            {t('auth.register.accountType')}
                         </legend>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {ROLES.map((role) => (
@@ -105,8 +98,12 @@ const RegisterPage = () => {
                                             <Icon name="check" className="text-[14px]" />
                                         </span>
                                     </div>
-                                    <span className="mb-0.5 text-title-md text-on-surface">{role.title}</span>
-                                    <span className="text-caption text-secondary">{role.description}</span>
+                                    <span className="mb-0.5 text-title-md text-on-surface">
+                                        {t(`auth.register.role${role.value === 'CLIENT' ? 'Client' : 'Freelancer'}Title`)}
+                                    </span>
+                                    <span className="text-caption text-secondary">
+                                        {t(`auth.register.role${role.value === 'CLIENT' ? 'Client' : 'Freelancer'}Description`)}
+                                    </span>
                                 </label>
                             ))}
                         </div>
@@ -114,34 +111,34 @@ const RegisterPage = () => {
                     </fieldset>
 
                     <Input
-                        label="Full name"
+                        label={t('auth.register.fullName')}
                         icon="person"
                         autoComplete="name"
-                        placeholder="Elena Rostova"
+                        placeholder={t('auth.register.fullNamePlaceholder')}
                         error={errors.fullName?.message}
                         {...register('fullName')}
                     />
 
                     <Input
-                        label="Email"
+                        label={t('auth.email')}
                         type="email"
                         icon="mail"
                         autoComplete="email"
-                        placeholder="name@example.com"
+                        placeholder={t('auth.emailPlaceholder')}
                         error={errors.email?.message}
                         {...register('email')}
                     />
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <PasswordInput
-                            label="Password"
+                            label={t('auth.password')}
                             autoComplete="new-password"
                             placeholder="••••••••"
                             error={errors.password?.message}
                             {...register('password')}
                         />
                         <PasswordInput
-                            label="Confirm password"
+                            label={t('auth.register.confirmPassword')}
                             autoComplete="new-password"
                             placeholder="••••••••"
                             error={errors.confirmPassword?.message}
@@ -150,7 +147,7 @@ const RegisterPage = () => {
                     </div>
 
                     <Button type="submit" size="lg" loading={isLoading} className="w-full">
-                        {isLoading ? 'Creating account...' : 'Create account'}
+                        {isLoading ? t('auth.register.submitting') : t('auth.register.submit')}
                         {!isLoading && <Icon name="arrow_forward" className="text-[18px]" />}
                     </Button>
                 </form>

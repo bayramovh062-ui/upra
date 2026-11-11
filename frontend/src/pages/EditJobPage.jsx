@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '../components/ui';
 import JobForm from '../features/jobs/JobForm';
 import { useGetJobQuery, usePublishJobMutation, useUpdateJobMutation } from '../features/jobs/jobsApi';
+import { useTranslation } from '../features/locale/useTranslation';
 import { getErrorMessage } from '../lib/format';
 
 const EditJobPage = () => {
+    const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth.user);
@@ -17,7 +19,7 @@ const EditJobPage = () => {
 
     const backButton = (
         <Link to="/client/jobs">
-            <Button>Back to my jobs</Button>
+            <Button>{t('jobs.edit.back')}</Button>
         </Link>
     );
 
@@ -32,9 +34,9 @@ const EditJobPage = () => {
 
     if (isError) {
         if (error?.status === 404 || error?.status === 400) {
-            return <EmptyState icon="search_off" title="Job not found" action={backButton} />;
+            return <EmptyState icon="search_off" title={t('jobs.edit.notFound')} action={backButton} />;
         }
-        return <ErrorState title="Could not load this job" onRetry={refetch} />;
+        return <ErrorState title={t('jobs.edit.loadError')} onRetry={refetch} />;
     }
 
     const { job } = data;
@@ -44,7 +46,7 @@ const EditJobPage = () => {
         return (
             <EmptyState
                 icon="lock"
-                title="You can only edit your own jobs"
+                title={t('jobs.edit.onlyOwn')}
                 action={backButton}
             />
         );
@@ -55,8 +57,8 @@ const EditJobPage = () => {
         return (
             <EmptyState
                 icon="lock"
-                title="This job can no longer be edited"
-                description="Only drafts and open jobs can be edited. Once a contract starts, the job is locked."
+                title={t('jobs.edit.lockedTitle')}
+                description={t('jobs.edit.lockedText')}
                 action={backButton}
             />
         );
@@ -69,28 +71,26 @@ const EditJobPage = () => {
 
             if (intent === 'publish') {
                 await publishJob(job.id).unwrap();
-                toast.success('Job published');
+                toast.success(t('jobs.edit.toastPublished'));
                 navigate(`/jobs/${job.id}`, { replace: true });
             } else if (intent === 'draft') {
-                toast.success('Draft saved');
+                toast.success(t('jobs.edit.toastDraftSaved'));
                 navigate('/client/jobs?tab=DRAFT', { replace: true });
             } else {
-                toast.success('Job updated');
+                toast.success(t('jobs.edit.toastUpdated'));
                 navigate(`/jobs/${job.id}`, { replace: true });
             }
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not save the job'));
+            toast.error(getErrorMessage(err, t('jobs.edit.errorSave')));
         }
     };
 
     return (
         <>
             <PageHeader
-                title={isDraft ? 'Edit draft' : 'Edit job'}
+                title={isDraft ? t('jobs.edit.titleDraft') : t('jobs.edit.titleOpen')}
                 description={
-                    isDraft
-                        ? 'Only you can see this draft. Publish it when it is ready.'
-                        : 'Changes are visible to freelancers right away.'
+                    isDraft ? t('jobs.edit.descriptionDraft') : t('jobs.edit.descriptionOpen')
                 }
             />
             <JobForm

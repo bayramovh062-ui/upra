@@ -16,10 +16,12 @@ import { useGetJobProposalsQuery } from '../features/proposals/proposalsApi';
 import { useCreateContractMutation } from '../features/contracts/contractsApi';
 import { useOpenConversationMutation } from '../features/chat/chatApi';
 import MilestonePlanModal from '../features/escrow/MilestonePlanModal';
+import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
-import { formatMoney, getErrorMessage, timeAgo } from '../lib/format';
+import { formatMoney, getErrorMessage } from '../lib/format';
 
 const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
+    const { t, timeAgo } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const f = proposal.freelancer;
     const diff = Number(proposal.bidAmount) - Number(budget);
@@ -45,16 +47,22 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
                         </div>
                         {f?.headline && <p className="mt-0.5 text-body-md text-on-surface">{f.headline}</p>}
                         {f?.hourlyRate != null && (
-                            <p className="text-label-sm text-secondary">Profile rate: {formatMoney(f.hourlyRate)}/hr</p>
+                            <p className="text-label-sm text-secondary">
+                                {t('proposals.jobPage.rate', { rate: formatMoney(f.hourlyRate) })}
+                            </p>
                         )}
                     </div>
                 </div>
-                <span className="text-caption text-secondary">Submitted {timeAgo(proposal.createdAt)}</span>
+                <span className="text-caption text-secondary">
+                    {t('proposals.jobPage.submitted', { time: timeAgo(proposal.createdAt) })}
+                </span>
             </div>
 
             <div className="mt-4 flex flex-wrap items-baseline gap-3 rounded-xl bg-surface-container-low p-4">
                 <div>
-                    <p className="text-caption uppercase tracking-wider text-secondary">Proposed bid</p>
+                    <p className="text-caption uppercase tracking-wider text-secondary">
+                        {t('proposals.jobPage.proposedBid')}
+                    </p>
                     <p className="tabular text-headline-sm font-bold text-on-surface">{formatMoney(proposal.bidAmount)}</p>
                 </div>
                 {diff !== 0 && (
@@ -64,7 +72,9 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
                             diff < 0 ? 'bg-success-soft text-success-ink' : 'bg-warning-soft text-warning-ink',
                         )}
                     >
-                        {formatMoney(Math.abs(diff))} {diff < 0 ? 'under' : 'over'} budget
+                        {diff < 0
+                            ? t('proposals.jobPage.underBudget', { amount: formatMoney(Math.abs(diff)) })
+                            : t('proposals.jobPage.overBudget', { amount: formatMoney(Math.abs(diff)) })}
                     </span>
                 )}
             </div>
@@ -84,7 +94,7 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
                         onClick={() => setExpanded((v) => !v)}
                         className="mt-2 text-label-sm font-semibold text-primary hover:underline"
                     >
-                        {expanded ? 'Show less' : 'Read full cover letter'}
+                        {expanded ? t('proposals.jobPage.showLess') : t('proposals.jobPage.readFull')}
                     </button>
                 )}
             </div>
@@ -93,13 +103,13 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
                 {f?.id && (
                     <Button variant="secondary" onClick={() => onMessage(proposal)}>
                         <Icon name="chat" className="text-[18px]" />
-                        Message
+                        {t('proposals.jobPage.message')}
                     </Button>
                 )}
                 {proposal.status === 'PENDING' && canAccept && (
                     <Button onClick={() => onAccept(proposal)}>
                         <Icon name="send" className="text-[18px]" />
-                        Send contract offer
+                        {t('proposals.jobPage.sendOffer')}
                     </Button>
                 )}
             </div>
@@ -108,6 +118,7 @@ const ProposalCard = ({ proposal, budget, canAccept, onAccept, onMessage }) => {
 };
 
 const JobProposalsPage = () => {
+    const { t } = useTranslation();
     const { id } = useParams();
     const [selected, setSelected] = useState(null);
 
@@ -133,11 +144,11 @@ const JobProposalsPage = () => {
             return (
                 <EmptyState
                     icon="search_off"
-                    title="Job not found"
-                    description="This job does not exist or you are not its owner."
+                    title={t('proposals.jobPage.notFoundTitle')}
+                    description={t('proposals.jobPage.notFoundText')}
                     action={
                         <Link to="/client/jobs">
-                            <Button>Back to my jobs</Button>
+                            <Button>{t('jobs.detail.backToMyJobs')}</Button>
                         </Link>
                     }
                 />
@@ -145,7 +156,7 @@ const JobProposalsPage = () => {
         }
         return (
             <ErrorState
-                title="Could not load proposals"
+                title={t('proposals.jobPage.loadError')}
                 onRetry={() => {
                     jobQ.refetch();
                     propQ.refetch();
@@ -162,10 +173,10 @@ const JobProposalsPage = () => {
     const handleAccept = async (milestones) => {
         try {
             await createContract({ proposalId: selected.id, milestones }).unwrap();
-            toast.success('Offer sent. The freelancer must accept it before work starts.');
+            toast.success(t('proposals.jobPage.offerSent'));
             setSelected(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not send the offer'));
+            toast.error(getErrorMessage(err, t('proposals.jobPage.errorOffer')));
         }
     };
 
@@ -179,7 +190,7 @@ const JobProposalsPage = () => {
             const res = await openConversation(otherId).unwrap();
             navigate(`/messages/${res.conversation.id}`);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not open the conversation'));
+            toast.error(getErrorMessage(err, t('proposals.jobPage.errorConversation')));
         }
     };
 
@@ -190,14 +201,15 @@ const JobProposalsPage = () => {
                 className="mb-4 inline-flex items-center gap-1 text-label-md text-secondary hover:text-primary-container"
             >
                 <Icon name="arrow_back" className="text-[18px]" />
-                Back to job
+                {t('proposals.jobPage.backToJob')}
             </Link>
 
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h1 className="break-words text-headline-lg text-on-surface">{job.title}</h1>
                     <p className="mt-1 text-body-md text-secondary">
-                        {proposals.length} proposal{proposals.length === 1 ? '' : 's'} · Budget {formatMoney(job.budget)}
+                        {t('proposals.jobPage.count', { count: proposals.length })} ·{' '}
+                        {t('proposals.jobPage.budget', { amount: formatMoney(job.budget) })}
                     </p>
                 </div>
                 <StatusBadge status={job.status} />
@@ -206,8 +218,8 @@ const JobProposalsPage = () => {
             {proposals.length === 0 ? (
                 <EmptyState
                     icon="inbox"
-                    title="No proposals yet"
-                    description="Freelancers' proposals will appear here."
+                    title={t('proposals.jobPage.emptyTitle')}
+                    description={t('proposals.jobPage.emptyText')}
                 />
             ) : (
                 <div className="flex flex-col gap-4">

@@ -1,6 +1,8 @@
 import { cn } from '../../lib/cn';
 import { timeAgo } from '../../lib/format';
 import { Icon } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
+import notificationText from './notificationText';
 
 // Bildirişin növünə görə ikon (naməlum növ üçün zəng)
 const iconFor = (type = '') => {
@@ -20,7 +22,9 @@ const iconFor = (type = '') => {
 
 // Zəng paneli və "hamısı" səhifəsi eyni sətri işlədir. Oxunmamışlar solda nöqtə və tünd başlıqla seçilir.
 const NotificationItem = ({ notification, onClick, className }) => {
+    const { t } = useTranslation();
     const unread = !notification.readAt;
+    const text = notificationText(notification, t);
 
     return (
         <button
@@ -43,17 +47,22 @@ const NotificationItem = ({ notification, onClick, className }) => {
 
             <span className="min-w-0 flex-1">
                 <span className={cn('block text-body-md text-on-surface', unread ? 'font-semibold' : 'font-medium')}>
-                    {notification.title}
+                    {text.title}
                 </span>
-                {notification.body && (
+                {text.body && (
                     <span className="mt-0.5 line-clamp-2 block break-words text-label-md text-secondary">
-                        {notification.body}
+                        {text.body}
                     </span>
                 )}
                 <span className="mt-1 block text-caption text-secondary">{timeAgo(notification.createdAt)}</span>
             </span>
 
-            {unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary-container" aria-label="Unread" />}
+            {unread && (
+                <span
+                    className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary-container"
+                    aria-label={t('notifications.unread')}
+                />
+            )}
         </button>
     );
 };

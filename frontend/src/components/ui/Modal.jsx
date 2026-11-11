@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { cn } from '../../lib/cn';
+import { useTranslation } from '../../features/locale/useTranslation';
 import Icon from './Icon';
 
 const Modal = ({ open, onClose, title, children, footer, className }) => {
+    const { t } = useTranslation();
     // Escape ilə bağlanma və fonun sürüşməsini dayandırma
     useEffect(() => {
         if (!open) return undefined;
@@ -38,7 +40,7 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
                         <button
                             type="button"
                             onClick={onClose}
-                            aria-label="Close"
+                            aria-label={t('common.a11y.close')}
                             className="rounded-lg p-1 text-secondary hover:bg-surface-container hover:text-on-surface"
                         >
                             <Icon name="close" />

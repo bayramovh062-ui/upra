@@ -15,25 +15,16 @@ import {
 } from '../components/ui';
 import { cn } from '../lib/cn';
 import { formatMoney } from '../lib/format';
-import { EXPERIENCE_LEVELS, PAYMENT_STRUCTURES, experienceLabel, paymentLabel } from '../lib/labels';
+import { EXPERIENCE_VALUES, PAYMENT_VALUES, experienceLabel, paymentLabel } from '../lib/labels';
 import { toSkillSlug } from '../lib/skills';
 import { useDebounce } from '../lib/useDebounce';
 import JobCard from '../features/jobs/JobCard';
 import JobFilters from '../features/jobs/JobFilters';
+import { useTranslation } from '../features/locale/useTranslation';
 import { useGetJobsQuery } from '../features/jobs/jobsApi';
 import { useGetCategoriesQuery } from '../features/taxonomy/taxonomyApi';
 
 const PAGE_SIZE = 10;
-
-const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest first' },
-    { value: 'budget_desc', label: 'Budget: high to low' },
-    { value: 'budget_asc', label: 'Budget: low to high' },
-    { value: 'proposals_desc', label: 'Most proposals' },
-];
-
-const LEVEL_VALUES = EXPERIENCE_LEVELS.map((l) => l.value);
-const PAYMENT_VALUES = PAYMENT_STRUCTURES.map((p) => p.value);
 
 // "a,b,c" -> ["a","b","c"]
 const csv = (value) =>
@@ -76,10 +67,10 @@ const TabButton = ({ active, icon, count, onClick, children }) => (
     </button>
 );
 
-const FilterChip = ({ label, onRemove }) => (
+const FilterChip = ({ label, onRemove, removeLabel }) => (
     <span className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2.5 py-1 text-caption text-on-surface">
         {label}
-        <button type="button" onClick={onRemove} aria-label={`Remove filter ${label}`} className="flex items-center hover:text-primary-container">
+        <button type="button" onClick={onRemove} aria-label={removeLabel} className="flex items-center hover:text-primary-container">
             <Icon name="close" className="text-[13px]" />
         </button>
     </span>
@@ -88,14 +79,22 @@ const FilterChip = ({ label, onRemove }) => (
 // Frilanser üçün "Find work" (Stitch find_work dizaynı).
 // Bütün filtrlər URL-də saxlanılır: səhifəni yeniləyəndə və ya linki göndərəndə nəticə eyni qalır.
 const JobsPage = () => {
+    const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const user = useSelector((state) => state.auth.user);
     const isFreelancer = user?.role === 'FREELANCER';
 
+    const sortOptions = [
+        { value: 'newest', label: t('jobs.sort.newest') },
+        { value: 'budget_desc', label: t('jobs.sort.budgetDesc') },
+        { value: 'budget_asc', label: t('jobs.sort.budgetAsc') },
+        { value: 'proposals_desc', label: t('jobs.sort.proposalsDesc') },
+    ];
+
     // ---- URL-dən oxu ----
     const page = Math.max(1, Number(searchParams.get('page')) || 1);
     const sortParam = searchParams.get('sort');
-    const sort = SORT_OPTIONS.some((o) => o.value === sortParam) ? sortParam : 'newest';
+    const sort = sortOptions.some((o) => o.value === sortParam) ? sortParam : 'newest';
     const tabParam = searchParams.get('tab');
     // Saved və Matched yalnız frilanser üçündür (backend də client üçün 403 qaytarır)
     const tab = isFreelancer && (tabParam === 'saved' || tabParam === 'matched') ? tabParam : 'all';
@@ -103,7 +102,7 @@ const JobsPage = () => {
     const minBudget = searchParams.get('minBudget') || '';
     const maxBudget = searchParams.get('maxBudget') || '';
     const category = csv(searchParams.get('category'));
-    const experienceLevel = csv(searchParams.get('experienceLevel')).filter((v) => LEVEL_VALUES.includes(v));
+    const experienceLevel = csv(searchParams.get('experienceLevel')).filter((v) => EXPERIENCE_VALUES.includes(v));
     const skills = csv(searchParams.get('skills'));
     const skillsMode = searchParams.get('skillsMode') === 'all' ? 'all' : '';
     const paymentStructure = PAYMENT_VALUES.includes(searchParams.get('paymentStructure'))
@@ -199,8 +198,8 @@ const JobsPage = () => {
     // Aktiv filtr çipləri
     const budgetLabel = () => {
         if (minBudget && maxBudget) return `${formatMoney(minBudget)} – ${formatMoney(maxBudget)}`;
-        if (minBudget) return `From ${formatMoney(minBudget)}`;
-        return `Up to ${formatMoney(maxBudget)}`;
+        if (minBudget) return t('jobs.chip.from', { amount: formatMoney(minBudget) });
+        return t('jobs.chip.upTo', { amount: formatMoney(maxBudget) });
     };
     const categoryName = (slug) => categoriesData?.categories?.find((c) => c.slug === slug)?.name ?? slug;
 
@@ -246,9 +245,9 @@ const JobsPage = () => {
             return (
                 <EmptyState
                     icon="search_off"
-                    title="No jobs match your search"
-                    description="Try a different keyword, widen the budget range or remove some filters."
-                    action={<Button onClick={resetFilters}>Reset all filters</Button>}
+                    title={t('jobs.empty.filteredTitle')}
+                    description={t('jobs.empty.filteredText')}
+                    action={<Button onClick={resetFilters}>{t('jobs.empty.filteredAction')}</Button>}
                 />
             );
         }
@@ -256,9 +255,9 @@ const JobsPage = () => {
             return (
                 <EmptyState
                     icon="bookmark_border"
-                    title="No saved jobs yet"
-                    description="Tap the bookmark on a job to keep it here for later."
-                    action={<Button onClick={() => changeTab('all')}>Browse all jobs</Button>}
+                    title={t('jobs.empty.savedTitle')}
+                    description={t('jobs.empty.savedText')}
+                    action={<Button onClick={() => changeTab('all')}>{t('jobs.empty.savedAction')}</Button>}
                 />
             );
         }
@@ -266,38 +265,35 @@ const JobsPage = () => {
             return mySkills.length === 0 ? (
                 <EmptyState
                     icon="auto_awesome"
-                    title="Add your skills to see matches"
-                    description="Matched jobs are open jobs that require at least one of your skills."
+                    title={t('jobs.empty.matchedNoSkillsTitle')}
+                    description={t('jobs.empty.matchedNoSkillsText')}
                     action={
                         <Link to="/settings">
-                            <Button>Add skills in Settings</Button>
+                            <Button>{t('jobs.empty.matchedNoSkillsAction')}</Button>
                         </Link>
                     }
                 />
             ) : (
                 <EmptyState
                     icon="auto_awesome"
-                    title="No matching jobs right now"
-                    description="No open job requires your skills yet. Check back later or browse all jobs."
-                    action={<Button onClick={() => changeTab('all')}>Browse all jobs</Button>}
+                    title={t('jobs.empty.matchedTitle')}
+                    description={t('jobs.empty.matchedText')}
+                    action={<Button onClick={() => changeTab('all')}>{t('jobs.empty.matchedAction')}</Button>}
                 />
             );
         }
         return (
             <EmptyState
                 icon="work_off"
-                title="No open jobs yet"
-                description="New jobs will appear here as soon as clients post them."
+                title={t('jobs.empty.noneTitle')}
+                description={t('jobs.empty.noneText')}
             />
         );
     };
 
     return (
         <>
-            <PageHeader
-                title="Find work"
-                description="Browse open jobs, send a proposal and start working on a shared Kanban board."
-            />
+            <PageHeader title={t('jobs.page.title')} description={t('jobs.page.description')} />
 
             <div className="flex flex-col items-start gap-6 lg:flex-row">
                 {/* Sol panel: filtrlər */}
@@ -315,7 +311,7 @@ const JobsPage = () => {
                     {isFreelancer && (
                         <div className="flex gap-2 overflow-x-auto pb-1">
                             <TabButton active={tab === 'all'} onClick={() => changeTab('all')}>
-                                All jobs
+                                {t('jobs.tabs.all')}
                             </TabButton>
                             <TabButton
                                 active={tab === 'saved'}
@@ -323,7 +319,7 @@ const JobsPage = () => {
                                 count={tabCounts?.saved}
                                 onClick={() => changeTab('saved')}
                             >
-                                Saved
+                                {t('jobs.tabs.saved')}
                             </TabButton>
                             <TabButton
                                 active={tab === 'matched'}
@@ -331,7 +327,7 @@ const JobsPage = () => {
                                 count={tabCounts?.matched}
                                 onClick={() => changeTab('matched')}
                             >
-                                Matched to your skills
+                                {t('jobs.tabs.matched')}
                             </TabButton>
                         </div>
                     )}
@@ -340,15 +336,15 @@ const JobsPage = () => {
                         <Input
                             className="flex-1"
                             icon="search"
-                            label="Search"
-                            placeholder="Search by title, description or skill..."
+                            label={t('jobs.search.label')}
+                            placeholder={t('jobs.search.placeholder')}
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             endAdornment={
                                 searchInput ? (
                                     <button
                                         type="button"
-                                        aria-label="Clear search"
+                                        aria-label={t('jobs.search.clear')}
                                         onClick={() => setSearchInput('')}
                                         className="rounded-full p-1 text-secondary hover:bg-surface-container"
                                     >
@@ -359,8 +355,8 @@ const JobsPage = () => {
                         />
                         <Select
                             className="sm:w-52"
-                            label="Sort by"
-                            options={SORT_OPTIONS}
+                            label={t('jobs.sort.label')}
+                            options={sortOptions}
                             value={sort}
                             onChange={(e) => updateParams({ sort: e.target.value === 'newest' ? '' : e.target.value })}
                         />
@@ -370,18 +366,23 @@ const JobsPage = () => {
                     <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-label-sm text-secondary">
                         <div className="flex flex-wrap items-center gap-2">
                             {chips.map((chip) => (
-                                <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+                                <FilterChip
+                                    key={chip.key}
+                                    label={chip.label}
+                                    onRemove={chip.onRemove}
+                                    removeLabel={t('jobs.chip.remove', { label: chip.label })}
+                                />
                             ))}
                             {chips.length > 1 && (
                                 <button type="button" onClick={resetFilters} className="text-label-sm text-primary hover:underline">
-                                    Clear all
+                                    {t('common.actions.clear')}
                                 </button>
                             )}
                         </div>
                         {pagination && (
                             <span>
                                 <strong className="text-on-surface">{pagination.total}</strong>{' '}
-                                {pagination.total === 1 ? 'job' : 'jobs'}
+                                {t('jobs.counts.job', { count: pagination.total })}
                             </span>
                         )}
                     </div>
@@ -390,8 +391,8 @@ const JobsPage = () => {
                         <ListSkeleton />
                     ) : isError ? (
                         <ErrorState
-                            title="Could not load jobs"
-                            description="Check your connection and try again."
+                            title={t('jobs.errors.loadTitle')}
+                            description={t('jobs.errors.loadText')}
                             onRetry={refetch}
                         />
                     ) : jobs.length === 0 ? (
@@ -407,12 +408,11 @@ const JobsPage = () => {
                     {pagination && pagination.totalPages > 1 && (
                         <Card className="flex flex-col items-center justify-between gap-3 p-4 sm:flex-row">
                             <span className="text-label-md text-secondary">
-                                Showing{' '}
-                                <strong className="text-on-surface">
-                                    {(pagination.page - 1) * pagination.limit + 1}–
-                                    {(pagination.page - 1) * pagination.limit + jobs.length}
-                                </strong>{' '}
-                                of <strong className="text-on-surface">{pagination.total}</strong>
+                                {t('jobs.counts.showing', {
+                                    from: (pagination.page - 1) * pagination.limit + 1,
+                                    to: (pagination.page - 1) * pagination.limit + jobs.length,
+                                    total: pagination.total,
+                                })}
                             </span>
                             <Pagination page={pagination.page} totalPages={pagination.totalPages} onChange={changePage} />
                         </Card>

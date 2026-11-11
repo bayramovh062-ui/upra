@@ -1,28 +1,31 @@
 // Backend enum dəyərləri → ekranda göstərilən yazı. Filtrlər, kartlar və formalar eyni siyahını işlədir.
-export const EXPERIENCE_LEVELS = [
-    { value: 'ENTRY', label: 'Entry' },
-    { value: 'MID', label: 'Mid' },
-    { value: 'SENIOR', label: 'Senior' },
-];
+// Etiketlər aktiv dilə görə `translate` ilə oxunur; komponentlər `useTranslation` ilə
+// abunə olduğundan dil dəyişəndə avtomatik yenilənir.
+import { translate } from '../i18n';
 
-export const PAYMENT_STRUCTURES = [
-    { value: 'MILESTONES', label: 'Milestones' },
-    { value: 'LUMP_SUM', label: 'Lump sum' },
-];
+export const EXPERIENCE_VALUES = ['ENTRY', 'MID', 'SENIOR'];
+export const PAYMENT_VALUES = ['MILESTONES', 'LUMP_SUM'];
+export const AVAILABILITY_VALUES = ['AVAILABLE', 'BUSY', 'UNAVAILABLE'];
 
-const labelOf = (list, value) => list.find((item) => item.value === value)?.label ?? null;
+export const experienceLevels = () =>
+    EXPERIENCE_VALUES.map((value) => ({ value, label: translate(`labels.experience.${value}`) }));
 
-export const experienceLabel = (value) => labelOf(EXPERIENCE_LEVELS, value);
-export const paymentLabel = (value) => labelOf(PAYMENT_STRUCTURES, value);
+export const paymentStructures = () =>
+    PAYMENT_VALUES.map((value) => ({ value, label: translate(`labels.payment.${value}`) }));
 
-export const AVAILABILITY_OPTIONS = [
-    { value: 'AVAILABLE', label: 'Available for work', tone: 'green' },
-    { value: 'BUSY', label: 'Busy', tone: 'amber' },
-    { value: 'UNAVAILABLE', label: 'Not available', tone: 'gray' },
-];
+export const experienceLabel = (value) => (value ? translate(`labels.experience.${value}`) : null);
+export const paymentLabel = (value) => (value ? translate(`labels.payment.${value}`) : null);
 
-export const availabilityLabel = (value) => labelOf(AVAILABILITY_OPTIONS, value);
-export const availabilityTone = (value) => AVAILABILITY_OPTIONS.find((item) => item.value === value)?.tone ?? 'gray';
+export const availabilityOptions = () =>
+    AVAILABILITY_VALUES.map((value) => ({
+        value,
+        label: translate(`labels.availability.${value}`),
+        tone: { AVAILABLE: 'green', BUSY: 'amber', UNAVAILABLE: 'gray' }[value],
+    }));
+
+export const availabilityLabel = (value) => (value ? translate(`labels.availability.${value}`) : null);
+export const availabilityTone = (value) =>
+    ({ AVAILABLE: 'green', BUSY: 'amber', UNAVAILABLE: 'gray' }[value] ?? 'gray');
 
 // IANA saat qurşaqları (brauzerin siyahısı). Backend də eyni adları Intl ilə yoxlayır
 export const TIMEZONES = (() => {

@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLogout } from '../../features/auth/useLogout';
-import { DEMO_BADGE, DEMO_NOTICE } from '../../lib/demo';
+import { demoBadge, demoNotice } from '../../lib/demo';
 import NotificationBell from '../../features/notifications/NotificationBell';
+import LanguageSwitcher from '../../features/locale/LanguageSwitcher';
+import { useTranslation } from '../../features/locale/useTranslation';
 import ThemeToggle from '../../features/theme/ThemeToggle';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 
-const ROLE_LABEL = { CLIENT: 'Client', FREELANCER: 'Freelancer' };
-
 // Sabit tünd üst panel (dizayn: bg-inverse-surface/#1F2937, h-16)
 const Topbar = ({ onMenuClick }) => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     const logout = useLogout();
     const [menuOpen, setMenuOpen] = useState(false);
@@ -23,7 +24,7 @@ const Topbar = ({ onMenuClick }) => {
                     <button
                         type="button"
                         onClick={onMenuClick}
-                        aria-label="Open menu"
+                        aria-label={t('common.actions.openMenu')}
                         className="rounded-lg p-2 text-secondary-fixed-dim hover:bg-white/10 hover:text-white lg:hidden"
                     >
                         <Icon name="menu" />
@@ -31,7 +32,7 @@ const Topbar = ({ onMenuClick }) => {
                     <Link to="/" className="flex items-center gap-2">
                         <span className="text-headline-md font-bold tracking-tight text-white">Upra</span>
                         <span className="rounded bg-tertiary px-1.5 py-0.5 text-caption uppercase text-inverse-on-surface">
-                            {ROLE_LABEL[user?.role]}
+                            {t(`common.roles.${user?.role}`)}
                         </span>
                     </Link>
                 </div>
@@ -39,12 +40,13 @@ const Topbar = ({ onMenuClick }) => {
                 <div className="flex items-center gap-1 sm:gap-2">
                     {/* Daimi demo göstəricisi: bütün balanslar və ödənişlər sadəcə test puludur */}
                     <span
-                        title={DEMO_NOTICE}
+                        title={demoNotice()}
                         className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-label-sm text-warning-ink"
                     >
                         <Icon name="science" className="text-[16px]" />
-                        <span className="sr-only sm:not-sr-only">{DEMO_BADGE}</span>
+                        <span className="sr-only sm:not-sr-only">{demoBadge()}</span>
                     </span>
+                    <LanguageSwitcher tone="nav" />
                     <ThemeToggle tone="nav" />
                     <NotificationBell />
 
@@ -80,7 +82,7 @@ const Topbar = ({ onMenuClick }) => {
                                     className="flex items-center gap-2 px-4 py-2 text-body-md text-on-surface hover:bg-surface-container-low"
                                 >
                                     <Icon name="person" className="text-[18px] text-secondary" />
-                                    My profile
+                                    {t('nav.myProfile')}
                                 </Link>
                                 <Link
                                     to="/settings"
@@ -88,7 +90,7 @@ const Topbar = ({ onMenuClick }) => {
                                     className="flex items-center gap-2 px-4 py-2 text-body-md text-on-surface hover:bg-surface-container-low"
                                 >
                                     <Icon name="settings" className="text-[18px] text-secondary" />
-                                    Settings
+                                    {t('nav.items.settings')}
                                 </Link>
                                 <button
                                     type="button"
@@ -96,7 +98,7 @@ const Topbar = ({ onMenuClick }) => {
                                     className="flex w-full items-center gap-2 px-4 py-2 text-left text-body-md text-error hover:bg-surface-container-low"
                                 >
                                     <Icon name="logout" className="text-[18px]" />
-                                    Log out
+                                    {t('nav.logOut')}
                                 </button>
                             </div>
                         </>

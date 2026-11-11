@@ -17,7 +17,8 @@ import { useDeleteJobMutation, useGetJobQuery, usePublishJobMutation } from '../
 import ProposalForm from '../features/proposals/ProposalForm';
 import ProposalEditForm from '../features/proposals/ProposalEditForm';
 import { useDeleteProposalMutation } from '../features/proposals/proposalsApi';
-import { formatDate, formatMoney, getErrorMessage, timeAgo } from '../lib/format';
+import { useTranslation } from '../features/locale/useTranslation';
+import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 import { experienceLabel, paymentLabel } from '../lib/labels';
 
 const DetailSkeleton = () => (
@@ -39,6 +40,7 @@ const DetailSkeleton = () => (
 
 // Frilanser: təklif göndərib və ya göndərməyib
 const MyProposalCard = ({ proposal, job }) => {
+    const { t, timeAgo } = useTranslation();
     const [editing, setEditing] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [deleteProposal, { isLoading: withdrawing }] = useDeleteProposalMutation();
@@ -51,10 +53,10 @@ const MyProposalCard = ({ proposal, job }) => {
     const handleWithdraw = async () => {
         try {
             await deleteProposal({ id: proposal.id, jobPostId: job.id }).unwrap();
-            toast.success('Proposal withdrawn');
+            toast.success(t('jobs.detail.toastWithdrawn'));
             setConfirmOpen(false);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not withdraw the proposal'));
+            toast.error(getErrorMessage(err, t('jobs.detail.errorWithdraw')));
         }
     };
 
@@ -63,26 +65,26 @@ const MyProposalCard = ({ proposal, job }) => {
         <div className="flex items-start gap-3 rounded-xl bg-secondary-container p-4">
             <Icon name="check_circle" filled className="mt-0.5 text-[24px] text-primary-container" />
             <div>
-                <p className="text-title-md text-on-secondary-fixed">Proposal submitted</p>
+                <p className="text-title-md text-on-secondary-fixed">{t('jobs.detail.proposalSubmitted')}</p>
                 <p className="mt-0.5 text-caption text-on-secondary-container">
-                    Sent {timeAgo(proposal.createdAt)}
+                    {t('jobs.detail.sent', { time: timeAgo(proposal.createdAt) })}
                 </p>
             </div>
         </div>
 
         <div className="flex flex-col gap-2.5 rounded-xl bg-surface-container-low p-4 text-body-md">
             <div className="flex items-center justify-between">
-                <span className="text-secondary">Your bid</span>
+                <span className="text-secondary">{t('jobs.detail.yourBid')}</span>
                 <span className="tabular font-semibold text-on-surface">{formatMoney(proposal.bidAmount)}</span>
             </div>
             <div className="flex items-center justify-between">
-                <span className="text-secondary">Status</span>
+                <span className="text-secondary">{t('jobs.detail.status')}</span>
                 <StatusBadge status={proposal.status} />
             </div>
         </div>
 
         <div className="rounded-xl bg-surface-container-low p-4">
-            <p className="mb-1 text-label-sm font-semibold text-on-surface">Your cover letter</p>
+            <p className="mb-1 text-label-sm font-semibold text-on-surface">{t('jobs.detail.yourCoverLetter')}</p>
             <p className="line-clamp-4 whitespace-pre-line break-words text-body-md italic text-on-surface-variant">
                 {proposal.coverLetter}
             </p>
@@ -92,21 +94,21 @@ const MyProposalCard = ({ proposal, job }) => {
             <div className="flex gap-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
                     <Icon name="edit" className="text-[16px]" />
-                    Edit
+                    {t('common.actions.edit')}
                 </Button>
                 <Button
                     variant="ghost"
                     className="flex-1 text-error hover:bg-error-container"
                     onClick={() => setConfirmOpen(true)}
                 >
-                    Withdraw
+                    {t('jobs.detail.withdraw')}
                 </Button>
             </div>
         )}
 
         <Link to="/freelancer/proposals">
             <Button variant="secondary" className="w-full">
-                View my proposals
+                {t('jobs.detail.viewMyProposals')}
             </Button>
         </Link>
 
@@ -116,9 +118,9 @@ const MyProposalCard = ({ proposal, job }) => {
             onConfirm={handleWithdraw}
             loading={withdrawing}
             variant="danger"
-            title="Withdraw this proposal?"
-            message="The proposal will be deleted. You can send a new one while the job is open."
-            confirmText="Withdraw"
+            title={t('jobs.detail.confirmWithdrawTitle')}
+            message={t('jobs.detail.confirmWithdrawText')}
+            confirmText={t('jobs.detail.withdraw')}
         />
     </div>
     );
@@ -126,6 +128,7 @@ const MyProposalCard = ({ proposal, job }) => {
 
 // Client: öz elanını idarə edir (qaralama və açıq elan üçün fərqli düymələr)
 const OwnerCard = ({ job, onCancel, onPublish, publishing }) => {
+    const { t } = useTranslation();
     const proposals = job._count?.proposals ?? 0;
     const isDraft = job.status === 'DRAFT';
     const canEdit = job.status === 'OPEN' || isDraft;
@@ -133,22 +136,22 @@ const OwnerCard = ({ job, onCancel, onPublish, publishing }) => {
     return (
         <div className="flex flex-col gap-3">
             <div>
-                <h3 className="text-headline-sm text-on-surface">Manage this job</h3>
+                <h3 className="text-headline-sm text-on-surface">{t('jobs.detail.manage')}</h3>
                 <p className="text-caption text-secondary">
-                    {isDraft ? 'Draft: only you can see it' : 'You posted this job'}
+                    {isDraft ? t('jobs.detail.draftOnlyYou') : t('jobs.detail.youPosted')}
                 </p>
             </div>
 
             {isDraft ? (
                 <Button className="w-full" loading={publishing} onClick={onPublish}>
                     <Icon name="rocket_launch" />
-                    Publish job
+                    {t('jobs.detail.publish')}
                 </Button>
             ) : (
                 <Link to={`/client/jobs/${job.id}/proposals`}>
                     <Button className="w-full">
                         <Icon name="inbox" />
-                        View proposals ({proposals})
+                        {t('jobs.detail.viewProposals', { count: proposals })}
                     </Button>
                 </Link>
             )}
@@ -158,17 +161,17 @@ const OwnerCard = ({ job, onCancel, onPublish, publishing }) => {
                     <Link to={`/client/jobs/${job.id}/edit`}>
                         <Button variant="secondary" className="w-full">
                             <Icon name="edit" />
-                            {isDraft ? 'Edit draft' : 'Edit job'}
+                            {isDraft ? t('jobs.detail.editDraft') : t('jobs.detail.editJob')}
                         </Button>
                     </Link>
                     <Button variant="ghost" className="w-full text-error hover:bg-error-container" onClick={onCancel}>
                         <Icon name="delete_outline" />
-                        {isDraft ? 'Discard draft' : 'Cancel job'}
+                        {isDraft ? t('jobs.detail.discardDraft') : t('jobs.detail.cancelJob')}
                     </Button>
                 </>
             ) : (
                 <p className="rounded-lg bg-surface-container-low px-3 py-2 text-label-sm text-secondary">
-                    Only drafts and open jobs can be edited or cancelled.
+                    {t('jobs.detail.locked')}
                 </p>
             )}
         </div>
@@ -187,6 +190,7 @@ const InfoTile = ({ icon, label, children }) => (
 
 // Stitch "job details & proposal" dizaynı: solda məzmun, sağda yapışqan əməliyyat kartı
 const JobDetailPage = () => {
+    const { t, timeAgo } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth.user);
@@ -197,7 +201,7 @@ const JobDetailPage = () => {
     const [publishJob, { isLoading: publishing }] = usePublishJobMutation();
 
     const backTo = user?.role === 'FREELANCER' ? '/jobs' : '/client/jobs';
-    const backLabel = user?.role === 'FREELANCER' ? 'Back to jobs' : 'Back to my jobs';
+    const backLabel = user?.role === 'FREELANCER' ? t('jobs.detail.backToJobs') : t('jobs.detail.backToMyJobs');
 
     if (isLoading) return <DetailSkeleton />;
 
@@ -206,8 +210,8 @@ const JobDetailPage = () => {
             return (
                 <EmptyState
                     icon="search_off"
-                    title="Job not found"
-                    description="This job does not exist or the link is wrong."
+                    title={t('jobs.detail.notFoundTitle')}
+                    description={t('jobs.detail.notFoundText')}
                     action={
                         <Link to={backTo}>
                             <Button>{backLabel}</Button>
@@ -216,7 +220,7 @@ const JobDetailPage = () => {
                 />
             );
         }
-        return <ErrorState title="Could not load this job" onRetry={refetch} />;
+        return <ErrorState title={t('jobs.detail.loadError')} onRetry={refetch} />;
     }
 
     const { job, myProposal } = data;
@@ -231,21 +235,21 @@ const JobDetailPage = () => {
     const handleCancel = async () => {
         try {
             await deleteJob(job.id).unwrap();
-            toast.success(isDraft ? 'Draft discarded' : 'Job cancelled');
+            toast.success(isDraft ? t('jobs.detail.toastDraftDiscarded') : t('jobs.detail.toastJobCancelled'));
             setConfirmOpen(false);
             // Yalnız elanın sahibi (CLIENT) ləğv edə bilir
             navigate('/client/jobs', { replace: true });
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not cancel the job'));
+            toast.error(getErrorMessage(err, t('jobs.detail.errorCancel')));
         }
     };
 
     const handlePublish = async () => {
         try {
             await publishJob(job.id).unwrap();
-            toast.success('Job published');
+            toast.success(t('jobs.detail.toastPublished'));
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not publish the job'));
+            toast.error(getErrorMessage(err, t('jobs.detail.errorPublish')));
         }
     };
 
@@ -271,7 +275,9 @@ const JobDetailPage = () => {
                                 </span>
                             )}
                             <span className="text-label-sm text-secondary">
-                                {isDraft ? 'Saved' : 'Posted'} {timeAgo(job.createdAt)}
+                                {isDraft
+                                    ? t('jobs.detail.savedAt', { time: timeAgo(job.createdAt) })
+                                    : t('jobs.detail.postedAt', { time: timeAgo(job.createdAt) })}
                             </span>
                         </div>
                         <h1 className="mt-3 break-words text-headline-lg text-on-surface">{job.title}</h1>
@@ -279,21 +285,21 @@ const JobDetailPage = () => {
                         {isDraft && isOwner && (
                             <div className="mt-4 flex items-start gap-2 rounded-xl bg-warning-soft px-4 py-3 text-body-md text-warning-ink">
                                 <Icon name="visibility_off" className="mt-0.5 text-[18px]" />
-                                This is a draft. Freelancers cannot see it until you publish it.
+                                {t('jobs.detail.draftNotice')}
                             </div>
                         )}
 
                         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                             <div className="rounded-xl bg-surface-container-low p-4">
-                                <p className="text-caption text-secondary">Fixed budget</p>
+                                <p className="text-caption text-secondary">{t('jobs.detail.fixedBudget')}</p>
                                 <p className="tabular mt-1 text-headline-md text-on-surface">{formatMoney(job.budget)}</p>
                             </div>
                             <div className="rounded-xl bg-surface-container-low p-4">
-                                <p className="text-caption text-secondary">Proposals</p>
+                                <p className="text-caption text-secondary">{t('jobs.detail.proposals')}</p>
                                 <p className="tabular mt-1 text-headline-md text-on-surface">{proposals}</p>
                             </div>
                             <div className="col-span-2 rounded-xl bg-surface-container-low p-4 sm:col-span-1">
-                                <p className="text-caption text-secondary">Posted on</p>
+                                <p className="text-caption text-secondary">{t('jobs.detail.postedOn')}</p>
                                 <p className="mt-1 text-title-md text-on-surface">{formatDate(job.createdAt)}</p>
                             </div>
                         </div>
@@ -301,17 +307,17 @@ const JobDetailPage = () => {
                         {(level || payment || job.deadline) && (
                             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 {level && (
-                                    <InfoTile icon="military_tech" label="Experience level">
+                                    <InfoTile icon="military_tech" label={t('jobs.detail.experienceLevel')}>
                                         {level}
                                     </InfoTile>
                                 )}
                                 {payment && (
-                                    <InfoTile icon="payments" label="Payment">
+                                    <InfoTile icon="payments" label={t('jobs.detail.payment')}>
                                         {payment}
                                     </InfoTile>
                                 )}
                                 {job.deadline && (
-                                    <InfoTile icon="event" label="Deadline">
+                                    <InfoTile icon="event" label={t('jobs.detail.deadline')}>
                                         {formatDate(job.deadline)}
                                     </InfoTile>
                                 )}
@@ -322,7 +328,7 @@ const JobDetailPage = () => {
                     <Card className="p-6 sm:p-8">
                         <h2 className="mb-3 flex items-center gap-2 text-headline-sm text-on-surface">
                             <Icon name="subject" className="text-[22px] text-primary-container" />
-                            Project overview
+                            {t('jobs.detail.overview')}
                         </h2>
                         <p className="whitespace-pre-line break-words text-body-lg leading-relaxed text-on-surface-variant">
                             {job.description}
@@ -333,7 +339,7 @@ const JobDetailPage = () => {
                         <Card className="p-6 sm:p-8">
                             <h2 className="mb-3 flex items-center gap-2 text-headline-sm text-on-surface">
                                 <Icon name="psychology" className="text-[22px] text-primary-container" />
-                                Skills and expertise
+                                {t('jobs.detail.skills')}
                             </h2>
                             <div className="flex flex-wrap gap-2">
                                 {skills.map((skill) => (
@@ -353,11 +359,8 @@ const JobDetailPage = () => {
                             <Icon name="view_kanban" />
                         </span>
                         <div>
-                            <p className="text-title-md text-on-surface">A shared board starts with the contract</p>
-                            <p className="mt-0.5 text-body-md text-secondary">
-                                When the client accepts a proposal, a Kanban board is created automatically and both
-                                sides track the work there in real time.
-                            </p>
+                            <p className="text-title-md text-on-surface">{t('jobs.detail.boardTitle')}</p>
+                            <p className="mt-0.5 text-body-md text-secondary">{t('jobs.detail.boardText')}</p>
                         </div>
                     </Card>
                 </div>
@@ -379,30 +382,32 @@ const JobDetailPage = () => {
                         ) : isFreelancer ? (
                             <div className="flex flex-col items-center gap-2 text-center">
                                 <Icon name="lock" className="text-[28px] text-secondary" />
-                                <p className="text-title-md text-on-surface">Not accepting proposals</p>
+                                <p className="text-title-md text-on-surface">{t('jobs.detail.notAcceptingTitle')}</p>
                                 <p className="text-body-md text-secondary">
-                                    This job is {job.status === 'CANCELLED' ? 'cancelled' : 'no longer open'}.
+                                    {job.status === 'CANCELLED'
+                                        ? t('jobs.detail.cancelled')
+                                        : t('jobs.detail.noLongerOpen')}
                                 </p>
                             </div>
                         ) : (
-                            <p className="text-body-md text-secondary">
-                                Only freelancers can send proposals. You are viewing this job as a client.
-                            </p>
+                            <p className="text-body-md text-secondary">{t('jobs.detail.clientOnly')}</p>
                         )}
                     </Card>
 
                     <Card className="p-6">
-                        <p className="mb-4 text-label-sm uppercase tracking-wider text-secondary">About the client</p>
+                        <p className="mb-4 text-label-sm uppercase tracking-wider text-secondary">
+                            {t('jobs.detail.aboutClient')}
+                        </p>
                         <div className="flex items-center gap-3">
                             <Avatar name={job.client?.fullName} size="lg" />
                             <div className="min-w-0">
                                 <p className="truncate text-title-md text-on-surface">{job.client?.fullName}</p>
                                 <p className="text-caption text-secondary">
-                                    Member since {formatDate(job.client?.createdAt)}
+                                    {t('jobs.detail.memberSince', { date: formatDate(job.client?.createdAt) })}
                                 </p>
                                 {job.client?.id && (
                                     <Link to={`/users/${job.client.id}`} className="text-label-sm text-primary hover:underline">
-                                        View profile
+                                        {t('jobs.detail.viewProfile')}
                                     </Link>
                                 )}
                             </div>
@@ -417,13 +422,13 @@ const JobDetailPage = () => {
                 onConfirm={handleCancel}
                 loading={cancelling}
                 variant="danger"
-                title={isDraft ? 'Discard this draft?' : 'Cancel this job?'}
-                message={
-                    isDraft
-                        ? 'The draft will be discarded. This cannot be undone.'
-                        : 'The job will be closed and freelancers will no longer be able to send proposals. This cannot be undone.'
+                title={
+                    isDraft ? t('jobs.detail.confirmDiscardTitle') : t('jobs.detail.confirmCancelTitle')
                 }
-                confirmText={isDraft ? 'Discard draft' : 'Cancel job'}
+                message={
+                    isDraft ? t('jobs.detail.confirmDiscardText') : t('jobs.detail.confirmCancelText')
+                }
+                confirmText={isDraft ? t('jobs.detail.discardDraft') : t('jobs.detail.cancelJob')}
             />
         </>
     );

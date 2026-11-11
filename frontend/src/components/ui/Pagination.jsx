@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import { useTranslation } from '../../features/locale/useTranslation';
 import Icon from './Icon';
 
 // 1, 2, 3 … 10 kimi qısaldılmış səhifə siyahısı
@@ -15,15 +16,16 @@ const buildPages = (page, totalPages) => {
 };
 
 const Pagination = ({ page, totalPages, onChange }) => {
+    const { t } = useTranslation();
     if (!totalPages || totalPages <= 1) return null;
 
     return (
-        <nav className="flex items-center gap-1" aria-label="Pagination">
+        <nav className="flex items-center gap-1" aria-label={t('common.pagination.label')}>
             <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => onChange(page - 1)}
-                aria-label="Previous page"
+                aria-label={t('common.pagination.previous')}
                 className="flex items-center justify-center rounded-lg p-1.5 text-secondary transition hover:bg-surface-container hover:text-on-surface disabled:cursor-not-allowed disabled:text-outline-variant disabled:hover:bg-transparent"
             >
                 <Icon name="chevron_left" className="text-[18px]" />
@@ -54,7 +56,7 @@ const Pagination = ({ page, totalPages, onChange }) => {
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => onChange(page + 1)}
-                aria-label="Next page"
+                aria-label={t('common.pagination.next')}
                 className="flex items-center justify-center rounded-lg p-1.5 text-secondary transition hover:bg-surface-container hover:text-on-surface disabled:cursor-not-allowed disabled:text-outline-variant disabled:hover:bg-transparent"
             >
                 <Icon name="chevron_right" className="text-[18px]" />

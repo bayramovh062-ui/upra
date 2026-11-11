@@ -8,6 +8,7 @@ import { summarizeMilestones } from '../features/escrow/escrowUtils';
 import TransactionList from '../features/wallet/TransactionList';
 import WalletCard from '../features/wallet/WalletCard';
 import { useGetWalletQuery } from '../features/wallet/walletApi';
+import { useTranslation } from '../features/locale/useTranslation';
 import { formatCents, formatMoney, timeAgo } from '../lib/format';
 
 // small: pul məbləğləri üçün (böyük rəqəm əvvəlinə sığmır)
@@ -41,6 +42,7 @@ const Row = ({ to, title, meta, right }) => (
 );
 
 const DashboardPage = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     const isClient = user?.role === 'CLIENT';
     const firstName = user?.fullName?.split(' ')[0] ?? '';
@@ -76,14 +78,14 @@ const DashboardPage = () => {
 
     const escrowStats = isClient
         ? [
-              { label: 'Locked in escrow', icon: 'lock', value: formatCents(escrow.lockedCents) },
-              { label: 'Awaiting your review', icon: 'rate_review', value: escrow.inReview, plain: true },
-              { label: 'Paid to freelancers', icon: 'payments', value: formatCents(escrow.releasedCents) },
+              { label: t('dashboard.escrow.locked'), icon: 'lock', value: formatCents(escrow.lockedCents) },
+              { label: t('dashboard.escrow.reviewClient'), icon: 'rate_review', value: escrow.inReview, plain: true },
+              { label: t('dashboard.escrow.paid'), icon: 'payments', value: formatCents(escrow.releasedCents) },
           ]
         : [
-              { label: 'Total earned', icon: 'payments', value: formatCents(escrow.releasedCents) },
-              { label: 'Waiting in escrow', icon: 'lock', value: formatCents(escrow.lockedCents) },
-              { label: 'Awaiting client review', icon: 'hourglass_top', value: escrow.inReview, plain: true },
+              { label: t('dashboard.escrow.earned'), icon: 'payments', value: formatCents(escrow.releasedCents) },
+              { label: t('dashboard.escrow.waiting'), icon: 'lock', value: formatCents(escrow.lockedCents) },
+              { label: t('dashboard.escrow.reviewFreelancer'), icon: 'hourglass_top', value: escrow.inReview, plain: true },
           ];
 
     const loading = contractsQ.isLoading || (isClient ? jobsQ.isLoading : proposalsQ.isLoading);
@@ -91,28 +93,28 @@ const DashboardPage = () => {
 
     const stats = isClient
         ? [
-              { label: 'Open jobs', icon: 'work_outline', value: openJobs.length },
+              { label: t('dashboard.stats.openJobs'), icon: 'work_outline', value: openJobs.length },
               {
-                  label: 'Proposals to review',
+                  label: t('dashboard.stats.proposalsToReview'),
                   icon: 'mark_email_unread',
                   value: openJobs.reduce((sum, j) => sum + (j._count?.proposals ?? 0), 0),
               },
-              { label: 'Active contracts', icon: 'handshake', value: countContracts('ACTIVE') },
-              { label: 'Completed', icon: 'task_alt', value: countContracts('COMPLETED') },
+              { label: t('dashboard.stats.activeContracts'), icon: 'handshake', value: countContracts('ACTIVE') },
+              { label: t('dashboard.stats.completed'), icon: 'task_alt', value: countContracts('COMPLETED') },
           ]
         : [
-              { label: 'Active contracts', icon: 'handshake', value: countContracts('ACTIVE') },
+              { label: t('dashboard.stats.activeContracts'), icon: 'handshake', value: countContracts('ACTIVE') },
               {
-                  label: 'Pending proposals',
+                  label: t('dashboard.stats.pendingProposals'),
                   icon: 'hourglass_top',
                   value: proposals.filter((p) => p.status === 'PENDING').length,
               },
               {
-                  label: 'Accepted proposals',
+                  label: t('dashboard.stats.acceptedProposals'),
                   icon: 'mark_email_read',
                   value: proposals.filter((p) => p.status === 'ACCEPTED').length,
               },
-              { label: 'Completed', icon: 'task_alt', value: countContracts('COMPLETED') },
+              { label: t('dashboard.stats.completed'), icon: 'task_alt', value: countContracts('COMPLETED') },
           ];
 
     const retry = () => {
@@ -125,32 +127,30 @@ const DashboardPage = () => {
         <div className="flex flex-col gap-6">
             <div className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-surface-container-lowest p-6 shadow-sm md:flex-row md:items-center">
                 <div>
-                    <h1 className="text-headline-lg text-on-surface">Welcome back, {firstName}</h1>
+                    <h1 className="text-headline-lg text-on-surface">{t('dashboard.greeting', { name: firstName })}</h1>
                     <p className="mt-1 text-body-md text-secondary">
-                        {isClient
-                            ? 'Manage your jobs, review proposals and follow your active contracts.'
-                            : 'Track your proposals and work on your active projects.'}
+                        {isClient ? t('dashboard.clientSubtitle') : t('dashboard.freelancerSubtitle')}
                     </p>
                 </div>
                 {isClient ? (
                     <Link to="/client/jobs/new" className="shrink-0">
                         <Button>
                             <Icon name="add" />
-                            Post a new job
+                            {t('dashboard.postJob')}
                         </Button>
                     </Link>
                 ) : (
                     <Link to="/jobs" className="shrink-0">
                         <Button>
                             <Icon name="search" />
-                            Find work
+                            {t('dashboard.findWork')}
                         </Button>
                     </Link>
                 )}
             </div>
 
             {failed ? (
-                <ErrorState title="Could not load your dashboard" onRetry={retry} />
+                <ErrorState title={t('dashboard.loadError')} onRetry={retry} />
             ) : (
                 <>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -170,13 +170,13 @@ const DashboardPage = () => {
                             <WalletCard isClient={isClient} escrowCents={isClient ? undefined : escrow.lockedCents} />
                         </div>
                         <Card className="lg:col-span-5">
-                            <CardHeader title="Recent transactions" />
+                            <CardHeader title={t('dashboard.wallet.title')} />
                             <div className="px-3 pb-4">
                                 {walletQ.isLoading ? (
                                     <Skeleton className="mx-2 h-32" />
                                 ) : walletQ.isError ? (
                                     <p className="px-2 py-6 text-center text-body-md text-secondary">
-                                        Could not load transactions.
+                                        {t('dashboard.wallet.loadError')}
                                     </p>
                                 ) : (
                                     <TransactionList transactions={(walletQ.data?.transactions ?? []).slice(0, 8)} />
@@ -187,7 +187,7 @@ const DashboardPage = () => {
 
                     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
                         <Card className="lg:col-span-7">
-                            <CardHeader title={isClient ? 'Latest jobs' : 'Latest proposals'} />
+                            <CardHeader title={isClient ? t('dashboard.latestJobs') : t('dashboard.latestProposals')} />
                             <div className="px-3 pb-4">
                                 {loading ? (
                                     <Skeleton className="mx-2 h-32" />
@@ -195,8 +195,8 @@ const DashboardPage = () => {
                                     jobs.length === 0 ? (
                                         <EmptyState
                                             icon="work"
-                                            title="No jobs yet"
-                                            description="Post your first job to start receiving proposals."
+                                            title={t('dashboard.empty.jobsTitle')}
+                                            description={t('dashboard.empty.jobsText')}
                                         />
                                     ) : (
                                         jobs.slice(0, 5).map((j) => (
@@ -204,7 +204,7 @@ const DashboardPage = () => {
                                                 key={j.id}
                                                 to={`/jobs/${j.id}`}
                                                 title={j.title}
-                                                meta={`${formatMoney(j.budget)} · ${j._count?.proposals ?? 0} proposals · ${timeAgo(j.createdAt)}`}
+                                                meta={`${formatMoney(j.budget)} · ${t('dashboard.meta.proposals', { count: j._count?.proposals ?? 0 })} · ${timeAgo(j.createdAt)}`}
                                                 right={<StatusBadge status={j.status} />}
                                             />
                                         ))
@@ -212,8 +212,8 @@ const DashboardPage = () => {
                                 ) : proposals.length === 0 ? (
                                     <EmptyState
                                         icon="description"
-                                        title="No proposals yet"
-                                        description="Find a job and send your first proposal."
+                                        title={t('dashboard.empty.proposalsTitle')}
+                                        description={t('dashboard.empty.proposalsText')}
                                     />
                                 ) : (
                                     proposals.slice(0, 5).map((p) => (
@@ -221,7 +221,7 @@ const DashboardPage = () => {
                                             key={p.id}
                                             to={`/jobs/${p.jobPost?.id}`}
                                             title={p.jobPost?.title}
-                                            meta={`Your bid ${formatMoney(p.bidAmount)} · ${timeAgo(p.createdAt)}`}
+                                            meta={`${t('dashboard.meta.bid', { amount: formatMoney(p.bidAmount) })} · ${timeAgo(p.createdAt)}`}
                                             right={<StatusBadge status={p.status} />}
                                         />
                                     ))
@@ -230,15 +230,15 @@ const DashboardPage = () => {
                         </Card>
 
                         <Card className="lg:col-span-5">
-                            <CardHeader title="Recent contracts" />
+                            <CardHeader title={t('dashboard.recentContracts')} />
                             <div className="px-3 pb-4">
                                 {loading ? (
                                     <Skeleton className="mx-2 h-32" />
                                 ) : contracts.length === 0 ? (
                                     <EmptyState
                                         icon="handshake"
-                                        title="No contracts yet"
-                                        description="Contracts appear here once a proposal is accepted."
+                                        title={t('dashboard.empty.contractsTitle')}
+                                        description={t('dashboard.empty.contractsText')}
                                     />
                                 ) : (
                                     contracts.slice(0, 5).map((c) => (
@@ -246,7 +246,7 @@ const DashboardPage = () => {
                                             key={c.id}
                                             to={`/contracts/${c.id}`}
                                             title={c.jobPost?.title}
-                                            meta={`With ${(isClient ? c.freelancer : c.client)?.fullName} · ${timeAgo(c.createdAt)}`}
+                                            meta={`${t('dashboard.meta.with', { name: (isClient ? c.freelancer : c.client)?.fullName })} · ${timeAgo(c.createdAt)}`}
                                             right={<StatusBadge status={c.status} />}
                                         />
                                     ))

@@ -4,15 +4,16 @@ import { useSelector } from 'react-redux';
 import { Avatar, Button, Card, EmptyState, ErrorState, Icon, PageHeader, Skeleton, StatusBadge } from '../components/ui';
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
 import { summarizeMilestones } from '../features/escrow/escrowUtils';
+import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
 import { formatCents, formatDate, formatMoney } from '../lib/format';
 
 const TABS = [
-    { key: 'ALL', label: 'All' },
-    { key: 'PENDING_ACCEPTANCE', label: 'Offers' },
-    { key: 'ACTIVE', label: 'Active' },
-    { key: 'COMPLETED', label: 'Completed' },
-    { key: 'CANCELLED', label: 'Cancelled' },
+    { key: 'ALL', labelKey: 'contracts.tabs.all' },
+    { key: 'PENDING_ACCEPTANCE', labelKey: 'contracts.tabs.offers' },
+    { key: 'ACTIVE', labelKey: 'contracts.tabs.active' },
+    { key: 'COMPLETED', labelKey: 'contracts.tabs.completed' },
+    { key: 'CANCELLED', labelKey: 'contracts.tabs.cancelled' },
 ];
 
 // DELIVERED müqavilə hələ açıq işdir (client yoxlayır), ona görə "Active" tabında göstərilir.
@@ -24,6 +25,7 @@ const tabOf = (status) => {
 };
 
 const ContractsPage = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.auth.user);
     const [tab, setTab] = useState('ACTIVE');
     const { data, isLoading, isError, refetch } = useGetMyContractsQuery();
@@ -45,25 +47,22 @@ const ContractsPage = () => {
 
     return (
         <>
-            <PageHeader
-                title="Contracts"
-                description="Every accepted proposal becomes a contract. Offers stay pending until the freelancer accepts them."
-            />
+            <PageHeader title={t('contracts.page.title')} description={t('contracts.page.description')} />
 
             <div className="mb-6 inline-flex gap-1 rounded-xl bg-surface-container-low p-1">
-                {TABS.map((t) => (
+                {TABS.map((item) => (
                     <button
-                        key={t.key}
+                        key={item.key}
                         type="button"
-                        onClick={() => setTab(t.key)}
+                        onClick={() => setTab(item.key)}
                         className={cn(
                             'rounded-lg px-4 py-1.5 text-label-md transition-all',
-                            tab === t.key
+                            tab === item.key
                                 ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
                                 : 'text-on-surface-variant hover:text-on-surface',
                         )}
                     >
-                        {t.label} <span className="ml-1 opacity-70">{counts[t.key] ?? 0}</span>
+                        {t(item.labelKey)} <span className="ml-1 opacity-70">{counts[item.key] ?? 0}</span>
                     </button>
                 ))}
             </div>
@@ -75,19 +74,19 @@ const ContractsPage = () => {
                     ))}
                 </div>
             ) : isError ? (
-                <ErrorState title="Could not load contracts" onRetry={refetch} />
+                <ErrorState title={t('contracts.errors.load')} onRetry={refetch} />
             ) : visible.length === 0 ? (
                 <EmptyState
                     icon="handshake"
-                    title="No contracts here"
+                    title={t('contracts.empty.title')}
                     description={
-                        isClient
-                            ? 'Accept a proposal on one of your jobs to send a contract offer.'
-                            : 'When a client sends you a contract offer, it appears here. Accept it to start working.'
+                        isClient ? t('contracts.empty.clientText') : t('contracts.empty.freelancerText')
                     }
                     action={
                         <Link to={isClient ? '/client/jobs' : '/jobs'}>
-                            <Button>{isClient ? 'My jobs' : 'Find work'}</Button>
+                            <Button>
+                                {isClient ? t('contracts.empty.myJobs') : t('contracts.empty.findWork')}
+                            </Button>
                         </Link>
                     }
                 />
@@ -112,7 +111,7 @@ const ContractsPage = () => {
                                         </h2>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-caption text-secondary">Contract value</p>
+                                        <p className="text-caption text-secondary">{t('contracts.card.contractValue')}</p>
                                         <p className="tabular text-headline-sm font-bold text-on-surface">
                                             {formatMoney(c.proposal?.bidAmount)}
                                         </p>
@@ -124,25 +123,29 @@ const ContractsPage = () => {
                                         <Avatar name={other?.fullName} />
                                         <div className="min-w-0">
                                             <p className="text-caption uppercase tracking-wider text-secondary">
-                                                {isClient ? 'Freelancer' : 'Client'}
+                                                {isClient ? t('contracts.card.freelancer') : t('contracts.card.client')}
                                             </p>
                                             <p className="truncate text-body-md-medium text-on-surface">{other?.fullName}</p>
                                         </div>
                                     </div>
                                     <div>
-                                        <p className="text-caption uppercase tracking-wider text-secondary">Started</p>
+                                        <p className="text-caption uppercase tracking-wider text-secondary">
+                                            {t('contracts.card.started')}
+                                        </p>
                                         <p className="text-body-md-medium text-on-surface">{formatDate(c.createdAt)}</p>
                                     </div>
                                     {hasMilestones && (
                                         <div>
-                                            <p className="text-caption uppercase tracking-wider text-secondary">Escrow</p>
+                                            <p className="text-caption uppercase tracking-wider text-secondary">
+                                                {t('contracts.card.escrow')}
+                                            </p>
                                             <p className="text-body-md-medium text-on-surface">
-                                                {ms.paid} / {ms.total} paid
+                                                {t('contracts.card.paid', { paid: ms.paid, total: ms.total })}
                                                 <span className="tabular ml-2 text-secondary">
                                                     {ms.lockedCents > 0
-                                                        ? `${formatCents(ms.lockedCents)} in escrow`
+                                                        ? ` ${t('contracts.card.inEscrow', { amount: formatCents(ms.lockedCents) })}`
                                                         : ms.unfundedCents > 0
-                                                          ? `${formatCents(ms.unfundedCents)} unfunded`
+                                                          ? ` ${t('contracts.card.unfunded', { amount: formatCents(ms.unfundedCents) })}`
                                                           : ''}
                                                 </span>
                                             </p>
@@ -155,7 +158,7 @@ const ContractsPage = () => {
                                         <Link to={`/contracts/${c.id}?tab=escrow`}>
                                             <Button variant="secondary">
                                                 <Icon name="account_balance" className="text-[16px]" />
-                                                Escrow
+                                                {t('contracts.card.escrowAction')}
                                             </Button>
                                         </Link>
                                     ) : null}
@@ -163,9 +166,9 @@ const ContractsPage = () => {
                                         <Button>
                                             {c.status === 'PENDING_ACCEPTANCE'
                                                 ? isClient
-                                                    ? 'View offer'
-                                                    : 'Review offer'
-                                                : 'Open workspace'}
+                                                    ? t('contracts.card.viewOffer')
+                                                    : t('contracts.card.reviewOffer')
+                                                : t('contracts.card.openWorkspace')}
                                             <Icon
                                                 name={c.status === 'PENDING_ACCEPTANCE' ? 'mail' : 'arrow_forward'}
                                                 className="text-[16px]"

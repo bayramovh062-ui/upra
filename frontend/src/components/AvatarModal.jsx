@@ -3,6 +3,7 @@ import Avatar from './ui/Avatar';
 import Button from './ui/Button';
 import Icon from './ui/Icon';
 import Modal from './ui/Modal';
+import { useTranslation } from '../features/locale/useTranslation';
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
@@ -18,6 +19,7 @@ const maxPan = (zoom) => {
 // Modal that shows an avatar large and (when editable) lets the user reposition/zoom
 // the image inside a circular frame. Uses CSS object-position/scale (no new deps).
 export default function AvatarModal({ open, onClose, src, name, editable = false, onSave }) {
+  const { t } = useTranslation();
   const [pos, setPos] = useState({ x: 50, y: 50 });
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState(null); // {sx,sy,ox,oy}
@@ -65,7 +67,12 @@ export default function AvatarModal({ open, onClose, src, name, editable = false
   const ty = ((pos.y - 50) / 50) * m.y;
 
   return (
-    <Modal open={open} onClose={onClose} title={name ? `${name}'s photo` : 'Profile photo'} className="max-w-lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={name ? t('shell.avatarModal.namePhoto', { name }) : t('shell.avatarModal.profilePhoto')}
+      className="max-w-lg"
+    >
       <div className="flex flex-col items-center gap-4">
         <div
           style={{ width: FRAME_SIZE, height: FRAME_SIZE }}
@@ -78,7 +85,7 @@ export default function AvatarModal({ open, onClose, src, name, editable = false
           {resolved ? (
             <img
               src={resolved}
-              alt={name ? `${name} avatar` : 'Avatar'}
+              alt={name ? t('shell.avatarModal.avatarAlt', { name }) : t('shell.avatarModal.avatar')}
               className="h-full w-full select-none"
               style={{
                 objectFit: 'cover',
@@ -101,7 +108,7 @@ export default function AvatarModal({ open, onClose, src, name, editable = false
         {editable && resolved && (
           <div className="w-full max-w-sm">
             <label className="mb-1 flex items-center justify-between text-label-sm text-secondary">
-              <span className="flex items-center gap-1"><Icon name="zoom_in" className="text-[16px]" /> Zoom</span>
+              <span className="flex items-center gap-1"><Icon name="zoom_in" className="text-[16px]" /> {t('shell.avatarModal.zoomLabel')}</span>
               <span className="tabular-nums">{Math.round(zoom * 100)}%</span>
             </label>
             <input
@@ -114,15 +121,15 @@ export default function AvatarModal({ open, onClose, src, name, editable = false
               className="w-full accent-primary"
             />
             <p className="mt-1 text-center text-caption text-secondary">
-              {zoom > 1.01 ? 'Drag the photo to move it inside the circle.' : 'Zoom in, then drag to reposition.'}
+              {zoom > 1.01 ? t('shell.avatarModal.dragHint') : t('shell.avatarModal.zoomHint')}
             </p>
           </div>
         )}
 
         <div className="flex w-full justify-end gap-2 pt-1">
-          <Button variant="secondary" onClick={onClose}>Close</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.actions.close')}</Button>
           {editable && resolved && onSave && (
-            <Button onClick={() => onSave({ x: pos.x, y: pos.y, zoom })}>Apply framing</Button>
+            <Button onClick={() => onSave({ x: pos.x, y: pos.y, zoom })}>{t('shell.avatarModal.applyFraming')}</Button>
           )}
         </div>
       </div>

@@ -15,9 +15,11 @@ import {
 import { useDeleteProposalMutation, useGetMyProposalsQuery } from '../features/proposals/proposalsApi';
 import { useAcceptContractMutation, useDeclineContractMutation } from '../features/contracts/contractsApi';
 import { isPendingOffer } from '../features/contracts/contractOffer';
+import { useTranslation } from '../features/locale/useTranslation';
 import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
 const MyProposalsPage = () => {
+    const { t } = useTranslation();
     const { data, isLoading, isError, refetch } = useGetMyProposalsQuery();
     const [deleteProposal, { isLoading: withdrawing }] = useDeleteProposalMutation();
     const [target, setTarget] = useState(null);
@@ -31,10 +33,10 @@ const MyProposalsPage = () => {
     const handleWithdraw = async () => {
         try {
             await deleteProposal({ id: target.id, jobPostId: target.jobPost?.id }).unwrap();
-            toast.success('Proposal withdrawn');
+            toast.success(t('proposals.mine.withdrawn'));
             setTarget(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not withdraw the proposal'));
+            toast.error(getErrorMessage(err, t('proposals.mine.errorWithdraw')));
         }
     };
 
@@ -43,20 +45,20 @@ const MyProposalsPage = () => {
         try {
             if (type === 'accept') {
                 await acceptContract(proposal.contract.id).unwrap();
-                toast.success('Offer accepted, the workspace is open');
+                toast.success(t('proposals.mine.offerAccepted'));
             } else {
                 await declineContract(proposal.contract.id).unwrap();
-                toast.success('Offer declined');
+                toast.success(t('proposals.mine.offerDeclined'));
             }
             setOfferAction(null);
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Could not update the offer'));
+            toast.error(getErrorMessage(err, t('proposals.mine.errorOffer')));
         }
     };
 
     return (
         <>
-            <PageHeader title="My proposals" description="Track every proposal you have sent." />
+            <PageHeader title={t('proposals.mine.title')} description={t('proposals.mine.description')} />
 
             {isLoading ? (
                 <div className="flex flex-col gap-3">
@@ -65,15 +67,15 @@ const MyProposalsPage = () => {
                     ))}
                 </div>
             ) : isError ? (
-                <ErrorState title="Could not load your proposals" onRetry={refetch} />
+                <ErrorState title={t('proposals.mine.loadError')} onRetry={refetch} />
             ) : proposals.length === 0 ? (
                 <EmptyState
                     icon="description"
-                    title="No proposals yet"
-                    description="Find a job and send your first proposal."
+                    title={t('proposals.mine.emptyTitle')}
+                    description={t('proposals.mine.emptyText')}
                     action={
                         <Link to="/jobs">
-                            <Button>Find work</Button>
+                            <Button>{t('proposals.mine.findWork')}</Button>
                         </Link>
                     }
                 />
@@ -94,11 +96,14 @@ const MyProposalsPage = () => {
                                     {p.jobPost?.title}
                                 </Link>
                                 <p className="mt-1 text-caption text-secondary">
-                                    Sent {formatDate(p.createdAt)} · Budget {formatMoney(p.jobPost?.budget)}
+                                    {t('proposals.mine.sentOn', {
+                                        date: formatDate(p.createdAt),
+                                        budget: formatMoney(p.jobPost?.budget),
+                                    })}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="text-caption text-secondary">Your bid</p>
+                                <p className="text-caption text-secondary">{t('proposals.mine.yourBid')}</p>
                                 <p className="tabular text-title-md font-semibold text-on-surface">
                                     {formatMoney(p.bidAmount)}
                                 </p>
@@ -110,22 +115,22 @@ const MyProposalsPage = () => {
                                         <Link to={`/jobs/${p.jobPost.id}`}>
                                             <Button variant="secondary" size="sm">
                                                 <Icon name="edit" className="text-[16px]" />
-                                                Edit
+                                                {t('proposals.mine.edit')}
                                             </Button>
                                         </Link>
                                         <Button variant="ghost" size="sm" onClick={() => setTarget(p)}>
-                                            Withdraw
+                                            {t('proposals.mine.withdraw')}
                                         </Button>
                                     </>
                                 )}
                                 {offerPending && p.contract?.id && (
                                     <>
                                         <Button variant="ghost" size="sm" onClick={() => setOfferAction({ type: 'decline', proposal: p })}>
-                                            Decline
+                                            {t('proposals.mine.decline')}
                                         </Button>
                                         <Button size="sm" onClick={() => setOfferAction({ type: 'accept', proposal: p })}>
                                             <Icon name="task_alt" className="text-[16px]" />
-                                            Accept offer
+                                            {t('proposals.mine.acceptOffer')}
                                         </Button>
                                     </>
                                 )}
@@ -133,14 +138,14 @@ const MyProposalsPage = () => {
                                     <Link to={`/contracts/${p.contract.id}`}>
                                         <Button size="sm">
                                             <Icon name="view_kanban" className="text-[16px]" />
-                                            Open workspace
+                                            {t('proposals.mine.openWorkspace')}
                                         </Button>
                                     </Link>
                                 )}
                                 {p.status === 'ACCEPTED' && ['COMPLETED', 'CANCELLED'].includes(contractStatus) && p.contract?.id && (
                                     <Link to={`/contracts/${p.contract.id}`}>
                                         <Button variant="secondary" size="sm">
-                                            View contract
+                                            {t('proposals.mine.viewContract')}
                                         </Button>
                                     </Link>
                                 )}
@@ -157,13 +162,21 @@ const MyProposalsPage = () => {
                 onConfirm={handleOffer}
                 loading={accepting || declining}
                 variant={offerAction?.type === 'decline' ? 'danger' : 'primary'}
-                title={offerAction?.type === 'decline' ? 'Decline this contract offer?' : 'Accept this contract offer?'}
+                title={
+                    offerAction?.type === 'decline'
+                        ? t('proposals.mine.confirmDeclineTitle')
+                        : t('proposals.mine.confirmAcceptTitle')
+                }
                 message={
                     offerAction?.type === 'decline'
-                        ? 'The client will be able to offer the job to another freelancer. You cannot undo this.'
-                        : 'The contract becomes active and you can start working. The other proposals for this job will be rejected.'
+                        ? t('proposals.mine.confirmDeclineText')
+                        : t('proposals.mine.confirmAcceptText')
                 }
-                confirmText={offerAction?.type === 'decline' ? 'Decline offer' : 'Accept offer'}
+                confirmText={
+                    offerAction?.type === 'decline'
+                        ? t('proposals.mine.declineOffer')
+                        : t('proposals.mine.acceptOffer')
+                }
             />
 
             <ConfirmDialog
@@ -172,9 +185,9 @@ const MyProposalsPage = () => {
                 onConfirm={handleWithdraw}
                 loading={withdrawing}
                 variant="danger"
-                title="Withdraw this proposal?"
-                message="The proposal will be deleted. You can send a new one later if the job is still open."
-                confirmText="Withdraw"
+                title={t('proposals.mine.confirmWithdrawTitle')}
+                message={t('proposals.mine.confirmWithdrawText')}
+                confirmText={t('proposals.mine.withdraw')}
             />
         </>
     );

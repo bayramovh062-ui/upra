@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '../../lib/cn';
 import { getInitials } from '../../lib/format';
+import { useTranslation } from '../../features/locale/useTranslation';
 
 const sizes = {
     sm: 'h-8 w-8 text-label-sm',
@@ -30,9 +31,11 @@ const resolveSrc = (value) => {
 
 // src verilsə şəkil göstərilir; yüklənməsə/silinibsə (səhv URL) baş hərflərə qayıdır
 const Avatar = ({ name, src, size = 'md', className }) => {
+    const { t } = useTranslation();
     const [failedSrc, setFailedSrc] = useState(null);
     const resolved = resolveSrc(src);
     const showImage = resolved && failedSrc !== src;
+    const alt = name ? t('shell.avatarModal.avatarAlt', { name }) : t('common.a11y.avatar');
 
     return (
         <span
@@ -46,7 +49,7 @@ const Avatar = ({ name, src, size = 'md', className }) => {
             {showImage ? (
                 <img
                     src={resolved}
-                    alt={name ? `${name} avatar` : 'Avatar'}
+                    alt={alt}
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                     onError={() => setFailedSrc(src)}

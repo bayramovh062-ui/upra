@@ -7,14 +7,16 @@ import {
     useMarkAllNotificationsReadMutation,
 } from '../features/notifications/notificationsApi';
 import useOpenNotification from '../features/notifications/useOpenNotification';
+import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
 
 const TABS = [
-    { key: 'ALL', label: 'All' },
-    { key: 'UNREAD', label: 'Unread' },
+    { key: 'ALL', labelKey: 'notifications.ui.tabAll' },
+    { key: 'UNREAD', labelKey: 'notifications.ui.tabUnread' },
 ];
 
 const NotificationsPage = () => {
+    const { t } = useTranslation();
     const [tab, setTab] = useState('ALL');
     const { data, isLoading, isError, refetch } = useGetNotificationsQuery(PAGE_LIMIT);
     const [markAll, { isLoading: markingAll }] = useMarkAllNotificationsReadMutation();
@@ -29,31 +31,31 @@ const NotificationsPage = () => {
     return (
         <>
             <PageHeader
-                title="Notifications"
-                description="Proposals, contract offers, milestones and payments, newest first."
+                title={t('notifications.ui.title')}
+                description={t('notifications.ui.pageDescription')}
                 action={
                     <Button variant="secondary" onClick={() => markAll()} loading={markingAll} disabled={unreadCount === 0}>
                         <Icon name="done_all" className="text-[18px]" />
-                        Mark all as read
+                        {t('notifications.ui.markAll')}
                     </Button>
                 }
             />
 
             <div className="mb-4 inline-flex gap-1 rounded-xl bg-surface-container-low p-1">
-                {TABS.map((t) => (
+                {TABS.map((item) => (
                     <button
-                        key={t.key}
+                        key={item.key}
                         type="button"
-                        onClick={() => setTab(t.key)}
+                        onClick={() => setTab(item.key)}
                         className={cn(
                             'rounded-lg px-4 py-1.5 text-label-md transition-all',
-                            tab === t.key
+                            tab === item.key
                                 ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
                                 : 'text-on-surface-variant hover:text-on-surface',
                         )}
                     >
-                        {t.label}
-                        {t.key === 'UNREAD' && <span className="ml-1 opacity-70">{unreadCount}</span>}
+                        {t(item.labelKey)}
+                        {item.key === 'UNREAD' && <span className="ml-1 opacity-70">{unreadCount}</span>}
                     </button>
                 ))}
             </div>
@@ -71,15 +73,17 @@ const NotificationsPage = () => {
                     ))}
                 </Card>
             ) : isError ? (
-                <ErrorState title="Could not load notifications" onRetry={refetch} />
+                <ErrorState title={t('notifications.ui.loadError')} onRetry={refetch} />
             ) : visible.length === 0 ? (
                 <EmptyState
                     icon="notifications_off"
-                    title={tab === 'UNREAD' ? 'No unread notifications' : 'No notifications yet'}
-                    description={
+                    title={
                         tab === 'UNREAD'
-                            ? 'You have read everything.'
-                            : 'When something happens on your jobs, proposals or contracts, it will appear here.'
+                            ? t('notifications.ui.emptyUnreadTitle')
+                            : t('notifications.ui.emptyTitle')
+                    }
+                    description={
+                        tab === 'UNREAD' ? t('notifications.ui.emptyUnreadText') : t('notifications.ui.emptyText')
                     }
                 />
             ) : (
@@ -91,7 +95,7 @@ const NotificationsPage = () => {
                     </Card>
                     {truncated && (
                         <p className="mt-3 text-center text-label-md text-secondary">
-                            Showing your {PAGE_LIMIT} most recent notifications.
+                            {t('notifications.ui.showingRecent', { count: PAGE_LIMIT })}
                         </p>
                     )}
                 </>

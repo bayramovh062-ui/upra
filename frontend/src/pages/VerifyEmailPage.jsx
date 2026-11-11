@@ -3,10 +3,12 @@ import { useSelector } from 'react-redux';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useVerifyEmailMutation } from '../features/auth/authApi';
 import { getDashboardPath } from '../lib/navigation';
+import { useTranslation } from '../features/locale/useTranslation';
 import { Button, Icon, Spinner } from '../components/ui';
 
 // E-poçtdakı link: /verify-email?token=...  Giriş etmiş və ya etməmiş istifadəçi aça bilər.
 const VerifyEmailPage = () => {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
     const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -25,21 +27,24 @@ const VerifyEmailPage = () => {
         verifyEmail({ token })
             .unwrap()
             .then((data) => {
-                setMessage(data?.message || 'Your email has been verified.');
+                setMessage(data?.message || t('auth.verify.successMessage'));
                 setStatus('success');
             })
             .catch((err) => {
-                setMessage(err?.data?.message || 'This verification link is invalid or has expired.');
+                setMessage(err?.data?.message || t('auth.verify.errorFallback'));
                 setStatus('error');
             });
-    }, [token, verifyEmail]);
+    }, [token, verifyEmail, t]);
+
+    const actionPath = isAuthenticated ? getDashboardPath(user?.role) : '/login';
+    const actionLabel = isAuthenticated ? t('auth.verify.goToDashboard') : t('auth.verify.signIn');
 
     return (
         <div className="mx-auto my-auto w-full max-w-md space-y-4 py-8">
             {status === 'loading' && (
                 <>
                     <Spinner size="lg" />
-                    <h2 className="text-headline-lg text-on-surface">Verifying your email...</h2>
+                    <h2 className="text-headline-lg text-on-surface">{t('auth.verify.verifying')}</h2>
                 </>
             )}
 
@@ -48,10 +53,10 @@ const VerifyEmailPage = () => {
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container text-primary">
                         <Icon name="verified" filled className="text-[28px]" />
                     </span>
-                    <h2 className="text-headline-lg text-on-surface">Email verified</h2>
+                    <h2 className="text-headline-lg text-on-surface">{t('auth.verify.successTitle')}</h2>
                     <p className="text-body-md text-secondary">{message}</p>
-                    <Link to={isAuthenticated ? getDashboardPath(user?.role) : '/login'}>
-                        <Button size="lg">{isAuthenticated ? 'Go to dashboard' : 'Sign in'}</Button>
+                    <Link to={actionPath}>
+                        <Button size="lg">{actionLabel}</Button>
                     </Link>
                 </>
             )}
@@ -61,14 +66,14 @@ const VerifyEmailPage = () => {
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-error-container text-error">
                         <Icon name="link_off" className="text-[28px]" />
                     </span>
-                    <h2 className="text-headline-lg text-on-surface">Verification failed</h2>
+                    <h2 className="text-headline-lg text-on-surface">{t('auth.verify.failedTitle')}</h2>
                     <p className="text-body-md text-secondary">
-                        {status === 'missing' ? 'This link is incomplete.' : message} Sign in and use the
-                        &quot;Resend email&quot; button in the banner to get a new link.
+                        {status === 'missing' ? t('auth.verify.missing') : message}{' '}
+                        {t('auth.verify.resendHint')}
                     </p>
-                    <Link to={isAuthenticated ? getDashboardPath(user?.role) : '/login'}>
+                    <Link to={actionPath}>
                         <Button size="lg" variant="secondary">
-                            {isAuthenticated ? 'Go to dashboard' : 'Sign in'}
+                            {actionLabel}
                         </Button>
                     </Link>
                 </>

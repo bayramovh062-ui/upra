@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { cn } from '../../lib/cn';
 import { Icon } from '../../components/ui';
+import { useTranslation } from '../locale/useTranslation';
 
 const STARS = [1, 2, 3, 4, 5];
 
 // Yalnız göstərmək üçün (profil, rəy siyahısı). value: 0..5 (onluq ola bilər, ən yaxın tam ulduza yuvarlaqlaşır)
 export const StarRating = ({ value = 0, sizeClass = 'text-[18px]', className }) => {
+    const { t } = useTranslation();
     const rounded = Math.round(Number(value) || 0);
 
     return (
         <span
             role="img"
-            aria-label={`${Number(value) || 0} out of 5 stars`}
+            aria-label={t('reviews.aria.value', { value: Number(value) || 0 })}
             className={cn('inline-flex items-center', className)}
         >
             {STARS.map((n) => (
@@ -28,6 +30,7 @@ export const StarRating = ({ value = 0, sizeClass = 'text-[18px]', className }) 
 
 // Seçmək üçün: radio qrupu kimi işləyir (klaviatura: ox düymələri, Tab ilə seçilmiş ulduza keçid)
 export const StarRatingInput = ({ value = 0, onChange, disabled = false }) => {
+    const { t } = useTranslation();
     const [hover, setHover] = useState(0);
     const shown = hover || value;
 
@@ -45,7 +48,7 @@ export const StarRatingInput = ({ value = 0, onChange, disabled = false }) => {
     return (
         <div
             role="radiogroup"
-            aria-label="Rating"
+            aria-label={t('reviews.aria.group')}
             onKeyDown={onKeyDown}
             onMouseLeave={() => setHover(0)}
             className="inline-flex items-center gap-1"
@@ -56,7 +59,7 @@ export const StarRatingInput = ({ value = 0, onChange, disabled = false }) => {
                     type="button"
                     role="radio"
                     aria-checked={value === n}
-                    aria-label={`${n} star${n === 1 ? '' : 's'}`}
+                    aria-label={t('reviews.aria.star', { count: n })}
                     // Roving tabindex: Tab qrupa bir dəfə düşür (seçilmiş və ya ilk ulduz)
                     tabIndex={value === n || (!value && n === 1) ? 0 : -1}
                     disabled={disabled}
