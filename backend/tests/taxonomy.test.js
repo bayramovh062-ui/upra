@@ -734,6 +734,8 @@ describe('Phase 1A: taxonomy, job fields, drafts, saved jobs, skills profile', (
         });
 
         it('soft-deletes the account and keeps skills, saved jobs and history rows', async () => {
+            // Əvvəlki qırıq buraxlışdan qalan istifadəçi qeydiyyatı poza bilməsin
+            await cleanUpUsers(['tx_temp@upra.com']);
             const temp = await registerUser({
                 email: 'tx_temp@upra.com',
                 password: PASSWORD,

@@ -175,7 +175,9 @@ describe('Notifications', () => {
 
             const offered = (await list(freelancer)).body.notifications;
             expect(offered.map((n) => n.type)).toEqual(['CONTRACT_OFFERED']);
-            expect(offered[0].link).toBe(`/contracts/${contractId}`);
+            // Frilanser təklifi workspace-dən əvvəl "My proposals" səhifəsində qəbul/rədd edir
+            expect(offered[0].link).toBe('/freelancer/proposals');
+            expect(offered[0].data).toMatchObject({ contractId });
             expect(await types(client)).toEqual([]);
 
             await request(app).patch(`/api/contracts/${contractId}/accept`).set(auth(freelancer.token));

@@ -15,6 +15,11 @@ if (!fs.existsSync(envTestPath)) {
 
 dotenv.config({ path: envTestPath, override: true, quiet: true });
 
+// E-poçt təsdiqi qapısı testlərdə defolt olaraq BAĞLIDIR: köhnə testlər təsdiqlənməmiş istifadəçilərlə
+// iş yaradır. Qapını yoxlayan testlər (phaseB-email-auth) bayrağı özləri 'true' edir.
+// Bu, dev-də .env və ya terminal dəyişəninin testlərə sızmasının qarşısını alır.
+process.env.REQUIRE_EMAIL_VERIFICATION = 'false';
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
     throw new Error('[tests] backend/.env.test does not define DATABASE_URL.');
