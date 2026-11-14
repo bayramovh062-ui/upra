@@ -14,11 +14,12 @@ const AppLayout = () => {
     useNotificationSocket();
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-dvh bg-background">
             <Topbar onMenuClick={() => setSidebarOpen(true)} />
             <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="pt-16 lg:pl-64">
-                <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
+                {/* Telefonda pb-20: sağ aşağıdakı üzən AI düyməsi səhifənin son düymələrini (məs. Pagination, Submit) örtməsin */}
+                <main className="mx-auto w-full max-w-[1600px] p-4 pb-20 sm:p-6 lg:p-8">
                     <EmailVerificationBanner />
                     <Outlet />
                 </main>

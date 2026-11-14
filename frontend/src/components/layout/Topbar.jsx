@@ -19,8 +19,8 @@ const Topbar = ({ onMenuClick }) => {
 
     return (
         <header className="fixed inset-x-0 top-0 z-50 h-16 bg-nav shadow-[0_1px_8px_rgba(0,0,0,0.06)]">
-            <div className="flex h-full items-center justify-between px-4 sm:px-8">
-                <div className="flex items-center gap-3">
+            <div className="flex h-full items-center justify-between px-3 sm:px-8">
+                <div className="flex items-center gap-2 sm:gap-3">
                     <button
                         type="button"
                         onClick={onMenuClick}
@@ -31,7 +31,7 @@ const Topbar = ({ onMenuClick }) => {
                     </button>
                     <Link to="/" className="flex items-center gap-2">
                         <span className="text-headline-md font-bold tracking-tight text-white">Upra</span>
-                        <span className="rounded bg-tertiary px-1.5 py-0.5 text-caption uppercase text-inverse-on-surface">
+                        <span className="hidden rounded bg-tertiary px-1.5 py-0.5 text-caption uppercase text-inverse-on-surface sm:inline-block">
                             {t(`common.roles.${user?.role}`)}
                         </span>
                     </Link>
@@ -54,7 +54,10 @@ const Topbar = ({ onMenuClick }) => {
                     <button
                         type="button"
                         onClick={() => setMenuOpen((v) => !v)}
-                        className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        aria-label={user?.fullName}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-white/10 sm:gap-3 sm:px-2"
                     >
                         <Avatar name={user?.fullName} src={user?.avatarUrl} size="sm" className="bg-primary-container text-white" />
                         <span className="hidden text-left sm:block">
@@ -65,7 +68,7 @@ const Topbar = ({ onMenuClick }) => {
                                 {user?.email}
                             </span>
                         </span>
-                        <Icon name="expand_more" className="text-[18px] text-secondary-fixed-dim" />
+                        <Icon name="expand_more" className="hidden text-[18px] text-secondary-fixed-dim sm:inline" />
                     </button>
 
                     {menuOpen && (

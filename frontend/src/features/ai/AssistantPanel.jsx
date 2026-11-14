@@ -24,7 +24,7 @@ const AssistantPanel = ({ open, onClose, remainingToday }) => {
             role="dialog"
             aria-label={t('ai.title')}
             className={cn(
-                'fixed bottom-20 right-4 z-40 flex h-[34rem] max-h-[calc(100vh-6rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden',
+                'fixed bottom-20 right-4 z-40 flex h-[34rem] max-h-[calc(100dvh-6rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden',
                 'rounded-2xl border border-line bg-surface-container-lowest shadow-xl sm:w-96',
                 !open && 'hidden'
             )}

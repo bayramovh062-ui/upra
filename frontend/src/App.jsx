@@ -42,6 +42,8 @@ function App() {
             <Toaster
                 position="top-right"
                 reverseOrder={false}
+                // top: 72px — toast sabit üst panelin (h-16) üstünə düşməsin, ad/zəng/avatar örtülməsin
+                containerStyle={{ top: 72 }}
                 toastOptions={{
                     // Xəta mesajını mobildə oxumaq üçün uzun qalır
                     error: { duration: 6000 },

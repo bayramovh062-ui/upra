@@ -13,7 +13,7 @@ const SAMPLE_CARDS = [
 const BrandPanel = () => {
     const { t } = useTranslation();
     return (
-        <div className="relative flex flex-col justify-between overflow-hidden bg-primary-container p-8 text-on-primary lg:col-span-5 lg:p-14">
+        <div className="relative flex flex-col justify-between overflow-hidden bg-primary-container px-5 py-4 text-on-primary lg:col-span-5 lg:p-14">
             <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary opacity-60 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-surface-tint opacity-40 blur-3xl" />
 
@@ -24,7 +24,8 @@ const BrandPanel = () => {
                 <span className="text-headline-md font-bold tracking-tight text-white">Upra</span>
             </Link>
 
-            <div className="relative z-10 my-10 flex flex-col gap-8 lg:my-0">
+            {/* Telefonda yalnız logo: başlıq, nümunə lövhə və alt yazı forma görünənə qədər aşağı itirməsin */}
+            <div className="relative z-10 my-10 hidden flex-col gap-8 lg:my-0 lg:flex">
                 <div>
                     <h1 className="mb-4 text-display-lg font-bold text-white">
                         {t('shell.authBrand.heading')}
@@ -63,7 +64,7 @@ const BrandPanel = () => {
                 </div>
             </div>
 
-            <p className="relative z-10 pt-6 text-label-md text-on-primary-container">
+            <p className="relative z-10 hidden pt-6 text-label-md text-on-primary-container lg:block">
                 {t('shell.authBrand.builtAs')}
             </p>
         </div>
@@ -74,9 +75,9 @@ const BrandPanel = () => {
 const AuthLayout = () => {
     const { t } = useTranslation();
     return (
-        <div className="grid min-h-screen grid-cols-1 bg-surface lg:grid-cols-12">
+        <div className="grid min-h-dvh grid-cols-1 bg-surface lg:grid-cols-12">
             <BrandPanel />
-            <div className="flex flex-col bg-surface p-6 sm:p-10 lg:col-span-7 lg:p-14">
+            <div className="flex flex-col bg-surface px-5 py-6 sm:p-10 lg:col-span-7 lg:p-14">
                 <div className="mb-4 flex justify-end gap-1">
                     <LanguageSwitcher />
                     <ThemeToggle />

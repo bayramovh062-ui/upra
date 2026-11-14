@@ -123,7 +123,72 @@ const MyJobsPage = () => {
                     }
                 />
             ) : (
-                <Card className="overflow-hidden">
+                <>
+                {/* Telefon: cədvəl yerinə kartlar (720px-lik cədvəl yana sürüşmə tələb edirdi) */}
+                <div className="flex flex-col gap-3 md:hidden">
+                    {visible.map((job) => {
+                        const isDraft = job.status === 'DRAFT';
+                        const canEdit = job.status === 'OPEN' || isDraft;
+                        const cancelLabel = isDraft ? t('jobs.detail.discardDraft') : t('jobs.detail.cancelJob');
+                        return (
+                            <Card key={job.id} className="flex flex-col gap-3 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <Link
+                                            to={`/jobs/${job.id}`}
+                                            className="line-clamp-2 break-words text-title-md text-on-surface hover:text-primary-container"
+                                        >
+                                            {job.title}
+                                        </Link>
+                                        <p className="mt-0.5 text-caption text-secondary">
+                                            {isDraft
+                                                ? t('jobs.detail.savedAt', { time: timeAgo(job.createdAt) })
+                                                : t('jobs.detail.postedAt', { time: timeAgo(job.createdAt) })}
+                                        </p>
+                                    </div>
+                                    <StatusBadge status={job.status} />
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="tabular text-body-md text-on-surface">
+                                        {formatMoney(job.budget)}
+                                        <span className="ml-2 text-caption text-secondary">
+                                            {t('jobs.myJobs.tableProposals')}: {job._count?.proposals ?? 0}
+                                        </span>
+                                    </div>
+                                    <div className="flex shrink-0 gap-1">
+                                        {!isDraft && (
+                                            <IconLink
+                                                to={`/client/jobs/${job.id}/proposals`}
+                                                label={t('jobs.myJobs.viewProposals')}
+                                                icon="inbox"
+                                            />
+                                        )}
+                                        {canEdit && (
+                                            <>
+                                                <IconLink
+                                                    to={`/client/jobs/${job.id}/edit`}
+                                                    label={t('jobs.detail.editJob')}
+                                                    icon="edit"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    title={cancelLabel}
+                                                    aria-label={cancelLabel}
+                                                    onClick={() => setJobToCancel(job)}
+                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-secondary transition-colors hover:bg-error-container hover:text-error"
+                                                >
+                                                    <Icon name="delete_outline" className="text-[18px]" />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+
+                <Card className="hidden overflow-hidden md:block">
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[720px] text-left">
                             <thead>
@@ -211,6 +276,7 @@ const MyJobsPage = () => {
                         </table>
                     </div>
                 </Card>
+                </>
             )}
 
             <ConfirmDialog

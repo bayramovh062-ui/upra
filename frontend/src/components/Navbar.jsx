@@ -38,7 +38,7 @@ const Navbar = () => {
                 </div>
 
                 {isAuthenticated ? (
-                    <div className="flex items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-4">
                         <span className="hidden text-body-md text-secondary-fixed-dim sm:inline">
                             {user?.fullName}
                         </span>
@@ -47,12 +47,15 @@ const Navbar = () => {
                         <Link to={getDashboardPath(user?.role)}>
                             <Button size="sm">{t('nav.dashboard')}</Button>
                         </Link>
-                        <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={logout}>
-                            {t('nav.logOut')}
-                        </Button>
+                        {/* Telefonda yer yoxdur: çıxış Dashboard-dakı istifadəçi menyusundadır */}
+                        <span className="hidden sm:inline-flex">
+                            <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={logout}>
+                                {t('nav.logOut')}
+                            </Button>
+                        </span>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-1.5 sm:gap-3">
                         <LanguageSwitcher tone="nav" />
                         <ThemeToggle tone="nav" />
                         <Link

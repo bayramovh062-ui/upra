@@ -172,7 +172,8 @@ const ChatThread = ({ conversationId, onBack }) => {
     };
 
     return (
-        <div className="flex h-full min-h-[32rem] flex-col">
+        // Sabit hündürlük: mesajlar artanda siyahı öz içində sürüşür, yazma sahəsi həmişə görünür (mobil brauzer paneli üçün dvh)
+        <div className="flex h-[calc(100dvh-14rem)] min-h-[24rem] flex-col lg:h-[calc(100dvh-13rem)] lg:min-h-[32rem]">
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
                 <button
                     type="button"
@@ -200,7 +201,7 @@ const ChatThread = ({ conversationId, onBack }) => {
                 )}
             </div>
 
-            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
                 {messagesQ.isLoading ? (
                     <div className="flex flex-col gap-3">
                         <Skeleton className="h-12 w-2/3" />
@@ -293,7 +294,7 @@ const MessagesPage = () => {
                     />
                 </Card>
 
-                <Card className={cn('overflow-hidden', !conversationId && 'hidden lg:flex')}>
+                <Card className={cn('overflow-hidden', !conversationId && 'hidden lg:flex', conversationId && 'flex flex-col')}>
                     {conversationId ? (
                         <ChatThread
                             key={conversationId}

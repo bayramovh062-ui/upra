@@ -75,7 +75,7 @@ export default function AvatarModal({ open, onClose, src, name, editable = false
     >
       <div className="flex flex-col items-center gap-4">
         <div
-          style={{ width: FRAME_SIZE, height: FRAME_SIZE }}
+          style={{ width: FRAME_SIZE, maxWidth: '100%', aspectRatio: '1 / 1' }}
           className={`relative overflow-hidden rounded-full bg-surface-container-low ring-1 ring-line touch-none ${editable ? (drag ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

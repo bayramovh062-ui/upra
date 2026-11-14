@@ -20,7 +20,7 @@ const Pagination = ({ page, totalPages, onChange }) => {
     if (!totalPages || totalPages <= 1) return null;
 
     return (
-        <nav className="flex items-center gap-1" aria-label={t('common.pagination.label')}>
+        <nav className="flex flex-wrap items-center justify-center gap-1" aria-label={t('common.pagination.label')}>
             <button
                 type="button"
                 disabled={page <= 1}

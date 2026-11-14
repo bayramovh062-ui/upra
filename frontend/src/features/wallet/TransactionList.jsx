@@ -36,14 +36,14 @@ const TransactionRow = ({ tx }) => {
                     </p>
                 </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                 <Badge tone={tx.balanceType === 'LOCKED' ? 'blue' : 'gray'}>
                     {['AVAILABLE', 'LOCKED'].includes(tx.balanceType)
                         ? t(`wallet.balances.${tx.balanceType}`)
                         : tx.balanceType}
                 </Badge>
                 <span
-                    className={`tabular w-24 text-right text-body-md-medium ${credit ? 'text-success-ink' : 'text-on-surface'}`}
+                    className={`tabular min-w-[4.5rem] text-right text-body-md-medium sm:w-24 ${credit ? 'text-success-ink' : 'text-on-surface'}`}
                 >
                     {credit ? '+' : '−'}
                     {formatCents(tx.amountCents)}

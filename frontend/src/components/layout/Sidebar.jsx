@@ -25,7 +25,7 @@ const Sidebar = ({ open, onClose }) => {
             )}
             <aside
                 className={cn(
-                    'fixed bottom-0 left-0 top-16 z-40 flex w-64 flex-col border-r border-line bg-surface-container-lowest px-4 py-6 transition-transform',
+                    'fixed bottom-0 left-0 top-16 z-40 flex w-64 flex-col overflow-y-auto border-r border-line bg-surface-container-lowest px-4 py-6 transition-transform',
                     'lg:translate-x-0',
                     open ? 'translate-x-0' : '-translate-x-full'
                 )}

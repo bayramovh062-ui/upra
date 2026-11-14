@@ -109,7 +109,7 @@ const MyProposalsPage = () => {
                                 </p>
                             </div>
                             <StatusBadge status={displayStatus} />
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 {p.status === 'PENDING' && p.jobPost?.status === 'OPEN' && (
                                     <>
                                         <Link to={`/jobs/${p.jobPost.id}`}>

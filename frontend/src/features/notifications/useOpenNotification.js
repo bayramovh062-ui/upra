@@ -14,9 +14,7 @@ const useOpenNotification = (onDone) => {
             onDone?.();
             // Yalnız tətbiqdaxili yollar: link backend-dən gəlir, kənar ünvana yönləndirməyə icazə vermirik
             if (typeof notification.link === 'string' && notification.link.startsWith('/')) {
-                // Köhnə admin dispute bildirişləri /admin/disputes/:id linki ilə yazılıb; belə səhifə yoxdur, siyahıya yönləndiririk
-                const link = notification.link.replace(/^\/admin\/disputes\/[^/?#]+/, '/admin/disputes');
-                navigate(link);
+                navigate(notification.link);
             }
         },
         [markRead, navigate, onDone],

@@ -10,7 +10,13 @@ const Drawer = ({ open, onClose, title, children, className }) => {
         if (!open) return undefined;
         const onKey = (e) => e.key === 'Escape' && onClose?.();
         document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
+        // Modal kimi: panel açıq olanda arxa fon sürüşməsin (telefonda toxunuşla səhifə „kənardan“ sürüşürdü)
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prevOverflow;
+        };
     }, [open, onClose]);
 
     if (!open) return null;
@@ -23,7 +29,7 @@ const Drawer = ({ open, onClose, title, children, className }) => {
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'absolute right-0 top-0 flex h-full w-full max-w-[480px] flex-col bg-surface-container-lowest shadow-xl',
+                    'absolute right-0 top-0 flex h-full max-h-dvh w-full max-w-[480px] flex-col bg-surface-container-lowest shadow-xl',
                     className
                 )}
             >
@@ -38,7 +44,7 @@ const Drawer = ({ open, onClose, title, children, className }) => {
                         <Icon name="close" />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5">{children}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">{children}</div>
             </aside>
         </div>
     );

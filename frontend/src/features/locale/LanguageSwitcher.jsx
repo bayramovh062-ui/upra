@@ -33,24 +33,30 @@ const LanguageSwitcher = ({ tone = 'surface', className }) => {
                 aria-label={t('common.language.select')}
                 title={t('common.language.select')}
                 className={cn(
-                    'inline-flex h-9 items-center gap-1.5 rounded-lg px-2 transition',
+                    'inline-flex h-9 items-center gap-1.5 rounded-lg px-1.5 transition sm:px-2',
                     'text-label-sm font-medium uppercase tracking-wide',
                     'focus:outline-none focus-visible:ring-2',
                     tones[tone]
                 )}
             >
                 <Icon name="language" className="text-[18px]" />
-                <span>{current.short}</span>
-                <Icon name="expand_more" className="text-[16px]" />
+                <span className="hidden min-[400px]:inline">{current.short}</span>
+                <Icon name="expand_more" className="hidden text-[16px] sm:inline" />
             </button>
 
             {open && (
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+                    {/* nav tonunda (tünd üst panel) telefonda menyu ekranın kənarına yapışır: dar ekranda solda kəsilmir */}
                     <ul
                         role="menu"
                         aria-label={t('common.language.label')}
-                        className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-line bg-surface-container-lowest py-1 shadow-lg"
+                        className={cn(
+                            'z-20 w-48 overflow-hidden rounded-xl border border-line bg-surface-container-lowest py-1 shadow-lg',
+                            tone === 'nav'
+                                ? 'fixed right-2 top-[4.25rem] sm:absolute sm:right-0 sm:top-full sm:mt-2'
+                                : 'absolute right-0 mt-2'
+                        )}
                     >
                         {LOCALES.map((item) => (
                             <li key={item.code} role="none">

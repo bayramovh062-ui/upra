@@ -214,3 +214,16 @@ body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" on, "cv05" on;
 }
+
+/*
+  Telefonda input/select/textarea 16px olmalıdır: iOS Safari fokus zamanı 16px-dən kiçik sahəni
+  avtomatik böyüdür və səhifə "tullanır". Qatsız (unlayered) qayda Tailwind utility-lərindən (text-body-md və s.)
+  üstün gəlir, ona görə bütün formalar bir yerdən düzəlir. Desktop-da ölçülər dəyişmir.
+*/
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

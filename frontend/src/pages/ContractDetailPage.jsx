@@ -149,10 +149,10 @@ const ContractDetailPage = () => {
     // Client üçün yoxlama gözləyən, frilanser üçün təhvil gözləyən mərhələlər; açıq mübahisə hər ikisi üçün diqqət tələb edir
     const escrowAttention = open
         ? milestones.filter(
-              (m) =>
-                  m.status === 'DISPUTED' ||
-                  (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)
-          ).length
+            (m) =>
+                m.status === 'DISPUTED' ||
+                (isClient ? m.status === 'IN_REVIEW' : isFreelancer ? m.status === 'FUNDED' : false)
+        ).length
         : 0;
     // Açıq mübahisələr: pul donub, submit/approve/auto-approve dayanıb
     const openDisputes = (historyQ.data?.disputes ?? []).filter((d) => d.status === 'OPEN');
@@ -183,32 +183,32 @@ const ContractDetailPage = () => {
     };
     const msDialog = msAction
         ? {
-              submit: {
-                  title: t('escrow.dialog.submit.title'),
-                  confirmText: t('escrow.dialog.submit.confirm'),
-                  variant: 'primary',
-                  message: t('escrow.dialog.submit.message', { days: 7 }),
-              },
-              approve: {
-                  title: t('escrow.dialog.approve.title'),
-                  confirmText: t('escrow.dialog.approve.confirm'),
-                  variant: 'primary',
-                  message: t('escrow.dialog.approve.message', {
-                      amount: formatCents(msAction.milestone.amountCents),
-                      fee: formatCents(calcCommissionCents(msAction.milestone.amountCents)),
-                      note: t('common.demo.moneyNote'),
-                  }),
-              },
-              changes: {
-                  title: t('escrow.dialog.changes.title'),
-                  confirmText: t('escrow.dialog.changes.confirm'),
-                  variant: 'secondary',
-                  message: t('escrow.dialog.changes.message', {
-                      used: msAction.milestone.revisionCount,
-                      max: msAction.milestone.maxRevisions,
-                  }),
-              },
-          }[msAction.type]
+            submit: {
+                title: t('escrow.dialog.submit.title'),
+                confirmText: t('escrow.dialog.submit.confirm'),
+                variant: 'primary',
+                message: t('escrow.dialog.submit.message', { days: 7 }),
+            },
+            approve: {
+                title: t('escrow.dialog.approve.title'),
+                confirmText: t('escrow.dialog.approve.confirm'),
+                variant: 'primary',
+                message: t('escrow.dialog.approve.message', {
+                    amount: formatCents(msAction.milestone.amountCents),
+                    fee: formatCents(calcCommissionCents(msAction.milestone.amountCents)),
+                    note: t('common.demo.moneyNote'),
+                }),
+            },
+            changes: {
+                title: t('escrow.dialog.changes.title'),
+                confirmText: t('escrow.dialog.changes.confirm'),
+                variant: 'secondary',
+                message: t('escrow.dialog.changes.message', {
+                    used: msAction.milestone.revisionCount,
+                    max: msAction.milestone.maxRevisions,
+                }),
+            },
+        }[msAction.type]
         : null;
 
     const handleMsConfirm = async () => {
@@ -385,79 +385,79 @@ const ContractDetailPage = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                {other?.id && (
-                    <Button variant="secondary" onClick={handleMessage} loading={openingChat}>
-                        <Icon name="chat" className="text-[18px]" />
-                        {t('contracts.actions.message')}
-                    </Button>
-                )}
-
-                {/* Ləğv düyməsi hər iki tərəf üçündür; gözləyən təklif varsa, əvəzinə aşağıdakı bannerdə düymələr olur */}
-                {(isClient || isFreelancer) && open && !pendingCancel && (
-                    <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>
-                        {contract.workStarted
-                            ? t('contracts.actions.requestCancellation')
-                            : t('contracts.actions.cancelContract')}
-                    </Button>
-                )}
-
-                {/* Qısayollar: aktiv mərhələyə bağlıdır, tam siyahı Escrow tabındadır */}
-                {isFreelancer && open && fundedMilestone && (
-                    <Button onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}>
-                        <Icon name="outbox" className="text-[18px]" />
-                        {t('contracts.actions.submitForReview')}
-                    </Button>
-                )}
-
-                {isClient && open && reviewMilestone && (
-                    <>
-                        {hasReachedRevisionLimit(reviewMilestone) ? (
-                            <Button
-                                variant="secondary"
-                                disabled
-                                title={t('contracts.actions.revisionLimitTitle')}
-                            >
-                                <Icon name="undo" className="text-[18px]" />
-                                {t('contracts.actions.revisionLimit')}
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="secondary"
-                                onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}
-                            >
-                                <Icon name="undo" className="text-[18px]" />
-                                {t('contracts.actions.requestChanges')}
-                            </Button>
-                        )}
-                        <Button onClick={() => setMsAction({ type: 'approve', milestone: reviewMilestone })}>
-                            <Icon name="task_alt" className="text-[18px]" />
-                            {t('contracts.actions.approvePay')}
+                    {other?.id && (
+                        <Button variant="secondary" onClick={handleMessage} loading={openingChat}>
+                            <Icon name="chat" className="text-[18px]" />
+                            {t('contracts.actions.message')}
                         </Button>
-                    </>
-                )}
+                    )}
 
-                {isClient && open && (
-                    <Button
-                        onClick={() => setAction('complete')}
-                        disabled={completeBlocked}
-                        title={completeBlocked ? t('contracts.actions.completeBlockedTitle') : undefined}
-                    >
-                        <Icon name="task_alt" className="text-[18px]" />
-                        {t('contracts.actions.completeContract')}
-                    </Button>
-                )}
+                    {/* Ləğv düyməsi hər iki tərəf üçündür; gözləyən təklif varsa, əvəzinə aşağıdakı bannerdə düymələr olur */}
+                    {(isClient || isFreelancer) && open && !pendingCancel && (
+                        <Button variant="ghost" className="text-error hover:bg-error-container" onClick={handleCancelClick}>
+                            {contract.workStarted
+                                ? t('contracts.actions.requestCancellation')
+                                : t('contracts.actions.cancelContract')}
+                        </Button>
+                    )}
 
-                {/* P2: şikayət — hər iki tərəf üçün */}
-                {(isClient || isFreelancer) && (
-                    <Button
-                        variant="ghost"
-                        onClick={() => setReportOpen(true)}
-                        title={t('contracts.actions.reportTitle')}
-                    >
-                        <Icon name="flag" className="text-[18px]" />
-                        {t('contracts.actions.report')}
-                    </Button>
-                )}
+                    {/* Qısayollar: aktiv mərhələyə bağlıdır, tam siyahı Escrow tabındadır */}
+                    {isFreelancer && open && fundedMilestone && (
+                        <Button onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}>
+                            <Icon name="outbox" className="text-[18px]" />
+                            {t('contracts.actions.submitForReview')}
+                        </Button>
+                    )}
+
+                    {isClient && open && reviewMilestone && (
+                        <>
+                            {hasReachedRevisionLimit(reviewMilestone) ? (
+                                <Button
+                                    variant="secondary"
+                                    disabled
+                                    title={t('contracts.actions.revisionLimitTitle')}
+                                >
+                                    <Icon name="undo" className="text-[18px]" />
+                                    {t('contracts.actions.revisionLimit')}
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setMsAction({ type: 'changes', milestone: reviewMilestone })}
+                                >
+                                    <Icon name="undo" className="text-[18px]" />
+                                    {t('contracts.actions.requestChanges')}
+                                </Button>
+                            )}
+                            <Button onClick={() => setMsAction({ type: 'approve', milestone: reviewMilestone })}>
+                                <Icon name="task_alt" className="text-[18px]" />
+                                {t('contracts.actions.approvePay')}
+                            </Button>
+                        </>
+                    )}
+
+                    {isClient && open && (
+                        <Button
+                            onClick={() => setAction('complete')}
+                            disabled={completeBlocked}
+                            title={completeBlocked ? t('contracts.actions.completeBlockedTitle') : undefined}
+                        >
+                            <Icon name="task_alt" className="text-[18px]" />
+                            {t('contracts.actions.completeContract')}
+                        </Button>
+                    )}
+
+                    {/* P2: şikayət — hər iki tərəf üçün */}
+                    {(isClient || isFreelancer) && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => setReportOpen(true)}
+                            title={t('contracts.actions.reportTitle')}
+                        >
+                            <Icon name="flag" className="text-[18px]" />
+                            {t('contracts.actions.report')}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -468,9 +468,9 @@ const ContractDetailPage = () => {
                         <p className="mt-1 break-words">
                             {isFreelancer
                                 ? t('contracts.offer.freelancerText', {
-                                      name: contract.client?.fullName,
-                                      amount: formatMoney(contract.proposal?.bidAmount),
-                                  })
+                                    name: contract.client?.fullName,
+                                    amount: formatMoney(contract.proposal?.bidAmount),
+                                })
                                 : t('contracts.offer.clientText', { name: contract.freelancer?.fullName })}
                         </p>
                     </div>

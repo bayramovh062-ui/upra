@@ -117,6 +117,8 @@ const JobsPage = () => {
 
     // Axtarış sahəsi lokal state-dir, URL-ə debounce ilə yazılır
     const [searchInput, setSearchInput] = useState(search);
+    // Telefonda filtr paneli qısalmış başlayır (lg+ həmişə görünür)
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const debouncedSearch = useDebounce(searchInput, 400);
 
     const updateParams = (patch, { keepPage = false } = {}) => {
@@ -296,15 +298,30 @@ const JobsPage = () => {
             <PageHeader title={t('jobs.page.title')} description={t('jobs.page.description')} />
 
             <div className="flex flex-col items-start gap-6 lg:flex-row">
-                {/* Sol panel: filtrlər */}
-                <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-80">
-                    <JobFilters
-                        values={filterValues}
-                        onChange={updateParams}
-                        onReset={resetFilters}
-                        hasFilters={hasFilters}
-                    />
-                </aside>
+                {/* Sol panel: filtrlər. Telefonda açıb-bağlanır, nəticələr ekranın aşağısına itmir */}
+                <div className="w-full shrink-0 lg:sticky lg:top-24 lg:w-80">
+                    <Button
+                        variant="secondary"
+                        className="w-full justify-between lg:hidden"
+                        aria-expanded={filtersOpen}
+                        onClick={() => setFiltersOpen((v) => !v)}
+                    >
+                        <span className="flex items-center gap-2">
+                            <Icon name="tune" className="text-[18px]" />
+                            {t('jobs.filters.title')}
+                            {hasFilters && <span className="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true" />}
+                        </span>
+                        <Icon name={filtersOpen ? 'expand_less' : 'expand_more'} className="text-[20px]" />
+                    </Button>
+                    <aside className={cn('mt-3 lg:mt-0 lg:block', !filtersOpen && 'hidden')}>
+                        <JobFilters
+                            values={filterValues}
+                            onChange={updateParams}
+                            onReset={resetFilters}
+                            hasFilters={hasFilters}
+                        />
+                    </aside>
+                </div>
 
                 {/* Sağ tərəf: tab-lar, axtarış və siyahı */}
                 <div className="flex w-full min-w-0 flex-1 flex-col gap-4">

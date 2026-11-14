@@ -49,14 +49,14 @@ const ContractsPage = () => {
         <>
             <PageHeader title={t('contracts.page.title')} description={t('contracts.page.description')} />
 
-            <div className="mb-6 inline-flex gap-1 rounded-xl bg-surface-container-low p-1">
+            <div className="mb-6 inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-surface-container-low p-1">
                 {TABS.map((item) => (
                     <button
                         key={item.key}
                         type="button"
                         onClick={() => setTab(item.key)}
                         className={cn(
-                            'rounded-lg px-4 py-1.5 text-label-md transition-all',
+                            'shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-label-md transition-all',
                             tab === item.key
                                 ? 'bg-surface-container-lowest font-semibold text-primary shadow-sm'
                                 : 'text-on-surface-variant hover:text-on-surface',
@@ -153,7 +153,7 @@ const ContractsPage = () => {
                                     )}
                                 </div>
 
-                                <div className="flex justify-end gap-2">
+                                <div className="flex flex-wrap justify-end gap-2">
                                     {c.status === 'ACTIVE' || c.status === 'DELIVERED' ? (
                                         <Link to={`/contracts/${c.id}?tab=escrow`}>
                                             <Button variant="secondary">
