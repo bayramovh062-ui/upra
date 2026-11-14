@@ -82,16 +82,20 @@ const useIssueSocket = (contractId) => {
         );
 
         // Mərhələ maliyyələşdi, təhvil verildi, təsdiqləndi və ya dəyişiklik istəndi:
-        // müqavilə (milestones daxil) və pul kisəsi yenilənir. Escrow tab-ı və Board eyni soketi bölüşür.
-        socket.on('milestone:updated', () =>
+        // müqavilə (milestones daxil), tarixçə (təhvillər/mübahisələr) və pul kisəsi yenilənir.
+        // Escrow tab-ı və Board eyni soketi bölüşür.
+        const refreshMilestone = () =>
             dispatch(
                 issuesApi.util.invalidateTags([
                     { type: 'Contract', id: contractId },
                     { type: 'Contract', id: 'LIST' },
+                    { type: 'Contract', id: `history:${contractId}` },
                     'Wallet',
                 ]),
-            ),
-        );
+            );
+        socket.on('milestone:updated', refreshMilestone);
+        // Mübahisə açıldı və ya admin həll etdi: tarixçədəki mübahisə qutusu yenilənir
+        socket.on('dispute:updated', refreshMilestone);
 
         // Kart mövqeləri yenidən nömrələndi (backend rebalance etdi): siyahı təzələnir
         socket.on('board:reordered', () =>

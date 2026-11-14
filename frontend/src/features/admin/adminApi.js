@@ -13,10 +13,10 @@ export const adminApi = baseApi.injectEndpoints({
         }),
         resolveAdminDispute: builder.mutation({
             // contractId yalnız tag invalidasiyası üçündür, backend-ə göndərilmir
-            query: ({ id, resolution, releaseCents, refundCents }) => ({
+            query: ({ id, resolution, releaseCents, refundCents, adminNote }) => ({
                 url: `/admin/disputes/${id}/resolve`,
                 method: 'PATCH',
-                body: { resolution, releaseCents, refundCents },
+                body: { resolution, releaseCents, refundCents, adminNote },
             }),
             invalidatesTags: (result, error, { id, contractId }) => [
                 { type: 'AdminDispute', id },

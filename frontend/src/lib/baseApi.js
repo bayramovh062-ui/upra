@@ -19,7 +19,11 @@ const isSuspendedError = (error) => error?.status === 403 && /suspended/i.test(e
 const baseQueryWithReauth = async (args, api, extraOptions) => {
     const result = await rawBaseQuery(args, api, extraOptions);
     if (result.error && (result.error.status === 401 || isSuspendedError(result.error))) {
+        // Sessiya olubsa RTK Query cache-i də təmizlənir: yoxsa başqa hesabla giriş edəndə əvvəlki istifadəçinin
+        // keşlənmiş getMe/müqavilə məlumatı görünə bilər (useLogout ilə eyni qayda). Girişsiz vəziyyətdə (login xətası) lazım deyil.
+        const hadSession = Boolean(api.getState().auth.token);
         api.dispatch(logout());
+        if (hadSession) api.dispatch(baseApi.util.resetApiState());
     }
     return result;
 };

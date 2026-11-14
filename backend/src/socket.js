@@ -5,10 +5,20 @@ import { verifyContractAccess } from './utils/contractAccess.js';
 
 let io;
 
+// CLIENT_URL vergüllə bir neçə ünvan ola bilər (app.js-dəki HTTP CORS ilə eyni qayda).
+// Vergüllü sətri olduğu kimi vermək olmaz: heç bir origin ona bərabər olmur və socket bağlantısı rədd olunur.
+const resolveSocketOrigins = () => {
+    const origins = (process.env.CLIENT_URL || '')
+        .split(',')
+        .map((url) => url.trim())
+        .filter(Boolean);
+    return origins.length > 0 ? origins : '*';
+};
+
 export const initSocket = (httpServer) => {
     io = new Server(httpServer, {
         cors: {
-            origin: process.env.CLIENT_URL || '*',
+            origin: resolveSocketOrigins(),
             methods: ['GET', 'POST', 'PATCH', 'DELETE'],
         },
     });

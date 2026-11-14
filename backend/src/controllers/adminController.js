@@ -50,6 +50,8 @@ export const listDisputes = asyncHandler(async (req, res) => {
                     },
                 },
                 openedBy: { select: { id: true, fullName: true, role: true } },
+                // Həll olunmuş mübahisələrdə "kim həll etdi" siyahıda göstərilir (frontend: dispute.admin?.fullName)
+                admin: { select: { id: true, fullName: true } },
                 attachments: { select: { id: true, filename: true, mimeType: true, size: true, purpose: true, uploadedById: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
             },
         }),
