@@ -1,0 +1,81 @@
+// AI assistant (floating panel for every user + discussion chat for admins inside a dispute).
+export default {
+    en: {
+        title: 'AI assistant',
+        open: 'Open AI assistant',
+        close: 'Close',
+        placeholder: 'Ask a question...',
+        send: 'Send',
+        thinking: 'Thinking...',
+        clear: 'Clear chat',
+        welcome:
+            'Hi! Ask me how the platform works, about your contracts, milestones, proposals or wallet, or anything else.',
+        disclaimer: 'Demo project. Do not enter sensitive data. AI can be wrong.',
+        remaining_one: '{{count}} message left today',
+        remaining_other: '{{count}} messages left today',
+        errors: {
+            busy: 'The AI assistant is busy right now. Please try again in a moment.',
+            dailyLimit: 'You have reached the daily AI message limit. Try again tomorrow.',
+            notConfigured: 'The AI assistant is not available right now.',
+            tooFast: 'You are sending messages too fast. Please wait a moment.',
+            generic: 'Something went wrong. Please try again.',
+        },
+        admin: {
+            title: 'Discuss with AI',
+            hint: 'The AI sees this dispute: reason, submissions, evidence file names and the conversation (roles instead of names, contact details hidden). It can weigh the options, but you make the decision.',
+            placeholder: 'Ask about this dispute...',
+        },
+    },
+    az: {
+        title: 'AI köməkçi',
+        open: 'AI köməkçini aç',
+        close: 'Bağla',
+        placeholder: 'Sual yazın...',
+        send: 'Göndər',
+        thinking: 'Düşünür...',
+        clear: 'Söhbəti təmizlə',
+        welcome:
+            'Salam! Platformanın necə işlədiyini, müqavilələrinizi, mərhələləri, təkliflərinizi, pul kisənizi və ya başqa istənilən mövzunu soruşa bilərsiniz.',
+        disclaimer: 'Demo layihədir. Həssas məlumat yazmayın. AI səhv edə bilər.',
+        remaining_one: 'Bu gün {{count}} mesaj qalıb',
+        remaining_other: 'Bu gün {{count}} mesaj qalıb',
+        errors: {
+            busy: 'AI köməkçi hazırda məşğuldur. Bir az sonra yenidən cəhd edin.',
+            dailyLimit: 'Gündəlik AI mesaj limitinə çatmısınız. Sabah yenidən cəhd edin.',
+            notConfigured: 'AI köməkçi hazırda əlçatan deyil.',
+            tooFast: 'Mesajları çox sürətli göndərirsiniz. Bir az gözləyin.',
+            generic: 'Xəta baş verdi. Yenidən cəhd edin.',
+        },
+        admin: {
+            title: 'AI ilə müzakirə et',
+            hint: 'AI bu mübahisəni görür: səbəb, təhvillər, sübut fayllarının adları və yazışma (adlar əvəzinə rollar göndərilir, əlaqə məlumatları gizlədilir). Variantları qiymətləndirə bilər, qərarı isə siz verirsiniz.',
+            placeholder: 'Bu mübahisə barədə soruşun...',
+        },
+    },
+    tr: {
+        title: 'Yapay zekâ asistanı',
+        open: 'Yapay zekâ asistanını aç',
+        close: 'Kapat',
+        placeholder: 'Bir soru yazın...',
+        send: 'Gönder',
+        thinking: 'Düşünüyor...',
+        clear: 'Sohbeti temizle',
+        welcome:
+            'Merhaba! Platformun nasıl çalıştığını, sözleşmelerinizi, aşamaları, tekliflerinizi, cüzdanınızı veya başka her şeyi sorabilirsiniz.',
+        disclaimer: 'Demo projedir. Hassas veri girmeyin. Yapay zekâ yanılabilir.',
+        remaining_one: 'Bugün {{count}} mesaj hakkınız kaldı',
+        remaining_other: 'Bugün {{count}} mesaj hakkınız kaldı',
+        errors: {
+            busy: 'Yapay zekâ asistanı şu anda meşgul. Lütfen biraz sonra tekrar deneyin.',
+            dailyLimit: 'Günlük yapay zekâ mesaj sınırına ulaştınız. Yarın tekrar deneyin.',
+            notConfigured: 'Yapay zekâ asistanı şu anda kullanılamıyor.',
+            tooFast: 'Mesajları çok hızlı gönderiyorsunuz. Lütfen biraz bekleyin.',
+            generic: 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
+        },
+        admin: {
+            title: 'Yapay zekâ ile değerlendir',
+            hint: 'Yapay zekâ bu ihtilafı görür: neden, teslimler, kanıt dosyalarının adları ve yazışma (isimler yerine roller gönderilir, iletişim bilgileri gizlenir). Seçenekleri değerlendirebilir, kararı siz verirsiniz.',
+            placeholder: 'Bu ihtilaf hakkında sorun...',
+        },
+    },
+};

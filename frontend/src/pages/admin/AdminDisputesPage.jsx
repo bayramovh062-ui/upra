@@ -17,6 +17,7 @@ import { cn } from '../../lib/cn';
 import { useTranslation } from '../../features/locale/useTranslation';
 import { useGetAdminDisputesQuery, useResolveAdminDisputeMutation } from '../../features/admin/adminApi';
 import { AttachmentList } from '../../features/attachments/AttachmentComponents';
+import AdminDisputeChat from '../../features/ai/AdminDisputeChat';
 
 const TABS = [
     { key: 'OPEN', labelKey: 'disputes.tabs.OPEN' },
@@ -82,6 +83,7 @@ const ResolutionModal = ({ dispute, onClose }) => {
             open
             onClose={onClose}
             title={t('disputes.modal.title')}
+            className="max-h-[90vh] max-w-lg overflow-y-auto"
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose} disabled={isLoading}>
@@ -99,6 +101,8 @@ const ResolutionModal = ({ dispute, onClose }) => {
                     amount: formatCents(gross),
                 })}
             </p>
+
+            <AdminDisputeChat disputeId={dispute.id} />
 
             <div className="flex flex-col gap-2">
                 {RESOLUTIONS.map((r) => (

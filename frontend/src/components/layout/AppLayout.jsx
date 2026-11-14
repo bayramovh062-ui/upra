@@ -4,6 +4,7 @@ import useNotificationSocket from '../../features/notifications/useNotificationS
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import EmailVerificationBanner from '../EmailVerificationBanner';
+import AssistantButton from '../../features/ai/AssistantButton';
 
 // Giriş etmiş istifadəçilər üçün qabıq: sabit üst panel + sidebar + səhifə məzmunu
 const AppLayout = () => {
@@ -22,6 +23,7 @@ const AppLayout = () => {
                     <Outlet />
                 </main>
             </div>
+            <AssistantButton />
         </div>
     );
 };

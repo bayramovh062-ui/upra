@@ -39,7 +39,8 @@ const ESCROW_HELD_STATUSES = ['FUNDED', 'IN_REVIEW', 'DISPUTED'];
 
 // Komissiya: 10%, tam sentə aşağı yuvarlaqlanır. Qalıq (yuvarlaqlama) frilanserdə qalır.
 // Platformanın ayrıca pul kisəsi yoxdur: komissiya frilanserin balansından çıxılır və platforma gəliri sayılır.
-export const calcCommission = (amountCents) => Math.floor(amountCents / 10);
+export const COMMISSION_PERCENT = 10;
+export const calcCommission = (amountCents) => Math.floor((amountCents * COMMISSION_PERCENT) / 100);
 
 const isValidCents = (value, max) => Number.isInteger(value) && value > 0 && value <= max;
 

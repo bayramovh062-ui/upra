@@ -1,4 +1,5 @@
 import apiErrors from './apiErrors.js';
+import ai from './ai.js';
 import auth from './auth.js';
 import chat from './chat.js';
 import common from './common.js';
@@ -50,6 +51,7 @@ const domains = {
     wallet,
     attachments,
     profile,
+    ai,
 };
 
 const build = (locale) =>

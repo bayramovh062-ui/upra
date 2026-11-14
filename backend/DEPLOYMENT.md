@@ -28,6 +28,11 @@ Set these on the Render web service:
 | `ENABLE_SCHEDULER` | no | Set `false` if the external Render Cron Job is the only scheduler. |
 | `DEMO_TOPUP_ENABLED` | no | Set `false` to disable demo wallet top-ups. |
 | `UPLOAD_LOCAL_DIR` | no | Only used in development/test. |
+| `GEMINI_API_KEY` | no | Google AI Studio key for the AI assistant. Without it the assistant button is hidden and `/api/ai` returns `AI_NOT_CONFIGURED`. See section 10. |
+| `AI_ENABLED` | no | Set `false` to switch the assistant off even when a key exists. |
+| `AI_MODEL` | no | Defaults to `gemini-3.5-flash-lite`. Use `gemini-3.8-flash` if function calling is not supported. |
+| `AI_DAILY_LIMIT` | no | User messages per UTC day (default `20`). |
+| `AI_ADMIN_DAILY_LIMIT` | no | Admin dispute-chat messages per UTC day (default `50`). |
 
 Server startup validates upload storage and email delivery. With `NODE_ENV=production` it
 exits if `UPLOAD_PROVIDER=local`, if Cloudinary credentials are incomplete, or if no email
@@ -109,6 +114,8 @@ service never applies them on startup. Before a release, review pending migratio
 `npx prisma migrate status`, apply them against the **direct** Neon URL, and only then
 deploy the new backend code.
 
+The AI assistant adds the `ai_usage` migration (the `AiUsageKind` enum and the `AiUsage` table).
+
 Phase B added a migration for email verification and password reset
 (`phaseb_email_verification_password_reset`); later migrations add attachment foreign keys.
 The taxonomy (categories and skills) ships inside a migration, so a fresh database has
@@ -159,7 +166,25 @@ contracts, wallets and one open dispute.
   point it at the production database: the demo accounts have a public, known password.
 - `npm run seed:reset -- --allow-remote` removes only the demo accounts and their data.
 
-## 10. Post-deploy smoke test
+## 10. AI assistant (Gemini free tier)
+
+- The key lives only in the backend environment; the frontend never talks to Gemini.
+- **Privacy:** on Gemini's free tier, submitted content may be used by Google to improve its
+  products and can be read by humans. The assistant reads only the signed-in user's own
+  contract, proposal and wallet data (no email, tokens or contact details; counterpart names
+  are replaced by roles), and the admin dispute chat redacts emails and phone numbers. This
+  reduces the risk but does not remove it. Use demo data only, and switch to a paid plan
+  before real users arrive.
+- Limits: a per-user daily quota (`AI_DAILY_LIMIT`, `AI_ADMIN_DAILY_LIMIT`) plus a per-minute
+  request limit. The per-minute limit is kept in process memory, so with more than one
+  instance a shared store (for example Redis) is required.
+- When Gemini's own free quota runs out, the API answers `503 AI_BUSY` and the user's daily
+  quota unit is refunded.
+- To change provider, implement a new adapter with the same
+  `generate({ system, messages, tools })` contract and return it from `getProvider()` in
+  `src/services/ai/provider.js`. No other file is provider-specific.
+
+## 11. Post-deploy smoke test
 
 1. `GET https://<api>/api/health` returns `{"status":"ok"}`.
 2. Open the frontend, register an account and receive the verification email.

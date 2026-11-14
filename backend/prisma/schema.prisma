@@ -207,6 +207,9 @@ model User {
   // Plan P3: file uploads
   uploadedAttachments Attachment[] @relation("UploadedAttachments")
   attachmentSubjects  Attachment[]
+
+  // AI köməkçisi: gündəlik kvota sayğacları
+  aiUsages AiUsage[]
 }
 
 model JobPost {
@@ -694,6 +697,23 @@ model Review {
 
   @@unique([contractId, reviewerId])
   @@index([revieweeId, createdAt])
+}
+
+// AI köməkçisi: istifadəçi və gün üzrə mesaj sayğacı (UTC günü). Söhbət məzmunu saxlanılmır.
+enum AiUsageKind {
+  ASSISTANT // ümumi köməkçi
+  DISPUTE // admin mübahisə söhbəti
+}
+
+model AiUsage {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  day   DateTime    @db.Date
+  kind  AiUsageKind
+  count Int         @default(0)
+
+  @@id([userId, day, kind])
 }
 
 // Phase B: birdəfəlik, vaxt məhdudiyyətli tokenlər

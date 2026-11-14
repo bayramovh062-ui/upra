@@ -22,6 +22,7 @@ import conversationRoutes from './routes/conversationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import attachmentRoutes from './routes/attachmentRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { AppError } from './utils/AppError.js';
 import { resolveTrustProxy } from './config/proxy.js';
 
@@ -68,6 +69,7 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/attachments', attachmentRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api', issueRoutes);
 app.use('/api', userRoutes);
 app.use('/api', taxonomyRoutes);

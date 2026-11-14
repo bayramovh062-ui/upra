@@ -294,3 +294,22 @@ export const messageLimiter = rateLimit({
         );
     },
 });
+
+// ================= AI KÖMƏKÇİSİ =================
+// Dəqiqədə sorğu limiti (gündəlik kvota ayrıca AiUsage cədvəlində). Açar: protect-dən sonra istifadəçi.
+export const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: pick(6, 30),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : ipKey(req)),
+    handler: (req, res, next, options) => {
+        const retryAfterMs = Math.max(0, (req.rateLimit?.resetTime?.getTime() ?? Date.now()) - Date.now());
+        res.status(options.statusCode).json(
+            tooMany(
+                `You are sending AI requests too fast. Please try again in ${minutesText(retryAfterMs)}.`,
+                Math.ceil(retryAfterMs / 1000)
+            )
+        );
+    },
+});
