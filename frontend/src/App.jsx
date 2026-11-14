@@ -43,6 +43,8 @@ function App() {
                 position="top-right"
                 reverseOrder={false}
                 toastOptions={{
+                    // Xəta mesajını mobildə oxumaq üçün uzun qalır
+                    error: { duration: 6000 },
                     style: {
                         background: 'var(--color-surface-container-high)',
                         color: 'var(--color-on-surface)',

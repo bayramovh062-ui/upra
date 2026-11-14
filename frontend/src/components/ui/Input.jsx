@@ -1,5 +1,6 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { cn } from '../../lib/cn';
+import { revealError } from '../../lib/revealError';
 import Icon from './Icon';
 import { fieldClass } from './fieldClass';
 
@@ -12,13 +13,21 @@ export const FieldLabel = ({ htmlFor, error, children }) => (
     </label>
 );
 
-export const FieldError = ({ children }) =>
-    children ? (
-        <p className="mt-1.5 flex items-center gap-1.5 text-label-sm text-error">
+// Xəta ekrana çıxanda (submit/Next-dən sonra) görünən yerdə deyilsə, səhifə ona sürüşür
+export const FieldError = ({ children }) => {
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (children) revealError(ref.current);
+    }, [children]);
+
+    return children ? (
+        <p ref={ref} role="alert" className="mt-1.5 flex scroll-mt-28 items-center gap-1.5 text-label-sm text-error">
             <Icon name="info" className="text-[16px]" />
             {children}
         </p>
     ) : null;
+};
 
 // React 19-da ref adi prop kimi gəlir, react-hook-form-un register() ilə birbaşa işləyir
 // icon: soldakı Material ikonu, endAdornment: sağdakı element (məs. parolu göstər düyməsi)

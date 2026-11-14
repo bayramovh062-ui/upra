@@ -169,6 +169,14 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
     const busy = submitting || pending !== null;
     const isLast = step === STEPS.length - 1;
 
+    // Addım dəyişəndə düymə aşağıda qalır, yeni addımın başlığı isə ekrandan yuxarıda: formun başına sürüşdürürük.
+    // (Xətaların olduğu addıma keçid burada deyil, onu FieldError özü xətaya sürüşdürür.)
+    const formRef = useRef(null);
+    const changeStep = (next) => {
+        setStep(next);
+        requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+    };
+
     const { data: categoryData, isLoading: categoriesLoading } = useGetCategoriesQuery();
     const categories = categoryData?.categories ?? [];
 
@@ -184,7 +192,7 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
 
     const goNext = async () => {
         validationMode.current = 'publish';
-        if (await trigger(STEPS[step].fields)) setStep((s) => s + 1);
+        if (await trigger(STEPS[step].fields)) changeStep(step + 1);
     };
 
     const run = async (intent) => {
@@ -225,6 +233,7 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
             <Card className="lg:col-span-7 xl:col-span-8">
                 <form
+                    ref={formRef}
                     noValidate
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -232,9 +241,9 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
                         if (isLast) run(primary.intent);
                         else goNext();
                     }}
-                    className="flex flex-col gap-6 p-5 sm:p-8"
+                    className="flex scroll-mt-24 flex-col gap-6 p-5 sm:p-8"
                 >
-                    <Stepper step={step} onGo={setStep} />
+                    <Stepper step={step} onGo={changeStep} />
 
                     <div>
                         <p className="text-label-sm font-semibold uppercase tracking-wider text-secondary">
@@ -366,7 +375,7 @@ const JobForm = ({ defaultValues = EMPTY, mode = 'create', onSubmit, submitting 
                                 </Button>
                             </Link>
                         ) : (
-                            <Button variant="ghost" disabled={busy} onClick={() => setStep((s) => s - 1)}>
+                            <Button variant="ghost" disabled={busy} onClick={() => changeStep(step - 1)}>
                                 <Icon name="arrow_back" className="text-[18px]" />
                                 {t('jobs.form.back')}
                             </Button>

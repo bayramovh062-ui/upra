@@ -28,7 +28,7 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
                 aria-modal="true"
                 aria-label={title}
                 className={cn(
-                    'relative w-full rounded-xl border border-line bg-surface-container-lowest shadow-xl',
+                    'relative flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-xl border border-line bg-surface-container-lowest shadow-xl',
                     // cn() Tailwind siniflərini birləşdirmir: ölçü className-də verilibsə default max-w-md qoyulmur
                     !className?.includes('max-w-') && 'max-w-md',
                     className
@@ -47,7 +47,7 @@ const Modal = ({ open, onClose, title, children, footer, className }) => {
                         </button>
                     </div>
                 )}
-                <div className="px-5 py-4">{children}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
                 {footer && (
                     <div className="flex justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>
                 )}
