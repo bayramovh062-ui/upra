@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Inter: Google Fonts CDN-dən asılı olmamaq üçün npm paketi ilə lokal bundle olunur (SRI/CSP tapıntısı) */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
 /* Tailwind v4-də `dark:` variantı sinifə bağlanır (prefers-color-scheme deyil). */
 @custom-variant dark (&:where(.dark, .dark *));
 
