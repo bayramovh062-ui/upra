@@ -20,6 +20,7 @@ React 19 + Vite single-page app for [Upra](../README.md): job marketplace, contr
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `VITE_API_URL` | `http://localhost:5000/api` | Backend API base URL. Must end in `/api`. The Socket.IO URL is derived from it. Read at build time. |
+| `VITE_GOOGLE_CLIENT_ID` | _(empty)_ | Google OAuth Web client ID (same as the backend `GOOGLE_CLIENT_ID`). Empty hides the "Continue with Google" button. Read at build time. |
 
 ## E2E tests
 

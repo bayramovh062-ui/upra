@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createLoginSchema } from '../validations/authSchema';
 import { useLoginMutation } from '../features/auth/authApi';
+import GoogleSignInButton from '../features/auth/GoogleSignInButton';
 import { useTranslation } from '../features/locale/useTranslation';
 import { Button, Icon, Input, PasswordInput } from '../components/ui';
 
@@ -90,6 +91,8 @@ const LoginPage = () => {
                         {!isLoading && <Icon name="login" />}
                     </Button>
                 </form>
+
+                <GoogleSignInButton />
             </div>
         </>
     );

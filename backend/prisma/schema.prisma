@@ -140,7 +140,8 @@ enum TransactionDirection {
 model User {
   id           String @id @default(uuid())
   email        String @unique
-  passwordHash String
+  passwordHash String // Google ilə qeydiyyatdan keçənlərdə "!" (heç bir parol bu hash ilə uyğun gəlmir)
+  googleId     String? @unique // Google hesabının sabit ID-si ("sub"); Google ilə giriş üçün
   fullName     String
   role         Role
 

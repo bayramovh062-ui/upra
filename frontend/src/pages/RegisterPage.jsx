@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createRegisterSchema } from '../validations/authSchema';
 import { useRegisterMutation } from '../features/auth/authApi';
+import GoogleSignInButton from '../features/auth/GoogleSignInButton';
 import { useTranslation } from '../features/locale/useTranslation';
 import { Button, Icon, Input, PasswordInput } from '../components/ui';
 import { FieldError } from '../components/ui/Input';
@@ -24,6 +25,7 @@ const RegisterPage = () => {
 
     const {
         register,
+        control,
         handleSubmit,
         formState: { errors },
     } = useForm({
@@ -36,6 +38,8 @@ const RegisterPage = () => {
             role: 'CLIENT', // Default olaraq 'CLIENT' seçilir
         },
     });
+
+    const selectedRole = useWatch({ control, name: 'role' });
 
     const onSubmit = async (formData) => {
         try {
@@ -151,6 +155,8 @@ const RegisterPage = () => {
                         {!isLoading && <Icon name="arrow_forward" className="text-[18px]" />}
                     </Button>
                 </form>
+
+                <GoogleSignInButton role={selectedRole} />
             </div>
         </>
     );

@@ -4,6 +4,14 @@ export default {
         email: 'Email',
         emailPlaceholder: 'name@example.com',
         password: 'Password',
+        google: {
+            or: 'or',
+            chooseRole: 'No Upra account uses this Google email yet. How will you use Upra?',
+            roleClient: 'Client — I want to hire',
+            roleFreelancer: 'Freelancer — I want to work',
+            cancel: 'Cancel',
+            errorFallback: 'Google sign-in failed. Please try again.',
+        },
         login: {
             noAccount: 'Don’t have an account?',
             signUp: 'Sign up',
@@ -80,6 +88,14 @@ export default {
         email: 'E-poçt',
         emailPlaceholder: 'name@example.com',
         password: 'Parol',
+        google: {
+            or: 'və ya',
+            chooseRole: 'Bu Google e-poçtu ilə Upra hesabı hələ yoxdur. Upra-dan necə istifadə edəcəksiniz?',
+            roleClient: 'Müştəri — işə götürmək istəyirəm',
+            roleFreelancer: 'Frilanser — işləmək istəyirəm',
+            cancel: 'Ləğv et',
+            errorFallback: 'Google ilə giriş alınmadı. Yenidən cəhd edin.',
+        },
         login: {
             noAccount: 'Hesabınız yoxdur?',
             signUp: 'Qeydiyyatdan keç',
@@ -156,6 +172,14 @@ export default {
         email: 'E-posta',
         emailPlaceholder: 'name@example.com',
         password: 'Şifre',
+        google: {
+            or: 'veya',
+            chooseRole: 'Bu Google e-postasıyla henüz bir Upra hesabı yok. Upra’yı nasıl kullanacaksınız?',
+            roleClient: 'Müşteri — işe almak istiyorum',
+            roleFreelancer: 'Serbest çalışan — çalışmak istiyorum',
+            cancel: 'İptal',
+            errorFallback: 'Google ile giriş başarısız. Lütfen tekrar deneyin.',
+        },
         login: {
             noAccount: 'Hesabınız yok mu?',
             signUp: 'Kayıt ol',

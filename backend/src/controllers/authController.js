@@ -8,6 +8,7 @@ import { resolveSkillIds } from '../utils/skills.js';
 import { logger } from '../utils/logger.js';
 import { issueAuthToken, consumeAuthToken, findUsedAuthTokenOwner } from '../services/authTokenService.js';
 import { sendEmail, buildVerificationEmail, buildPasswordResetEmail } from '../services/emailService.js';
+import { verifyGoogleIdToken } from '../services/googleAuthService.js';
 
 // Qeydiyyat/yenidən göndəriş üçün: token yaradır və təsdiq mailini göndərir. Xəta atarsa çağıran qərar verir.
 const sendVerificationEmailTo = async (user) => {
@@ -76,6 +77,89 @@ export const login = asyncHandler(async (req, res) => {
     }
 
     // P3: suspend yoxlaması yalnız parol düzgün olduqdan sonra (hesab mövcudluğunu sızdırmamaq üçün).
+    if (user.isSuspended) {
+        throw new AppError('Your account is suspended. Contact support for help.', 403);
+    }
+
+    const token = generateToken(user.id, user.role, user.tokenVersion);
+
+    res.status(200).json({
+        success: true,
+        user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            emailVerified: user.emailVerified,
+        },
+        token,
+    });
+});
+
+// @route   POST /api/auth/google
+// Body: { credential, role? }. Google ID token yoxlanılır:
+//  - googleId ilə tapılan hesab: giriş
+//  - eyni e-poçtlu mövcud hesab: Google hesabı ona bağlanır (Google e-poçtı təsdiqləyib)
+//  - yeni istifadəçi: rol göndərilməyibsə { needsRole: true } qaytarılır, rol ilə hesab yaradılır
+export const googleLogin = asyncHandler(async (req, res) => {
+    const { credential, role } = req.body;
+    const profile = await verifyGoogleIdToken(credential);
+
+    if (!profile.emailVerified) {
+        throw new AppError('Your Google email address is not verified.', 400);
+    }
+
+    let user = await prisma.user.findUnique({ where: { googleId: profile.sub } });
+
+    if (!user) {
+        const sameEmail = await prisma.user.findUnique({ where: { email: profile.email } });
+
+        if (sameEmail) {
+            // Təsdiqlənməmiş hesabı başqası bu e-poçtla parol qoyub əvvəlcədən yaratmış ola bilər:
+            // əlavə olaraq parol etibarsız edilir və köhnə sessiyalar ləğv olunur.
+            user = await prisma.user.update({
+                where: { id: sameEmail.id },
+                data: {
+                    googleId: profile.sub,
+                    ...(sameEmail.emailVerified
+                        ? {}
+                        : {
+                              emailVerified: true,
+                              emailVerifiedAt: new Date(),
+                              passwordHash: '!',
+                              tokenVersion: { increment: 1 },
+                          }),
+                },
+            });
+        }
+    }
+
+    if (!user) {
+        if (!role) {
+            return res.status(200).json({
+                success: true,
+                needsRole: true,
+                profile: { email: profile.email, fullName: profile.name },
+            });
+        }
+
+        user = await prisma.user.create({
+            data: {
+                email: profile.email,
+                // Heç bir parol bu hash ilə uyğun gəlmir: hesaba yalnız Google ilə (və ya parol bərpası ilə) girilir
+                passwordHash: '!',
+                googleId: profile.sub,
+                fullName: profile.name.length >= 2 ? profile.name : profile.email.split('@')[0],
+                role,
+                emailVerified: true,
+                emailVerifiedAt: new Date(),
+            },
+        });
+    }
+
+    if (user.deletedAt !== null) {
+        throw new AppError('Invalid Google sign-in. Please try again.', 401);
+    }
     if (user.isSuspended) {
         throw new AppError('Your account is suspended. Contact support for help.', 403);
     }

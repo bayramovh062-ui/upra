@@ -9,7 +9,7 @@
       (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (dark) document.documentElement.classList.add('dark');
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-  } catch (e) {
+  } catch {
     /* localStorage əlçatmazdırsa React mount zamanı temanı sinxronlaşdıracaq */
   }
 })();

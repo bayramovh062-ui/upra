@@ -44,6 +44,16 @@ export const loginSchema = z.object({
     password: z.string().min(1, 'Password is required'),
 });
 
+// Google ilə giriş: credential = Google Identity Services-in verdiyi ID token. Rol yalnız yeni hesab üçün lazımdır.
+export const googleLoginSchema = z.object({
+    credential: z
+        .string({ error: 'Google credential is required' })
+        .trim()
+        .min(20, 'Google credential is invalid')
+        .max(4096, 'Google credential is invalid'),
+    role: z.enum(['CLIENT', 'FREELANCER'], { error: 'Role must be either CLIENT or FREELANCER' }).optional(),
+});
+
 export const updateMeSchema = z
     .object({
         fullName: z

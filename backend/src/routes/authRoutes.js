@@ -2,6 +2,7 @@ import express from 'express';
 import {
     register,
     login,
+    googleLogin,
     getMe,
     updateMe,
     updatePassword,
@@ -23,6 +24,7 @@ import {
 import {
     registerSchema,
     loginSchema,
+    googleLoginSchema,
     updateMeSchema,
     updatePasswordSchema,
     deleteAccountSchema,
@@ -35,6 +37,8 @@ const router = express.Router();
 
 router.post('/register', registerLimiter, validate(registerSchema), register);
 router.post('/login', loginLimiter, validate(loginSchema), login);
+// Google ID token ilə giriş/qeydiyyat (eyni uğursuz cəhd limiti ilə qorunur)
+router.post('/google', loginLimiter, validate(googleLoginSchema), googleLogin);
 
 // Phase B: e-poçt təsdiqi və parol bərpası
 router.post('/verify-email/send', protect, verificationSendLimiter, sendVerificationEmail);
