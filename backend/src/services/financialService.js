@@ -355,6 +355,22 @@ export const submitMilestone = async (milestoneId, actorId) => {
     const milestone = await runTx(async (tx) => {
         const { milestone: current } = await lockAndLoad(tx, pre.contractId, milestoneId);
 
+        // Qapı: lövhədə hələ Done olmayan tapşırıq varsa təhvil verilmir (client də, frilanser də yaratmış ola bilər).
+        // Yalnız bu mərhələyə bağlı və heç bir mərhələyə bağlı olmayan (backlog) tapşırıqlar sayılır:
+        // başqa mərhələyə bağlı tapşırıq bu təhvili saxlamır. Status yoxlaması FUNDED-dən fərqlidirsə, aşağıdakı 409 işləyir.
+        if (current.status === 'FUNDED') {
+            const unfinished = await tx.issue.count({
+                where: {
+                    board: { contractId: pre.contractId },
+                    status: { not: 'DONE' },
+                    OR: [{ milestoneId: null }, { milestoneId }],
+                },
+            });
+            if (unfinished > 0) {
+                throw new AppError('Move every task on the board to Done before submitting for review.', 400);
+            }
+        }
+
         const updated = await tx.milestone.updateMany({
             where: { id: milestoneId, status: 'FUNDED' },
             data: { status: 'IN_REVIEW', submittedAt: new Date() },

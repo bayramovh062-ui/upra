@@ -18,7 +18,9 @@ import {
 } from '../components/ui';
 import KanbanBoard from '../features/issues/KanbanBoard';
 import EscrowPanel from '../features/escrow/EscrowPanel';
-import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from '../features/escrow/escrowUtils';
+import { calcCommissionCents, countBlockingIssues, hasReachedRevisionLimit, planTotals, summarizeMilestones } from '../features/escrow/escrowUtils';
+import FeeBreakdown from '../features/escrow/FeeBreakdown';
+import OfferMilestonePlan from '../features/escrow/OfferMilestonePlan';
 import {
     useApproveMilestoneMutation,
     useGetContractHistoryQuery,
@@ -176,6 +178,9 @@ const ContractDetailPage = () => {
     // Aktiv mərhələlər: frilanser FUNDED-i təhvil verir, client IN_REVIEW-u təsdiqləyir və ya geri qaytarır
     const fundedMilestone = milestones.find((m) => m.status === 'FUNDED');
     const reviewMilestone = milestones.find((m) => m.status === 'IN_REVIEW');
+    // Təhvil qapısı: lövhədə Done olmayan tapşırıq varsa təhvil verilmir (backend də 400 qaytarır)
+    const blockingIssues = fundedMilestone ? countBlockingIssues(issuesQ.data?.issues ?? [], fundedMilestone.id) : 0;
+    const planSummary = planTotals(milestones);
     const MS_ACTIONS = {
         submit: { run: submitMilestone, success: t('contracts.toasts.submitted') },
         approve: { run: approveMilestone, success: t('contracts.toasts.approved') },
@@ -403,7 +408,15 @@ const ContractDetailPage = () => {
 
                     {/* Qısayollar: aktiv mərhələyə bağlıdır, tam siyahı Escrow tabındadır */}
                     {isFreelancer && open && fundedMilestone && (
-                        <Button onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}>
+                        <Button
+                            onClick={() => setMsAction({ type: 'submit', milestone: fundedMilestone })}
+                            disabled={blockingIssues > 0}
+                            title={
+                                blockingIssues > 0
+                                    ? t('escrow.waiting.unfinishedTasks', { count: blockingIssues })
+                                    : undefined
+                            }
+                        >
                             <Icon name="outbox" className="text-[18px]" />
                             {t('contracts.actions.submitForReview')}
                         </Button>
@@ -483,6 +496,17 @@ const ContractDetailPage = () => {
                         </div>
                     )}
                 </div>
+            )}
+
+            {pendingOffer && (
+                <OfferMilestonePlan milestones={milestones} isFreelancer={isFreelancer} />
+            )}
+
+            {isFreelancer && open && blockingIssues > 0 && (
+                <p className="mb-6 flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-label-md text-warning-ink">
+                    <Icon name="checklist" className="text-[18px]" />
+                    {t('escrow.waiting.unfinishedTasks', { count: blockingIssues })}
+                </p>
             )}
 
             {openDisputes.length > 0 && (
@@ -572,6 +596,13 @@ const ContractDetailPage = () => {
                     <p className="mt-1 text-caption text-secondary">
                         {t('contracts.summary.jobBudget', { amount: formatMoney(contract.jobPost?.budget) })}
                     </p>
+                    {isFreelancer && milestones.length > 0 && (
+                        <FeeBreakdown
+                            className="mt-2"
+                            grossCents={planSummary.grossCents}
+                            netTotalCents={planSummary.netTotalCents}
+                        />
+                    )}
                 </Card>
                 <Card className="flex items-center gap-3 p-5">
                     <Avatar name={other?.fullName} size="lg" />

@@ -99,6 +99,8 @@ export default {
         'Rating must be a whole number': 'Qiymət tam ədəd olmalıdır',
         'Comment must be at most 1000 characters long': 'Şərh ən çox 1000 simvol ola bilər',
         'Amount must be a whole number of cents': 'Məbləğ tam sent sayı olmalıdır',
+        'Move every task on the board to Done before submitting for review.': 'Yoxlamaya göndərməzdən əvvəl lövhədəki bütün tapşırıqları Done sütununa keçirin.',
+        'Only the person who created this task can delete it': 'Tapşırığı yalnız onu yaradan tərəf silə bilər',
     },
     tr: {
         'You have pending offers or active contracts. Respond to the offers and complete or cancel the contracts before deleting your account.': 'Bekleyen teklifleriniz veya aktif sözleşmeleriniz var. Hesabınızı silmeden önce teklifleri yanıtlayın, sözleşmeleri ise tamamlayın veya iptal edin.',
@@ -197,5 +199,7 @@ export default {
         'Rating must be a whole number': 'Puan tam sayı olmalıdır',
         'Comment must be at most 1000 characters long': 'Yorum en fazla 1000 karakter olabilir',
         'Amount must be a whole number of cents': 'Tutar tam sayıda sent olmalıdır',
+        'Move every task on the board to Done before submitting for review.': 'İncelemeye göndermeden önce panodaki tüm görevleri Done sütununa taşıyın.',
+        'Only the person who created this task can delete it': 'Görevi yalnızca oluşturan kişi silebilir',
     },
 };

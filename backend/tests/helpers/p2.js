@@ -49,6 +49,7 @@ export const api = {
     get: (token, url) => request(app).get(url).set(auth(token)),
     post: (token, url, body) => request(app).post(url).set(auth(token)).send(body),
     patch: (token, url, body) => request(app).patch(url).set(auth(token)).send(body),
+    delete: (token, url) => request(app).delete(url).set(auth(token)),
 };
 
 // milestones: [{ title, amount (USD), maxRevisions? }]. Cəmi təklifin məbləği olur.

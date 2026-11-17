@@ -14,7 +14,9 @@ import {
     useSubmitMilestoneMutation,
 } from './escrowApi';
 import { MilestoneBadge } from './escrow';
-import { calcCommissionCents, hasReachedRevisionLimit, summarizeMilestones } from './escrowUtils';
+import { calcCommissionCents, countBlockingIssues, hasReachedRevisionLimit, summarizeMilestones } from './escrowUtils';
+import FeeBreakdown from './FeeBreakdown';
+import { useGetIssuesQuery } from '../issues/issuesApi';
 import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents';
 
 const AUTO_APPROVE_DAYS = 7; // backend: AUTO_APPROVE_DAYS
@@ -160,6 +162,9 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
     const available = walletQ.data?.wallet?.availableCents;
 
     const historyQ = useGetContractHistoryQuery(contract.id);
+    // Lövhə ilə eyni cache: Done olmayan tapşırıq varsa frilanser təhvil verə bilməz
+    const issuesQ = useGetIssuesQuery(contract.id, { skip: !isFreelancer });
+    const allIssues = issuesQ.data?.issues ?? [];
     const submissions = historyQ.data?.submissions ?? [];
     const disputes = historyQ.data?.disputes ?? [];
     const milestoneFiles = historyQ.data?.milestoneFiles ?? [];
@@ -312,6 +317,7 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                         const activeDispute = milestoneDisputes.find((d) => d.status === 'OPEN');
                         const latestResolved = [...milestoneDisputes].reverse().find((d) => d.status === 'RESOLVED');
                         const limitReached = hasReachedRevisionLimit(m);
+                        const blocking = isFreelancer ? countBlockingIssues(allIssues, m.id) : 0;
 
                         return (
                             <Card key={m.id} className="flex flex-col gap-3 p-4 sm:p-5">
@@ -329,10 +335,15 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                             {limitReached && t('escrow.milestone.limitReached')}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="tabular text-title-md font-semibold text-on-surface">
-                                            {formatCents(m.amountCents)}
-                                        </span>
+                                    <div className="flex items-start gap-3">
+                                        <div className="text-right">
+                                            <span className="tabular text-title-md font-semibold text-on-surface">
+                                                {formatCents(m.amountCents)}
+                                            </span>
+                                            {isFreelancer && m.status !== 'CANCELLED' && (
+                                                <FeeBreakdown compact grossCents={m.amountCents} />
+                                            )}
+                                        </div>
                                         <MilestoneBadge status={m.status} />
                                     </div>
                                 </div>
@@ -436,10 +447,22 @@ const EscrowPanel = ({ contract, isClient, isFreelancer }) => {
                                         {isFreelancer && (m.status === 'FUNDED' || m.status === 'IN_REVIEW') && (
                                             <div className="flex w-full flex-col gap-2">
                                                 {m.status === 'FUNDED' && (
-                                                    <Button size="sm" className="w-fit" onClick={() => setPending({ type: 'submit', milestone: m })}>
-                                                        <Icon name="outbox" className="text-[16px]" />
-                                                        {t('escrow.actions.submit')}
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            className="w-fit"
+                                                            disabled={blocking > 0}
+                                                            onClick={() => setPending({ type: 'submit', milestone: m })}
+                                                        >
+                                                            <Icon name="outbox" className="text-[16px]" />
+                                                            {t('escrow.actions.submit')}
+                                                        </Button>
+                                                        {blocking > 0 && (
+                                                            <p className="text-caption text-warning-ink">
+                                                                {t('escrow.waiting.unfinishedTasks', { count: blocking })}
+                                                            </p>
+                                                        )}
+                                                    </>
                                                 )}
                                                 <FilePicker
                                                     purpose="MILESTONE_SUBMIT"

@@ -2,6 +2,21 @@
 export default {
     en: {
         demoNotice: 'Demo: all money here is simulated (USD). No real payments are made.',
+        fee: {
+            youReceive: 'You receive {{net}}',
+            breakdown: '{{gross}} − {{fee}} platform fee ({{percent}}%)',
+            compact: '≈ {{net}} after the {{percent}}% platform fee',
+        },
+        plan: {
+            title: 'Milestone plan',
+            introFreelancer:
+                'The client split the payment into these milestones. Check the amounts and dates before you accept.',
+            introClient: 'This is the milestone plan you sent with the offer.',
+            total: 'Total',
+            net: 'You receive',
+            due: 'Due {{date}}',
+            noDue: 'No due date',
+        },
         summary: {
             locked: 'Locked in escrow',
             lockedHint: 'Funded, not paid yet',
@@ -53,6 +68,8 @@ export default {
             clientFund: 'Waiting for the client to fund this milestone.',
             freelancerSubmit: 'Funded. Waiting for the freelancer to submit.',
             clientReview: 'Waiting for the client to review.',
+            unfinishedTasks:
+                'Move every task on the board to Done before submitting ({{count}} still open).',
         },
         files: {
             delivery: 'Delivery files',
@@ -134,6 +151,21 @@ export default {
     },
     az: {
         demoNotice: 'Demo: buradakı bütün pul simulyasiya olunub (USD). Real ödəniş edilmir.',
+        fee: {
+            youReceive: 'Siz {{net}} alırsınız',
+            breakdown: '{{gross}} − {{fee}} platforma haqqı ({{percent}}%)',
+            compact: '{{percent}}% platforma haqqından sonra ≈ {{net}}',
+        },
+        plan: {
+            title: 'Mərhələ planı',
+            introFreelancer:
+                'Müştəri ödənişi bu mərhələlərə böldü. Qəbul etməzdən əvvəl məbləğlərə və tarixlərə baxın.',
+            introClient: 'Bu, təkliflə birlikdə göndərdiyiniz mərhələ planıdır.',
+            total: 'Cəmi',
+            net: 'Siz alırsınız',
+            due: 'Son tarix {{date}}',
+            noDue: 'Son tarix yoxdur',
+        },
         summary: {
             locked: 'Eskrouda kilidlənib',
             lockedHint: 'Maliyyələşdirilib, hələ ödənilməyib',
@@ -185,6 +217,8 @@ export default {
             clientFund: 'Müştərinin bu mərhələni maliyyələşdirməsi gözlənilir.',
             freelancerSubmit: 'Maliyyələşdirildi. Frilanserin təhvili gözlənilir.',
             clientReview: 'Müştərinin yoxlaması gözlənilir.',
+            unfinishedTasks:
+                'Təhvil verməzdən əvvəl lövhədəki bütün tapşırıqları Done sütununa keçirin ({{count}} açıq qalıb).',
         },
         files: {
             delivery: 'Təhvil faylları',
@@ -266,6 +300,21 @@ export default {
     },
     tr: {
         demoNotice: 'Demo: buradaki tüm para simüle edilmiştir (USD). Gerçek ödeme yapılmaz.',
+        fee: {
+            youReceive: '{{net}} alırsınız',
+            breakdown: '{{gross}} − {{fee}} platform ücreti (%{{percent}})',
+            compact: '%{{percent}} platform ücretinden sonra ≈ {{net}}',
+        },
+        plan: {
+            title: 'Aşama planı',
+            introFreelancer:
+                'Müşteri ödemeyi bu aşamalara böldü. Kabul etmeden önce tutarlara ve tarihlere bakın.',
+            introClient: 'Bu, teklifle birlikte gönderdiğiniz aşama planıdır.',
+            total: 'Toplam',
+            net: 'Alacağınız',
+            due: 'Son tarih {{date}}',
+            noDue: 'Son tarih yok',
+        },
         summary: {
             locked: 'Emanette kilitli',
             lockedHint: 'Fonlandı, henüz ödenmedi',
@@ -317,6 +366,8 @@ export default {
             clientFund: 'Müşterinin bu aşamayı fonlaması bekleniyor.',
             freelancerSubmit: 'Fonlandı. Serbest çalışanın teslimi bekleniyor.',
             clientReview: 'Müşterinin incelemesi bekleniyor.',
+            unfinishedTasks:
+                'Teslim etmeden önce panodaki tüm görevleri Done sütununa taşıyın ({{count}} görev açık).',
         },
         files: {
             delivery: 'Teslim dosyaları',

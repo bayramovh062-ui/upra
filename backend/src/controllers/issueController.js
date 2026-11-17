@@ -264,7 +264,7 @@ export const addIssueComment = asyncHandler(async (req, res) => {
 });
 
 // @route   DELETE /api/issues/:id
-// @access  Private (Contract Client & Freelancer)
+// @access  Private (yalnız tapşırığı yaradan tərəf; client və frilanser bir-birinin tapşırığını silməz)
 export const deleteIssue = asyncHandler(async (req, res) => {
     const issue = await prisma.issue.findUnique({
         where: { id: req.params.id },
@@ -276,6 +276,10 @@ export const deleteIssue = asyncHandler(async (req, res) => {
     }
 
     const contract = await verifyContractAccess(issue.board.contract.id, req.user.id);
+
+    if (issue.createdById !== req.user.id) {
+        throw new AppError('Only the person who created this task can delete it', 403);
+    }
 
     assertContractActive(contract);
 

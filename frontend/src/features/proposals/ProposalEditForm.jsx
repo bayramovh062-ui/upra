@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { Button, Input, Textarea } from '../../components/ui';
 import { getErrorMessage } from '../../lib/format';
 import { createProposalSchema } from '../../validations/proposalSchema';
 import { useTranslation } from '../locale/useTranslation';
+import FeeBreakdown from '../escrow/FeeBreakdown';
+import { toCents } from '../escrow/escrowUtils';
 import { useUpdateProposalMutation } from './proposalsApi';
 
 // PENDING təklifi redaktə etmək üçün (elan detalındakı kartda açılır)
@@ -16,11 +18,14 @@ const ProposalEditForm = ({ proposal, jobPostId, onDone }) => {
     const {
         register,
         handleSubmit,
+        control,
         formState: { errors },
     } = useForm({
         resolver: zodResolver(schema),
         defaultValues: { bidAmount: Number(proposal.bidAmount), coverLetter: proposal.coverLetter },
     });
+
+    const bidAmount = useWatch({ control, name: 'bidAmount' });
 
     const onSubmit = async (values) => {
         try {
@@ -44,6 +49,7 @@ const ProposalEditForm = ({ proposal, jobPostId, onDone }) => {
                 error={errors.bidAmount?.message}
                 {...register('bidAmount', { valueAsNumber: true })}
             />
+            <FeeBreakdown className="-mt-2" grossCents={toCents(bidAmount)} />
             <Textarea
                 rows={6}
                 maxLength={2000}

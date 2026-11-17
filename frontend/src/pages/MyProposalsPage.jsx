@@ -15,6 +15,8 @@ import {
 import { useDeleteProposalMutation, useGetMyProposalsQuery } from '../features/proposals/proposalsApi';
 import { useAcceptContractMutation, useDeclineContractMutation } from '../features/contracts/contractsApi';
 import { isPendingOffer } from '../features/contracts/contractOffer';
+import FeeBreakdown from '../features/escrow/FeeBreakdown';
+import { toCents } from '../features/escrow/escrowUtils';
 import { useTranslation } from '../features/locale/useTranslation';
 import { formatDate, formatMoney, getErrorMessage } from '../lib/format';
 
@@ -107,6 +109,7 @@ const MyProposalsPage = () => {
                                 <p className="tabular text-title-md font-semibold text-on-surface">
                                     {formatMoney(p.bidAmount)}
                                 </p>
+                                <FeeBreakdown compact grossCents={toCents(p.bidAmount)} />
                             </div>
                             <StatusBadge status={displayStatus} />
                             <div className="flex flex-wrap gap-2">
@@ -125,6 +128,12 @@ const MyProposalsPage = () => {
                                 )}
                                 {offerPending && p.contract?.id && (
                                     <>
+                                        <Link to={`/contracts/${p.contract.id}`}>
+                                            <Button variant="secondary" size="sm">
+                                                <Icon name="flag" className="text-[16px]" />
+                                                {t('contracts.card.reviewOffer')}
+                                            </Button>
+                                        </Link>
                                         <Button variant="ghost" size="sm" onClick={() => setOfferAction({ type: 'decline', proposal: p })}>
                                             {t('proposals.mine.decline')}
                                         </Button>

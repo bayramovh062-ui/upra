@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Avatar, Button, Card, EmptyState, ErrorState, Icon, PageHeader, Skeleton, StatusBadge } from '../components/ui';
 import { useGetMyContractsQuery } from '../features/contracts/contractsApi';
-import { summarizeMilestones } from '../features/escrow/escrowUtils';
+import FeeBreakdown from '../features/escrow/FeeBreakdown';
+import { planTotals, summarizeMilestones } from '../features/escrow/escrowUtils';
 import { useTranslation } from '../features/locale/useTranslation';
 import { cn } from '../lib/cn';
 import { formatCents, formatDate, formatMoney } from '../lib/format';
@@ -96,6 +97,7 @@ const ContractsPage = () => {
                         const other = isClient ? c.freelancer : c.client;
                         const ms = summarizeMilestones(c.milestones ?? [], !isClient);
                         const hasMilestones = (c.milestones ?? []).length > 0;
+                        const plan = planTotals(c.milestones ?? []);
                         return (
                             <Card key={c.id} className="flex flex-col gap-4 p-5 sm:p-6">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -115,6 +117,13 @@ const ContractsPage = () => {
                                         <p className="tabular text-headline-sm font-bold text-on-surface">
                                             {formatMoney(c.proposal?.bidAmount)}
                                         </p>
+                                        {!isClient && hasMilestones && (
+                                            <FeeBreakdown
+                                                compact
+                                                grossCents={plan.grossCents}
+                                                netTotalCents={plan.netTotalCents}
+                                            />
+                                        )}
                                     </div>
                                 </div>
 

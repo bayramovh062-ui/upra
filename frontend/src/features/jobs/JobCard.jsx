@@ -7,6 +7,8 @@ import { formatDate, getErrorMessage } from '../../lib/format';
 import { useTranslation } from '../locale/useTranslation';
 import { experienceLabel, paymentLabel } from '../../lib/labels';
 import { useSaveJobMutation, useUnsaveJobMutation } from './jobsApi';
+import FeeBreakdown from '../escrow/FeeBreakdown';
+import { toCents } from '../escrow/escrowUtils';
 
 const BookmarkButton = ({ job }) => {
     const { t } = useTranslation();
@@ -90,6 +92,7 @@ const JobCard = ({ job, mySkillSlugs }) => {
                 <div className="shrink-0 sm:text-right">
                     <p className="tabular text-headline-md text-on-surface">{formatCurrency(job.budget)}</p>
                     <p className="text-caption text-secondary">{t('jobs.card.fixedBudget')}</p>
+                    {isFreelancer && <FeeBreakdown compact grossCents={toCents(job.budget)} />}
                 </div>
             </div>
 

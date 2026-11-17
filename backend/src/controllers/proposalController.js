@@ -62,8 +62,18 @@ export const getMyProposals = asyncHandler(async (req, res) => {
             jobPost: {
                 select: { id: true, title: true, status: true, budget: true },
             },
-            // Müqavilənin real statusu (PENDING_ACCEPTANCE / ACTIVE / COMPLETED ...): siyahıda düzgün status və düymə üçün
-            contract: { select: { id: true, status: true } },
+            // Müqavilənin real statusu (PENDING_ACCEPTANCE / ACTIVE / COMPLETED ...): siyahıda düzgün status və düymə üçün.
+            // Mərhələ planlı da gəlir: frilanser təklifi qəbul etməzdən əvvəl ödənişin necə bölündüyünü görsün.
+            contract: {
+                select: {
+                    id: true,
+                    status: true,
+                    milestones: {
+                        select: { id: true, sequence: true, title: true, amountCents: true, dueDate: true },
+                        orderBy: { sequence: 'asc' },
+                    },
+                },
+            },
         },
         orderBy: { createdAt: 'desc' },
     });

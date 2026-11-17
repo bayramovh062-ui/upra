@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
     Avatar,
@@ -23,6 +24,9 @@ import { AttachmentList, FilePicker } from '../attachments/AttachmentComponents'
 
 const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
     const { t } = useTranslation();
+    const currentUserId = useSelector((state) => state.auth.user?.id);
+    // Backend qaydası ilə eyni: tapşırığı yalnız onu yaradan tərəf silə bilər
+    const canDelete = !readOnly && (issue.createdById ?? issue.createdBy?.id) === currentUserId;
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [commentFiles, setCommentFiles] = useState([]);
     const [deleteIssue, { isLoading: deleting }] = useDeleteIssueMutation();
@@ -205,7 +209,7 @@ const IssueDetails = ({ issue, contract, readOnly, onDeleted }) => {
                 )}
             </div>
 
-            {!readOnly && (
+            {canDelete && (
                 <div className="border-t border-line pt-4">
                     <Button
                         variant="ghost"

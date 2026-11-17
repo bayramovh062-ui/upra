@@ -174,14 +174,19 @@ describe('Contracts and issues: permissions, response shape, delete, cancel', ()
             await prisma.contract.update({ where: { id: contract.id }, data: { status: 'ACTIVE' } });
         });
 
-        it('lets a participant delete the issue together with its comments', async () => {
-            const res = await request(app).delete(`/api/issues/${issueId}`).set(auth(freelancer.token));
+        it('lets only the creator delete the issue together with its comments', async () => {
+            // Issue-nu client yaradıb: frilanser (digər tərəf) silə bilmir
+            const notCreator = await request(app).delete(`/api/issues/${issueId}`).set(auth(freelancer.token));
+            expect(notCreator.status).toBe(403);
+            expect(await prisma.issue.count({ where: { id: issueId } })).toBe(1);
+
+            const res = await request(app).delete(`/api/issues/${issueId}`).set(auth(client.token));
             expect(res.status).toBe(200);
 
             expect(await prisma.issue.count({ where: { id: issueId } })).toBe(0);
             expect(await prisma.issueComment.count({ where: { issueId } })).toBe(0);
 
-            const again = await request(app).delete(`/api/issues/${issueId}`).set(auth(freelancer.token));
+            const again = await request(app).delete(`/api/issues/${issueId}`).set(auth(client.token));
             expect(again.status).toBe(404);
         });
     });

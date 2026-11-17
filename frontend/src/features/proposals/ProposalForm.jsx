@@ -6,6 +6,8 @@ import { Button, Icon, Input, Textarea } from '../../components/ui';
 import { formatMoney, getErrorMessage } from '../../lib/format';
 import { createProposalSchema } from '../../validations/proposalSchema';
 import { useTranslation } from '../locale/useTranslation';
+import FeeBreakdown from '../escrow/FeeBreakdown';
+import { toCents } from '../escrow/escrowUtils';
 import { useCreateProposalMutation } from './proposalsApi';
 
 // Elan detalındakı "Submit a proposal" kartı (Stitch dizaynı).
@@ -26,6 +28,8 @@ const ProposalForm = ({ job }) => {
     });
 
     const coverLetter = useWatch({ control, name: 'coverLetter' }) ?? '';
+    const bidAmount = useWatch({ control, name: 'bidAmount' });
+    const bidCents = toCents(bidAmount);
 
     const onSubmit = async (values) => {
         try {
@@ -57,6 +61,7 @@ const ProposalForm = ({ job }) => {
                 error={errors.bidAmount?.message}
                 {...register('bidAmount', { valueAsNumber: true })}
             />
+            <FeeBreakdown className="-mt-2" grossCents={bidCents} />
 
             <div>
                 <div className="mb-1.5 flex items-center justify-between">
