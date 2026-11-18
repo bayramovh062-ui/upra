@@ -114,9 +114,15 @@ export const updateMeSchema = z
         message: 'Please provide at least one field to update',
     });
 
-export const deleteAccountSchema = z.object({
-    password: z.string({ error: 'Password is required' }).min(1, 'Password is required'),
-});
+// Parolu olan hesab parolla, Google ilə yaradılıb parolu olmayan hesab isə e-poçtını yazmaqla təsdiqləyir
+export const deleteAccountSchema = z
+    .object({
+        password: z.string().min(1, 'Password is required').optional(),
+        confirmEmail: z.string().trim().toLowerCase().min(1, 'Email is required').optional(),
+    })
+    .refine((data) => data.password || data.confirmEmail, {
+        message: 'Password is required',
+    });
 
 export const updatePasswordSchema = z.object({
     currentPassword: z.string().min(1, 'Current password is required'),

@@ -10,6 +10,12 @@ import { issueAuthToken, consumeAuthToken, findUsedAuthTokenOwner } from '../ser
 import { sendEmail, buildVerificationEmail, buildPasswordResetEmail } from '../services/emailService.js';
 import { verifyGoogleIdToken } from '../services/googleAuthService.js';
 
+// '!' hash-i: Google ilə yaradılmış, hələ parol qoyulmamış hesab. Frontend buna görə parol soruşmur (hesab silmə, parol dəyişmə).
+const withHasPassword = async (userId, profile) => {
+    const row = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    return { ...profile, hasPassword: row?.passwordHash !== '!' };
+};
+
 // Qeydiyyat/yenidən göndəriş üçün: token yaradır və təsdiq mailini göndərir. Xəta atarsa çağıran qərar verir.
 const sendVerificationEmailTo = async (user) => {
     const token = await issueAuthToken(user.id, 'EMAIL_VERIFY');
@@ -174,6 +180,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
             fullName: user.fullName,
             role: user.role,
             emailVerified: user.emailVerified,
+            hasPassword: user.passwordHash !== '!',
         },
         token,
     });
@@ -189,7 +196,7 @@ export const getMe = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        user: withFlatSkills(user),
+        user: await withHasPassword(req.user.id, withFlatSkills(user)),
     });
 });
 
@@ -235,7 +242,7 @@ export const updateMe = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        user: withFlatSkills(updatedUser),
+        user: await withHasPassword(req.user.id, withFlatSkills(updatedUser)),
     });
 });
 

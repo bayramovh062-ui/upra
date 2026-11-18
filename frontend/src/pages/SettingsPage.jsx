@@ -359,7 +359,7 @@ const SkillsForm = ({ user }) => {
     );
 };
 
-const PasswordForm = () => {
+const PasswordForm = ({ hasPassword = true }) => {
     const { t } = useTranslation();
     const [updatePassword, { isLoading }] = useUpdatePasswordMutation();
     const resolver = useMemo(() => zodResolver(createPasswordSchema(t)), [t]);
@@ -382,6 +382,17 @@ const PasswordForm = () => {
             toast.error(getErrorMessage(err, t('settings.password.error')));
         }
     };
+
+    if (!hasPassword) {
+        return (
+            <Card>
+                <CardHeader title={t('settings.password.title')} />
+                <CardBody>
+                    <p className="text-body-md text-secondary">{t('settings.password.googleOnly')}</p>
+                </CardBody>
+            </Card>
+        );
+    }
 
     return (
         <Card>
@@ -417,22 +428,26 @@ const PasswordForm = () => {
     );
 };
 
-// Hesabı silmə: parol təsdiqi ilə. Aktiv müqavilə varsa backend 400 qaytarır və mesajı toast-da göstərilir.
-const DangerZone = () => {
+// Hesabı silmə: parol təsdiqi ilə (Google ilə açılmış parolsuz hesabda e-poçtı yazmaqla). Aktiv müqavilə varsa backend 400 qaytarır və mesajı toast-da göstərilir.
+const DangerZone = ({ user }) => {
     const { t } = useTranslation();
     const [deleteAccount, { isLoading }] = useDeleteAccountMutation();
     const logout = useLogout();
     const [open, setOpen] = useState(false);
     const [password, setPassword] = useState('');
+    const [confirmEmail, setConfirmEmail] = useState('');
+    const hasPassword = user.hasPassword !== false;
+    const confirmValue = hasPassword ? password : confirmEmail;
 
     const close = () => {
         setOpen(false);
         setPassword('');
+        setConfirmEmail('');
     };
 
     const onConfirm = async () => {
         try {
-            await deleteAccount({ password }).unwrap();
+            await deleteAccount(hasPassword ? { password } : { confirmEmail }).unwrap();
             toast.success(t('settings.danger.deleted'));
             logout();
         } catch (err) {
@@ -463,18 +478,29 @@ const DangerZone = () => {
                         <Button variant="secondary" onClick={close} disabled={isLoading}>
                             {t('common.actions.cancel')}
                         </Button>
-                        <Button variant="danger" onClick={onConfirm} loading={isLoading} disabled={!password}>
+                        <Button variant="danger" onClick={onConfirm} loading={isLoading} disabled={!confirmValue}>
                             {t('settings.danger.deleteAccount')}
                         </Button>
                     </>
                 }
             >
-                <PasswordInput
-                    label={t('settings.danger.confirmWithPassword')}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                {hasPassword ? (
+                    <PasswordInput
+                        label={t('settings.danger.confirmWithPassword')}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                ) : (
+                    <Input
+                        type="email"
+                        label={t('settings.danger.confirmWithEmail')}
+                        hint={user.email}
+                        autoComplete="off"
+                        value={confirmEmail}
+                        onChange={(e) => setConfirmEmail(e.target.value)}
+                    />
+                )}
             </Modal>
         </>
     );
@@ -511,8 +537,8 @@ const SettingsPage = () => {
                     <SkillsForm key={(user.skills ?? []).map((s) => (typeof s === 'string' ? s : s.name)).join('|')} user={user} />
                 )}
                 <VisibilityForm user={user} />
-                <PasswordForm />
-                <DangerZone />
+                <PasswordForm hasPassword={user.hasPassword !== false} />
+                <DangerZone user={user} />
             </div>
         </>
     );

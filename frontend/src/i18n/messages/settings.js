@@ -72,6 +72,8 @@ export default {
             update: 'Update password',
             saved: 'Password updated',
             error: 'Could not update the password',
+            googleOnly:
+                'You signed in with Google, so this account has no password yet. To set one, use "Forgot password" on the sign-in page.',
         },
         danger: {
             title: 'Danger zone',
@@ -80,6 +82,7 @@ export default {
             deleteAccount: 'Delete account',
             modalTitle: 'Delete your account?',
             confirmWithPassword: 'Confirm with your password',
+            confirmWithEmail: 'Type your account email address to confirm',
             deleted: 'Your account has been deleted',
             error: 'Could not delete the account',
         },
@@ -156,6 +159,8 @@ export default {
             update: 'Parolu yenilə',
             saved: 'Parol yeniləndi',
             error: 'Parolu yeniləmək mümkün olmadı',
+            googleOnly:
+                'Google ilə daxil olmusunuz, ona görə bu hesabın hələ parolu yoxdur. Parol təyin etmək üçün giriş səhifəsindəki «Parolu unutmusunuz» seçiminə baxın.',
         },
         danger: {
             title: 'Təhlükəli zona',
@@ -164,6 +169,7 @@ export default {
             deleteAccount: 'Hesabı sil',
             modalTitle: 'Hesabınızı silmək istəyirsiniz?',
             confirmWithPassword: 'Parolunuzla təsdiqləyin',
+            confirmWithEmail: 'Təsdiqləmək üçün hesabınızın e-poçt ünvanını yazın',
             deleted: 'Hesabınız silindi',
             error: 'Hesabı silmək mümkün olmadı',
         },
@@ -240,6 +246,8 @@ export default {
             update: 'Parolayı güncelle',
             saved: 'Parola güncellendi',
             error: 'Parola güncellenemedi',
+            googleOnly:
+                'Google ile giriş yaptınız, bu nedenle bu hesabın henüz bir parolası yok. Parola belirlemek için giriş sayfasındaki "Parolayı unuttum" seçeneğini kullanın.',
         },
         danger: {
             title: 'Tehlikeli bölge',
@@ -248,6 +256,7 @@ export default {
             deleteAccount: 'Hesabı sil',
             modalTitle: 'Hesabınızı silmek istiyor musunuz?',
             confirmWithPassword: 'Parolanızla doğrulayın',
+            confirmWithEmail: 'Doğrulamak için hesabınızın e-posta adresini yazın',
             deleted: 'Hesabınız silindi',
             error: 'Hesap silinemedi',
         },

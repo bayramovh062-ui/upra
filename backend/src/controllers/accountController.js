@@ -10,13 +10,22 @@ import { getReputation } from '../services/reviewService.js';
 // Soft delete: sətir bazadan silinmir (müqavilə tarixçəsi qalır), amma şəxsi məlumat təmizlənir
 // və e-poçt boşaldılır ki, eyni ünvanla yenidən qeydiyyatdan keçmək olsun.
 export const deleteAccount = asyncHandler(async (req, res) => {
-    const { password } = req.body;
+    const { password, confirmEmail } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-        throw new AppError('Password is incorrect.', 400); // 400, 401 yox: frontend 401-də sessiyadan çıxarır
+    // '!' = heç bir parolla uyğun gəlməyən hash: hesab Google ilə yaradılıb və parol qoyulmayıb
+    const hasPassword = user.passwordHash !== '!';
+    if (hasPassword) {
+        if (!password) {
+            throw new AppError('Password is required.', 400);
+        }
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+            throw new AppError('Password is incorrect.', 400); // 400, 401 yox: frontend 401-də sessiyadan çıxarır
+        }
+    } else if (!confirmEmail || confirmEmail !== user.email.toLowerCase()) {
+        throw new AppError('Type your account email address to confirm deletion.', 400);
     }
 
     const activeContracts = await prisma.contract.count({
@@ -69,6 +78,8 @@ export const deleteAccount = asyncHandler(async (req, res) => {
                 timezone: null,
                 avatarUrl: null,
                 passwordHash: '!',
+                googleId: null,
+                tokenVersion: { increment: 1 },
             },
         }),
     ]);

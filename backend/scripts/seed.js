@@ -416,7 +416,7 @@ const main = async () => {
             { title: 'Provision the ECS service', status: 'DONE', priority: 'HIGH', milestone: 2 },
             { title: 'Configure health checks and autoscaling', status: 'DONE', milestone: 2 },
             { title: 'Create CloudWatch alarms', status: 'TODO', milestone: 3 },
-            { title: 'Write the on-call runbook', status: 'TODO', priority: 'LOW' },
+            { title: 'Write the on-call runbook', status: 'TODO', priority: 'LOW', milestone: 3 },
         ],
     });
     await payMilestone(orxan.id, rauf.id, b.milestones[0]);
@@ -444,8 +444,8 @@ const main = async () => {
         issues: [
             { title: 'Buttons and inputs', status: 'DONE', milestone: 1 },
             { title: 'Typography and colour tokens', status: 'DONE', milestone: 1 },
-            { title: 'Card variants', status: 'IN_PROGRESS', priority: 'HIGH', milestone: 2 },
-            { title: 'Fix the spacing scale', status: 'TODO', milestone: 2 },
+            { title: 'Card variants', status: 'DONE', priority: 'HIGH', milestone: 2 },
+            { title: 'Fix the spacing scale', status: 'DONE', milestone: 2 },
         ],
     });
     await payMilestone(leyla.id, nigar.id, c.milestones[0]);
