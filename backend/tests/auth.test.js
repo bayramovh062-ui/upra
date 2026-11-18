@@ -58,7 +58,22 @@ describe('Authentication API & Validation Suite', () => {
 
             expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.message).toMatch(/Password must be at least 6 characters long/i);
+            expect(response.body.message).toMatch(/Password must be at least 8 characters long/i);
+        });
+
+        it.each([
+            ['no number', 'Password!!'],
+            ['no symbol', 'Password123'],
+            ['no letter', '12345678!!'],
+            ['only 7 characters', 'Pass12!'],
+        ])('should reject a weak password (%s)', async (_label, password) => {
+            const response = await request(app)
+                .post('/api/auth/register')
+                .send({ email: 'weak@upra.com', password, fullName: 'Test User' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toMatch(/letter, one number and one symbol/i);
         });
 
         it('should successfully register a valid user', async () => {

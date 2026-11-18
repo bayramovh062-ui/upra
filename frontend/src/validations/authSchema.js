@@ -3,6 +3,16 @@ import { z } from 'zod';
 // Bütün sxemlər `t` (tərcümə funksiyası) qəbul edən fabriklərdir ki, xəta mətnləri
 // aktiv dilə uyğun olsun. Formalar `useTranslation()` ilə `t`-ni ötürür.
 
+// Yeni parol qaydası (backend-dəki passwordRule ilə eyni): ≥8 simvol, hərf + rəqəm + simvol
+export const createStrongPassword = (t) =>
+    z
+        .string()
+        .min(8, t('validation.passwordStrong'))
+        .max(128, t('validation.passwordStrong'))
+        .refine((v) => /\p{L}/u.test(v), t('validation.passwordStrong'))
+        .refine((v) => /\d/.test(v), t('validation.passwordStrong'))
+        .refine((v) => /[^\p{L}\d\s]/u.test(v), t('validation.passwordStrong'));
+
 // Login üçün daxil edilən məlumatların yoxlanması sxemi
 export const createLoginSchema = (t) =>
     z.object({
@@ -23,7 +33,7 @@ export const createForgotPasswordSchema = (t) =>
 export const createResetPasswordSchema = (t) =>
     z
         .object({
-            newPassword: z.string().min(6, t('validation.passwordMin6')),
+            newPassword: createStrongPassword(t),
             confirmPassword: z.string().min(1, t('validation.confirmPasswordRequired')),
         })
         .refine((data) => data.newPassword === data.confirmPassword, {
@@ -42,7 +52,7 @@ export const createRegisterSchema = (t) =>
                 .trim()
                 .min(1, t('validation.emailRequired'))
                 .email(t('validation.invalidEmail')),
-            password: z.string().min(6, t('validation.passwordMin6')),
+            password: createStrongPassword(t),
             confirmPassword: z.string().min(1, t('validation.confirmPasswordRequired')),
             role: z.enum(['CLIENT', 'FREELANCER'], {
                 error: t('validation.accountTypeRequired'),

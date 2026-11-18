@@ -24,13 +24,27 @@ export const isValidTimezone = (value) => {
 
 const hasAtMostTwoDecimals = (value) => Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
 
+// Yeni parol qaydası: ən azı 8 simvol, ən azı bir hərf, bir rəqəm və bir simvol.
+// Yalnız qeydiyyat, parol dəyişmə və bərpada tətbiq olunur; login-də yoxlanmır ki, köhnə sadə parollar işləməyə davam etsin.
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_RULE_MESSAGE =
+    'Password must be at least 8 characters long and include at least one letter, one number and one symbol';
+export const passwordRule = (requiredMessage = 'Password is required') =>
+    z
+        .string({ error: requiredMessage })
+        .min(PASSWORD_MIN_LENGTH, PASSWORD_RULE_MESSAGE)
+        .max(128, 'Password must be at most 128 characters long')
+        .refine((v) => /\p{L}/u.test(v), PASSWORD_RULE_MESSAGE)
+        .refine((v) => /\d/.test(v), PASSWORD_RULE_MESSAGE)
+        .refine((v) => /[^\p{L}\d\s]/u.test(v), PASSWORD_RULE_MESSAGE);
+
 export const registerSchema = z.object({
     email: z
         .string({ error: 'Email is required' })
         .trim()
         .toLowerCase()
         .email('Invalid email address format'),
-    password: z.string().min(6, 'Password must be at least 6 characters long'),
+    password: passwordRule('Password is required'),
     fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long'),
     role: z.enum(['CLIENT', 'FREELANCER'], { error: 'Role must be either CLIENT or FREELANCER' }).optional(),
 });
@@ -106,7 +120,7 @@ export const deleteAccountSchema = z.object({
 
 export const updatePasswordSchema = z.object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z.string().min(6, 'New password must be at least 6 characters long'),
+    newPassword: passwordRule('New password is required'),
 });
 
 // Phase B: e-poçt təsdiqi və parol bərpası
@@ -124,5 +138,5 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
     token: tokenField,
-    newPassword: z.string({ error: 'New password is required' }).min(6, 'New password must be at least 6 characters long'),
+    newPassword: passwordRule('New password is required'),
 });

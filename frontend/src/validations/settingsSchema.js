@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidTimezone } from '../lib/labels';
+import { createStrongPassword } from './authSchema';
 
 // Qaydalar backend-dəki updateMeSchema ilə eynidir (backend/src/validators/authValidator.js).
 // Hər fabrik `t` qəbul edir ki, xəta mətnləri aktiv dilə uyğun olsun.
@@ -56,7 +57,7 @@ export const createPasswordSchema = (t) =>
     z
         .object({
             currentPassword: z.string().min(1, t('validation.currentPasswordRequired')),
-            newPassword: z.string().min(6, t('validation.newPasswordMin6')),
+            newPassword: createStrongPassword(t),
             confirmPassword: z.string().min(1, t('validation.confirmPasswordRequired')),
         })
         .refine((v) => v.newPassword === v.confirmPassword, {
